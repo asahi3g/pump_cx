@@ -1,0 +1,157 @@
+//-----------------------------------------------------------------------------
+// pump-cx
+//-----------------------------------------------------------------------------
+package main
+
+//-----------------------------------------------------------------------------
+// cx bugs
+//-----------------------------------------------------------------------------
+// multiline array init
+// []f32.len()
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+/*
+var xPos f64
+var yPos f64
+
+// Random Number between -0.6 to 0.6
+func randNumGenerator() (rNum f32){
+    var sign i32
+    sign = i32.rand(0,2) // Random Number between 0, 1
+
+    if sign == 1 {
+        rNum = f32.div(i32.rand(1, 6), 10)
+    } else {
+        rNum = f32.div(i32.rand(1, 6), 10)
+        rNum = f32.mul(rNum, -1.0)
+    }
+
+}
+*/
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func keyPressed(window str, key i32, scancode i32, action i32, mods i32) () {
+    str.print("keyPressed : ")
+    i32.print(key)
+    str.print(", ")
+    i32.print(scancode)
+    str.print(", ")
+    i32.print(action)
+    str.print("\n")
+    if key == 32 && action == 1 || key == 265 && action == 1 {
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func main() {
+    var appName str
+    var winName str
+
+    appName = "pump-cx"
+    winName = appName
+
+    str.print(appName)
+
+    // glfw init
+    glfw.Init()
+    glfw.WindowHint(glfw.Resizable, glfw.False)
+    glfw.CreateWindow(winName, 800, 600, appName)
+    glfw.MakeContextCurrent(winName)
+    glfw.SetKeyCallback(winName, "keyPressed")
+    // xPos, yPos := glfw.GetCursorPos("window")
+    // glfw.SetMouseButtonCallback("window", "mouseButton") --> Doesn't work yet
+
+    // gl init
+    gl.Init()
+    gl.Enable(gl.BLEND)
+    gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+
+    // vertex shader
+    var vertexShader i32 = gl.CreateShader(gl.VERTEX_SHADER)
+    printf("vertex shader %d\n", vertexShader)
+    gl.Strs(
+"
+#version 120
+void main()
+{
+    gl_Position = vec4(gl_Vertex.rgb, 1);
+}
+", "csources")
+    gl.ShaderSource(vertexShader, 1, "csources")
+    gl.Free("csources")
+    gl.CompileShader(vertexShader)
+
+    // pixel shader
+    var pixelShader i32 = gl.CreateShader(gl.FRAGMENT_SHADER)
+    printf("pixel shader %d\n", pixelShader)
+    gl.Strs(
+"
+#version 120
+void main()
+{
+    gl_FragColor = vec4(1, 0, 1, 1);
+}
+", "csources")
+    gl.ShaderSource(pixelShader, 1, "csources")
+    gl.Free("csources")
+    gl.CompileShader(pixelShader)
+
+    // program
+    var program i32 = gl.CreateProgram()
+    printf("program %d\n", program)
+    gl.AttachShader(program, vertexShader)
+    gl.AttachShader(program, pixelShader)
+    gl.LinkProgram(program)
+    gl.LinkProgram(program)
+
+
+
+    // vbo
+    var vertices []f32 = []f32{0.0, 0.5, 0.0, -0.5, -0.5, 0.0, 0.5, -0.5, 0.0}
+    var vertexCount i32 = 3
+    var vertexSize i32 = 3
+    var vertexDataSize i32 = 4 * vertexCount * vertexSize
+    printf("vertexDataSize : %d\n", vertexDataSize)
+
+    //i32.print(vertexDataSize)
+    // var vertexDataSize i32 = 4 * []f32.len(vertices) // not working
+
+    var triangleCount i32 = vertexCount / 3
+    printf("triangleCount : %d\n", triangleCount)
+
+    var vbo i32 = 0
+    vbo = gl.GenBuffers(1, vbo)
+    printf("vbo %d\n", vbo);
+
+    gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+    gl.BufferData(gl.ARRAY_BUFFER, vertexDataSize, vertices, gl.DYNAMIC_DRAW)
+
+    // vao
+    var vao i32 = 0
+    vao = gl.GenVertexArrays(1, vao)
+    printf("vao %d\n", vao)
+    gl.BindVertexArray(vao)
+    gl.EnableVertexAttribArray(0)
+    gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+    gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 0)
+
+    gl.ClearColor(1.0, 0.0, 1.0, 1.0)
+
+     // main loop
+     for bool.not(glfw.ShouldClose(winName)) {
+        glfw.MakeContextCurrent(winName)
+        gl.Clear(gl.COLOR_BUFFER_BIT)
+        gl.UseProgram(program)
+
+        gl.BindVertexArray(vao)
+        gl.DrawArrays(gl.TRIANGLES, 0, triangleCount)
+
+        glfw.PollEvents()
+        glfw.SwapBuffers(winName)
+    }
+
+    str.print("dump-cx")
+}
