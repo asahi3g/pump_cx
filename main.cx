@@ -2,19 +2,25 @@
 // pump-cx
 //-----------------------------------------------------------------------------
 package main
+import "glfw"
+import "gl"
 
 //-----------------------------------------------------------------------------
 // cx bugs
 //-----------------------------------------------------------------------------
 // multiline array init
 // []f32.len()
+// else { // comment } unexpected RBRACE
+// gl.OUT_OF_MEMOR
+// for true { return false }
+// if glerror == 0 { break } unexpected RBRACE
+// assert doesn't stop program execution
+    
+//var vertices [9]f32// = [9]f32{0.0, 0.5, 0.0, -0.5, -0.5, 0.0, 0.5, -0.5, 0.0}
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 /*
-var xPos f64
-var yPos f64
-
 // Random Number between -0.6 to 0.6
 func randNumGenerator() (rNum f32){
     var sign i32
@@ -32,126 +38,357 @@ func randNumGenerator() (rNum f32){
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+func ASSERT(value bool, message str) {
+    if value == false {
+       printf(message)
+        var ass i32 = 1 / 0
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func keyPressed(window str, key i32, scancode i32, action i32, mods i32) () {
-    str.print("keyPressed : ")
-    i32.print(key)
-    str.print(", ")
-    i32.print(scancode)
-    str.print(", ")
-    i32.print(action)
-    str.print("\n")
-    if key == 32 && action == 1 || key == 265 && action == 1 {
+    printf("key pressed : %d, scancode %d, action %d, mods %d\n", key, scancode, action, mods)
+    //if key == 32 && action == 1 || key == 265 && action == 1 {
+    //}
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var g_vaos []i32
+var g_vaoCount i32 = 0
+
+var g_vbos []i32
+var g_vboCount i32 = 0
+
+//var g_shaders[]i32
+//var g_shaderCount i32 = 0
+
+var g_programs []i32
+var g_programCount i32 = 0
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func glerror(kill bool) (error bool) {
+    var err bool = false
+    //for true  { //  glError stack must be popped (purged) until no error.
+        var glerr i32 = gl.GetError();
+        if  glerr == 0 {
+            return err
+        } else if glerr == gl.INVALID_ENUM {
+            err = true
+            if kill == true {
+                ASSERT(false, "GL_INVALID_ENUM\n")
+            }
+        } else if glerr == gl.INVALID_VALUE {
+            err = true
+            if kill == true {
+                ASSERT(false, "GL_INVALID_VALUE\n")
+            }
+        } else if glerr == gl.INVALID_OPERATION {
+            err = true
+            if kill == true {
+                ASSERT(false, "GL_INVALID_OPERATION\n")
+            }
+        } else if glerr == gl.STACK_OVERFLOW {
+            err = true
+            if kill == true {
+                ASSERT(false, "GL_STACK_OVERFLOW\n")
+            }
+        } else if glerr == gl.STACK_UNDERFLOW {
+            err = true
+            if kill == true {
+                ASSERT(false, "GL_STACK_UNDERFLOW\n")
+            }
+        } else if glerr == gl.OUT_OF_MEMORY {
+            err = true
+            if kill == true {
+                ASSERT(false, "GL_OUT_OF_MEMORY\n")
+            }
+        } else if err != 0 {
+            ASSERT(false, "invalid glError\n")
+        }
+    //}
+    return err
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func panic_if_glerror() {
+    glerror(true)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func alloc_gl_strings() () {
+
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func init_glfw(window str, name str, width i32, height i32)() {
+
+    printf("starting %s...\n", name)
+
+    glfw.Init()
+    glfw.WindowHint(glfw.Resizable, glfw.False)
+    glfw.WindowHint(glfw.ContextVersionMajor, 2)
+    glfw.WindowHint(glfw.ContextVersionMinor, 1)
+    glfw.CreateWindow(window, 800, 600, name)
+    glfw.MakeContextCurrent(window)
+    glfw.SetKeyCallback(window, "keyPressed")
+    // xPos, yPos := glfw.GetCursorPos("window")
+    // glfw.SetMouseButtonCallback("window", "mouseButton") --> Doesn't work yet
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func bind_attribute(program i32, location i32, name str) () {
+
+    gl.BindAttribLocation(program, location, name)
+    panic_if_glerror()
+
+    var newLocation i32 = gl.GetAttribLocation(program, name)
+    panic_if_glerror()
+    ASSERT(newLocation == location, "attribute not found\n")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_program(vertex str, pixel str)(program i32) {
+
+    // vertex shader
+    var vertexShader i32 = gl.CreateShader(gl.VERTEX_SHADER)
+    panic_if_glerror()
+    //shaders = append(shaders, vertexShader) // cache shader creationg
+    //++shaderCount
+
+    gl.ShaderSource(vertexShader, 1, vertex)
+    panic_if_glerror()
+
+    gl.CompileShader(vertexShader)
+    panic_if_glerror()
+
+    // pixel shader
+    var pixelShader i32 = gl.CreateShader(gl.FRAGMENT_SHADER)
+    panic_if_glerror()
+    //shaders = append(shaders, pixelShader) // cache shader creation
+    //++shaderCount
+
+    gl.ShaderSource(pixelShader, 1, pixel)
+    panic_if_glerror()
+
+    gl.CompileShader(pixelShader)
+    panic_if_glerror()
+
+    // program
+    program = gl.CreateProgram()
+    panic_if_glerror()
+    g_programs = append(g_programs, program)
+    g_programCount = g_programCount + 1 // pre increment not working
+
+    gl.AttachShader(program, vertexShader)
+    panic_if_glerror()
+
+    gl.AttachShader(program, pixelShader)
+    panic_if_glerror()
+
+    gl.LinkProgram(program)
+    panic_if_glerror()
+
+    gl.DetachShader(program, vertexShader)
+    panic_if_glerror()
+
+    gl.DetachShader(program, pixelShader)
+    panic_if_glerror()
+
+    gl.DeleteShader(vertexShader)
+    panic_if_glerror()
+
+    gl.DeleteShader(pixelShader)
+    panic_if_glerror()
+
+    return program
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func init_gl(width i32, height i32, color [4]f32)() {
+
+    gl.Strs("i_v3Position", "i_v3Position")
+    gl.Strs("i_v3Color", "i_v3Color")
+
+    //-----------------------------------------------------------------------------
+    // vsPassThrough
+    //-----------------------------------------------------------------------------
+    gl.Strs(
+    `
+    #version 130
+    in vec3 i_v3Position;
+    in vec3 i_v3Color;
+    out vec3 v_v3Color;
+    void main()
+    {
+        gl_Position = vec4(i_v3Position.rg, 0.0, 1);
+        v_v3Color = i_v3Color;
+    }`, "vsPassThrough")
+
+    //-----------------------------------------------------------------------------
+    // psVertexColor
+    //-----------------------------------------------------------------------------
+    gl.Strs(
+    `
+    #version 130
+    in vec3 v_v3Color;
+    out vec4 o_v4Color;
+    void main()
+    {
+        o_v4Color = vec4(v_v3Color, 1);
+    }
+    `, "psVertexColor")
+
+    //-----------------------------------------------------------------------------
+    //-----------------------------------------------------------------------------
+    gl.Init()
+    panic_if_glerror()
+
+    gl.Disable(gl.BLEND)
+    //gl.Enable(gl.BLEND)
+    panic_if_glerror()
+
+    //gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+    //panic_if_glerror()
+
+    gl.Disable(gl.CULL_FACE)
+    panic_if_glerror()
+
+    gl.Disable(gl.DEPTH_TEST)
+    panic_if_glerror()
+
+    printf("clear color : %f, %f, %f, %f\n", color[0], color[1], color[2], color[3])
+    gl.ClearColor(color[0], color[1], color[2], color[3])
+    panic_if_glerror()
+
+    gl.Viewport(0, 0, width, height)
+    panic_if_glerror()
+
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func free_gl()() {
+
+    gl.Free("vsPassThrough")
+    gl.Free("psVertexColor")
+    gl.Free("i_v3Position")
+    gl.Free("i_v3Color")
+
+    var i i32
+
+    for i = 0; i < g_programCount; i = i + 1 {
+        gl.DeleteProgram(g_programs[i])
     }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func main() {
-    var appName str
-    var winName str
+    var width i32 = 800
+    var height i32 = 600
 
-    appName = "pump-cx"
-    winName = appName
+    var window str // inline str init doesn't work
+    window = "window"
 
-    str.print(appName)
+    var color [4]f32 // inlin array init doesn't work
+    color = [4]f32 { 1.0, 0.0, 1.0, 1.0 }
 
-    // glfw init
-    glfw.Init()
-    glfw.WindowHint(glfw.Resizable, glfw.False)
-    glfw.CreateWindow(winName, 800, 600, appName)
-    glfw.MakeContextCurrent(winName)
-    glfw.SetKeyCallback(winName, "keyPressed")
-    // xPos, yPos := glfw.GetCursorPos("window")
-    // glfw.SetMouseButtonCallback("window", "mouseButton") --> Doesn't work yet
-
-    // gl init
-    gl.Init()
-    gl.Enable(gl.BLEND)
-    gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-
-    // vertex shader
-    var vertexShader i32 = gl.CreateShader(gl.VERTEX_SHADER)
-    printf("vertex shader %d\n", vertexShader)
-    gl.Strs(
-"
-#version 120
-void main()
-{
-    gl_Position = vec4(gl_Vertex.rgb, 1);
-}
-", "csources")
-    gl.ShaderSource(vertexShader, 1, "csources")
-    gl.Free("csources")
-    gl.CompileShader(vertexShader)
-
-    // pixel shader
-    var pixelShader i32 = gl.CreateShader(gl.FRAGMENT_SHADER)
-    printf("pixel shader %d\n", pixelShader)
-    gl.Strs(
-"
-#version 120
-void main()
-{
-    gl_FragColor = vec4(1, 0, 1, 1);
-}
-", "csources")
-    gl.ShaderSource(pixelShader, 1, "csources")
-    gl.Free("csources")
-    gl.CompileShader(pixelShader)
+    init_glfw(window, "pump_cx", width, height)
+    init_gl(width, height, color)
 
     // program
-    var program i32 = gl.CreateProgram()
-    printf("program %d\n", program)
-    gl.AttachShader(program, vertexShader)
-    gl.AttachShader(program, pixelShader)
-    gl.LinkProgram(program)
-    gl.LinkProgram(program)
-
-
+    var program i32 = create_program("vsPassThrough", "psVertexColor")
+    bind_attribute(program, 0, "i_v3Position")
+    bind_attribute(program, 1, "i_v3Color")
 
     // vbo
-    var vertices []f32 = []f32{0.0, 0.5, 0.0, -0.5, -0.5, 0.0, 0.5, -0.5, 0.0}
-    var vertexCount i32 = 3
-    var vertexSize i32 = 3
+    var vertices [36]f32
+    vertices = [36]f32 {
+        -0.5, -0.5, 0.0,
+         1.0,  0.0, 0.0,
+
+         0.5, -0.5, 0.0,
+         0.0,  1.0, 0.0,
+
+        -0.5,  0.5, 0.0,
+         0.0,  0.0, 1.0,
+
+        -0.5,  0.5, 0.0,
+         0.0,  0.0, 1.0,
+
+         0.5, -0.5, 0.0,
+         0.0,  1.0, 0.0,
+
+         0.5,  0.5, 0.0,
+         1.0,  0.0, 0.0 }
+
+    var vertexCount i32 = 6
+    var vertexSize i32 = 6
     var vertexDataSize i32 = 4 * vertexCount * vertexSize
-    printf("vertexDataSize : %d\n", vertexDataSize)
-
-    //i32.print(vertexDataSize)
-    // var vertexDataSize i32 = 4 * []f32.len(vertices) // not working
-
-    var triangleCount i32 = vertexCount / 3
-    printf("triangleCount : %d\n", triangleCount)
 
     var vbo i32 = 0
     vbo = gl.GenBuffers(1, vbo)
-    printf("vbo %d\n", vbo);
+    panic_if_glerror()
 
     gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
+    panic_if_glerror()
+
     gl.BufferData(gl.ARRAY_BUFFER, vertexDataSize, vertices, gl.DYNAMIC_DRAW)
+    panic_if_glerror()
 
     // vao
     var vao i32 = 0
     vao = gl.GenVertexArrays(1, vao)
-    printf("vao %d\n", vao)
+    panic_if_glerror()
+
     gl.BindVertexArray(vao)
+    panic_if_glerror()
+
     gl.EnableVertexAttribArray(0)
+    panic_if_glerror()
+
+    gl.EnableVertexAttribArray(1)
+    panic_if_glerror()
+
     gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-    gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 0)
+    panic_if_glerror()
 
-    gl.ClearColor(1.0, 0.0, 1.0, 1.0)
+    gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 6 * 4, 0)
+    panic_if_glerror()
 
-     // main loop
-     for bool.not(glfw.ShouldClose(winName)) {
-        glfw.MakeContextCurrent(winName)
-        gl.Clear(gl.COLOR_BUFFER_BIT)
+    gl.VertexAttribPointer(1, 3, gl.FLOAT, false, 6 * 4, 3 * 4)
+    panic_if_glerror()
+
+    // main loop
+    for bool.not(glfw.ShouldClose(window)) {
+
+        glfw.MakeContextCurrent(window)
+        gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+        panic_if_glerror()
+
         gl.UseProgram(program)
+        panic_if_glerror()
 
         gl.BindVertexArray(vao)
-        gl.DrawArrays(gl.TRIANGLES, 0, triangleCount)
+        panic_if_glerror()
+
+        gl.DrawArrays(gl.TRIANGLES, 0, vertexCount)
+        panic_if_glerror()
 
         glfw.PollEvents()
-        glfw.SwapBuffers(winName)
+        glfw.SwapBuffers(window)
     }
 
-    str.print("dump-cx")
+    free_gl()
+
+    printf("dump_cx\n")
 }
