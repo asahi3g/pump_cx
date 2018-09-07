@@ -8,15 +8,14 @@ import "time"
 //-----------------------------------------------------------------------------
 // cx bugs
 //-----------------------------------------------------------------------------
+// pointers
+// assert doesn't stop program execution
 // multiline array init
-// []f32.len()
-// else { // comment } unexpected RBRACE
-// gl.OUT_OF_MEMOR
+// inline array init
+// inline string init
+// if b {} else {} unexpected ELSE
 // for true { return false }
 // if glerror == 0 { break } unexpected RBRACE
-// assert doesn't stop program execution
-    
-//var vertices [9]f32// = [9]f32{0.0, 0.5, 0.0, -0.5, -0.5, 0.0, 0.5, -0.5, 0.0}
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -40,59 +39,60 @@ func randNumGenerator() (rNum f32){
 // utils
 //-----------------------------------------------------------------------------
 type fps_s struct {
-	currentTime f64
-	previousTime f64
-	deltaTime f64
-	fpsTime f64
-	frameTime f64
-	fps f64
+    currentTime f64
+    previousTime f64
+    deltaTime f64
+    fpsTime f64
+    frameTime f64
+    fps f64
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func fps_init(targetFps f64)(out fps_s) {
-	out.currentTime = glfw.GetTime()
-	out.previousTime = out.currentTime
-	out.deltaTime = 0.0D
-	out.fpsTime = 0.0D
-	out.frameTime = 0.0D
-	if targetFps > 0.0D {
+    out.currentTime = glfw.GetTime()
+    out.previousTime = out.currentTime
+    out.deltaTime = 0.0D
+    out.fpsTime = 0.0D
+    out.frameTime = 0.0D
+    if targetFps > 0.0D {
+			printf("TARGET_FPS\n")
 		out.frameTime = 1.0D / targetFps
-	}
-	out.fps = 0.0D
+    }
+    out.fps = 0.0D
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func fps_begin_update(in fps_s) (out fps_s) {
 
-	out = in
-	out.currentTime = glfw.GetTime()
-	out.deltaTime = out.currentTime - out.previousTime
+    out = in
+    out.currentTime = glfw.GetTime()
+    out.deltaTime = out.currentTime - out.previousTime
 
-	if out.currentTime - out.fpsTime > 1.0D {
-		out.fpsTime = out.currentTime
-		printf("fps : %d\n", f64.i32(out.fps))
-		out.fps = 0.0D
-	} else {
-		out.fps = out.fps + 1.0D;
-	}
+    if out.currentTime - out.fpsTime > 1.0D {
+        out.fpsTime = out.currentTime
+        printf("fps : %d\n", f64.i32(out.fps))
+        out.fps = 0.0D
+    } else {
+        out.fps = out.fps + 1.0D;
+    }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func fps_end_update(in fps_s) (out fps_s) {
-	out = in
+    out = in
 
-	if out.frameTime > 0.0 {
-		var updateTime f64 = glfw.GetTime()
-		var	deltaUpdateTime f64 = updateTime - out.currentTime;
-		if (deltaUpdateTime < out.frameTime) {
-			time.Sleep(f64.i32(1000.0D * (out.frameTime - deltaUpdateTime)))
+    if out.frameTime > 0.0 {
+        var updateTime f64 = glfw.GetTime()
+        var    deltaUpdateTime f64 = updateTime - out.currentTime;
+        if (deltaUpdateTime < out.frameTime) {
+            time.Sleep(f64.i32(1000.0D * (out.frameTime - deltaUpdateTime)))
 		}
-	}
+    }
 
-	out.previousTime = out.currentTime
+    out.previousTime = out.currentTime
 }
 
 //-----------------------------------------------------------------------------
@@ -116,12 +116,12 @@ func init_glfw(window str, name str, width i32, height i32, targetFps f64)() {
     glfw.WindowHint(glfw.ContextVersionMinor, 1)
     glfw.CreateWindow(window, 800, 600, name)
     glfw.MakeContextCurrent(window)
-	var swapInterval i32 = 0
-	if targetFps > 0.0D {
-		swapInterval = 1 // should be based on targetFps
-	}
+    var swapInterval i32 = 0
+    if targetFps > 0.0D {
+        swapInterval = 1 // should be based on targetFps
+    }
     glfw.SwapInterval(swapInterval)
-	glfw.SetKeyCallback(window, "keyPressed")
+    glfw.SetKeyCallback(window, "keyPressed")
     // xPos, yPos := glfw.GetCursorPos("window")
     // glfw.SetMouseButtonCallback("window", "mouseButton") --> Doesn't work yet
 }
@@ -143,48 +143,63 @@ var g_programCount i32 = 0
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func glerror_2() (error bool) {
-	error = false
-	var glerr i32 = -1
-	for glerr != 0  {
-		glerr = gl.GetError()
+func glerror() (error bool) {
+    error = false
+    var glerr i32 = -1
+    for glerr != 0  {
+        glerr = gl.GetError()
         if  glerr != 0 {
-			error = true
-			if glerr == gl.INVALID_ENUM {
+            error = true
+            if glerr == gl.INVALID_ENUM {
                 printf("GL_INVALID_ENUM\n")
-			} else if glerr == gl.INVALID_VALUE {
+            } else if glerr == gl.INVALID_VALUE {
                 printf("GL_INVALID_VALUE\n")
-			} else if glerr == gl.INVALID_OPERATION {
+            } else if glerr == gl.INVALID_OPERATION {
                 printf("GL_INVALID_OPERATION\n")
-			} else if glerr == gl.STACK_OVERFLOW {
+            } else if glerr == gl.STACK_OVERFLOW {
                 printf("GL_STACK_OVERFLOW\n")
-			} else if glerr == gl.STACK_UNDERFLOW {
+            } else if glerr == gl.STACK_UNDERFLOW {
                 printf("GL_STACK_UNDERFLOW\n")
-			} else if glerr == gl.OUT_OF_MEMORY {
+            } else if glerr == gl.OUT_OF_MEMORY {
                 printf("GL_OUT_OF_MEMORY\n")
-			} else if glerr != 0 {
-				printf("invalid glError\n")
-			}
-		}
-	}
+            } else if glerr != 0 {
+                printf("invalid glError\n")
+            }
+        }
+    }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func no_glerror() (noerror bool) {
-	var error bool = glerror_2()
-	noerror = error == false // panic if noerror = (glerror_2() == false)
+    var error bool = glerror()
+    noerror = error == false // panic if noerror = (glerror() == false)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func init_gl(width i32, height i32, color [4]f32)() {
+func gl_disable(flag i32) () {
+    gl.Disable(flag)
+    assert_(no_glerror(), "gl.Disable")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func gl_enable(flag i32) () {
+    gl.Enable(flag)
+    assert_(no_glerror(), "gl.Enable")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func gl_init(width i32, height i32, color [4]f32)() {
 
     gl.Strs("i_v3Position", "i_v3Position")
     gl.Strs("i_v3Color", "i_v3Color")
-	gl.Strs("i_v2Texcoord", "i_v2Texcoord")
+    gl.Strs("i_v2Texcoord", "i_v2Texcoord")
+    gl.Strs("u_t2Albedo", "u_t2Albedo")
 
-	//-----------------------------------------------------------------------------
+    //-----------------------------------------------------------------------------
     // vsPassThrough
     //-----------------------------------------------------------------------------
     gl.Strs(
@@ -192,14 +207,14 @@ func init_gl(width i32, height i32, color [4]f32)() {
     #version 130
     in vec3 i_v3Position;
     in vec3 i_v3Color;
-	in vec2 i_v2Texcoord;
+    in vec2 i_v2Texcoord;
     out vec3 v_v3Color;
-	out vec2 v_v2Texcoord;
+    out vec2 v_v2Texcoord;
     void main()
     {
         gl_Position = vec4(i_v3Position.rg, 0.0, 1);
         v_v3Color = i_v3Color;
-		v_v2Texcoord = i_v2Texcoord;
+        v_v2Texcoord = i_v2Texcoord;
     }`, "vsPassThrough")
 
     //-----------------------------------------------------------------------------
@@ -222,41 +237,34 @@ func init_gl(width i32, height i32, color [4]f32)() {
     gl.Strs(
     `
     #version 130
-	//uniform sampler2D u_t2Sampler;
+    uniform sampler2D u_t2Albedo;
     in vec2 v_v2Texcoord;
     out vec4 o_v4Color;
     void main()
     {
-        //o_v4Color = vec4(texture2D(u_t2Sampler, v_v2Texcoord).rgb, 1);
-		o_v4Color = vec4(v_v2Texcoord.rrr, 1);
+        o_v4Color = vec4(texture2D(u_t2Albedo, v_v2Texcoord).rgb, 1);
     }
     `, "psTexture")
 
-	//-----------------------------------------------------------------------------
+    //-----------------------------------------------------------------------------
     //-----------------------------------------------------------------------------
     gl.Init()
+    assert_(no_glerror(), "gl.Init")
+
+    gl_disable(gl.BLEND)
+
+    gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
     assert_(no_glerror(), "")
 
-    gl.Disable(gl.BLEND)
-    //gl.Enable(gl.BLEND)
-    assert_(no_glerror(), "")
-
-    //gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-	//assert_(no_glerror(), "")
-
-    gl.Disable(gl.CULL_FACE)
-    assert_(no_glerror(), "")
-
-    gl.Disable(gl.DEPTH_TEST)
-    assert_(no_glerror(), "")
+    gl_disable(gl.CULL_FACE)
+    gl_disable(gl.DEPTH_TEST)
 
     printf("clear color : %f, %f, %f, %f\n", color[0], color[1], color[2], color[3])
     gl.ClearColor(color[0], color[1], color[2], color[3])
-    assert_(no_glerror(), "")
+    assert_(no_glerror(), "gl.ClearColor")
 
     gl.Viewport(0, 0, width, height)
-    assert_(no_glerror(), "")
-
+    assert_(no_glerror(), "gl.Viewport")
 }
 
 //-----------------------------------------------------------------------------
@@ -265,39 +273,28 @@ func free_gl()() {
 
     gl.Free("vsPassThrough")
     gl.Free("psVertexColor")
-	gl.Free("psTexture")
-	gl.Free("i_v3Position")
+    gl.Free("psTexture")
+    gl.Free("i_v3Position")
     gl.Free("i_v3Color")
-	gl.Free("i_v2Texcoord")
+    gl.Free("i_v2Texcoord")
+    gl.Free("u_t2Albedo")
 
     var i i32
 
     for i = 0; i < g_programCount; i = i + 1 {
-		printf("gl.DeleteProgram(%d)\n", g_programs[i])
-		gl.DeleteProgram(g_programs[i])
+        printf("gl.DeleteProgram(%d)\n", g_programs[i])
+        gl.DeleteProgram(g_programs[i])
     }
 
-	for i = 0; i < g_vboCount; i = i + 1 {
-		printf("gl.DeleteBuffers(%d)\n", g_vbos[i])
-		gl.DeleteBuffers(1, g_vbos[i])
-	}
+    for i = 0; i < g_vboCount; i = i + 1 {
+        printf("gl.DeleteBuffers(%d)\n", g_vbos[i])
+        gl.DeleteBuffers(1, g_vbos[i])
+    }
 
-	for i = 0; i < g_vaoCount; i = i + 1 {
-		printf("gl.DeleteVertexArrays(%d)\n", g_vaos[i])
-		gl.DeleteVertexArrays(1, g_vaos[i])
-	}
-}
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-func bind_attribute(program i32, location i32, name str) () {
-
-    gl.BindAttribLocation(program, location, name)
-    assert_(no_glerror(), "")
-
-    var newLocation i32 = gl.GetAttribLocation(program, name)
-    assert_(no_glerror(), "")
-    assert_(newLocation == location, "attribute not found\n")
+    for i = 0; i < g_vaoCount; i = i + 1 {
+        printf("gl.DeleteVertexArrays(%d)\n", g_vaos[i])
+        gl.DeleteVertexArrays(1, g_vaos[i])
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -306,142 +303,458 @@ func create_program(vertex str, pixel str)(program i32) {
 
     // vertex shader
     var vertexShader i32 = gl.CreateShader(gl.VERTEX_SHADER)
-    assert_(no_glerror(), "")
+    assert_(no_glerror(), "gl.CreateShader")
     //shaders = append(shaders, vertexShader) // cache shader creationg
     //++shaderCount
 
     gl.ShaderSource(vertexShader, 1, vertex)
-    assert_(no_glerror(), "")
+    assert_(no_glerror(), "gl.ShaderSource")
 
     gl.CompileShader(vertexShader)
-    assert_(no_glerror(), "")
+    assert_(no_glerror(), "gl.CompileShader")
 
     // pixel shader
     var pixelShader i32 = gl.CreateShader(gl.FRAGMENT_SHADER)
-    assert_(no_glerror(), "")
+    assert_(no_glerror(), "gl.CreateShader")
     //shaders = append(shaders, pixelShader) // cache shader creation
     //++shaderCount
 
     gl.ShaderSource(pixelShader, 1, pixel)
-    assert_(no_glerror(), "")
+    assert_(no_glerror(), "gl.ShaderSource")
 
     gl.CompileShader(pixelShader)
-    assert_(no_glerror(), "")
+    assert_(no_glerror(), "gl.CompileShader")
 
     // program
     program = gl.CreateProgram()
-    assert_(no_glerror(), "")
+    assert_(no_glerror(), "gl.CreateProgram")
     g_programs = append(g_programs, program)
     g_programCount = g_programCount + 1 // pre increment not working
 
     gl.AttachShader(program, vertexShader)
-    assert_(no_glerror(), "")
+    assert_(no_glerror(), "gl.AttachShader")
 
     gl.AttachShader(program, pixelShader)
-    assert_(no_glerror(), "")
+    assert_(no_glerror(), "gl.AttachShader")
 
     gl.LinkProgram(program)
-    assert_(no_glerror(), "")
+    assert_(no_glerror(), "gl.LinkProgram")
 
     gl.DetachShader(program, vertexShader)
-    assert_(no_glerror(), "")
+    assert_(no_glerror(), "gl.LinkProgram")
 
     gl.DetachShader(program, pixelShader)
-    assert_(no_glerror(), "")
+    assert_(no_glerror(), "gl.DetachShader")
 
     gl.DeleteShader(vertexShader)
-    assert_(no_glerror(), "")
+    assert_(no_glerror(), "gl.DeleteShader")
 
     gl.DeleteShader(pixelShader)
-    assert_(no_glerror(), "")
+    assert_(no_glerror(), "gl.DeleteShader")
 
     return program
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-type mesh_s struct {
-	primitive i32
-	vao i32
-	stride i32
-	floatCount i32
-	vertexCount i32
-	dataSize i32
+func use_program(program i32) {
+	//printf("use_program(%d)\n", program)
+    gl.UseProgram(program)
+	assert_(no_glerror(), "gl.UseProgram")
 }
 
-func alloc_mesh(primitive i32, attributes [3]i32, vertexData [48]f32) (mesh mesh_s) { // make it work with slices
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func bind_attribute(program i32, location i32, name str) () {
 
-	var sizeofFloat i32 = 4
+    gl.BindAttribLocation(program, location, name)
+    assert_(no_glerror(), "gl.BindAttribute")
 
-	mesh.primitive = primitive
-	mesh.vao = 0
-	mesh.stride = 0
-	mesh.floatCount = 0
-	mesh.vertexCount = 0
+    var newLocation i32 = gl.GetAttribLocation(program, name)
+    assert_(no_glerror(), "gl.GetAttribLocation")
+    assert_(newLocation == location, "attribute not found\n")
+}
 
-	// stride
-	var i i32 = 0
-	var attributeCount i32
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func bind_texture(program i32, name str) (sampler i32) {
+    sampler = gl.GetUniformLocation(program, name)
+    assert_(no_glerror(), "gl.GetUniformLocation")
+    assert_(sampler >= 0, "sampler >= 0")
+}
 
-	attributeCount = len(attributes)
-	for i = 0; i < attributeCount; i = i + 1 {
-		mesh.stride = mesh.stride + attributes[i]
-	}
 
-	mesh.floatCount = len(vertexData)
-	mesh.dataSize = mesh.floatCount * sizeofFloat
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func assign_texture(slot i32, sampler i32, texture i32) () {
+    gl.ActiveTexture(gl.TEXTURE0 + slot)
+    assert_(no_glerror(), "gl.ActiveTexture")
 
-	assert_((mesh.floatCount % mesh.stride) == 0, "invalid vertex data")
-	mesh.vertexCount = mesh.floatCount / mesh.stride
+    gl.BindTexture(gl.TEXTURE_2D, texture)
+    assert_(no_glerror(), "gl.BindTexture")
 
-	// vbo
-    var vbo i32 = 0
-    vbo = gl.GenBuffers(1, vbo)
-    assert_(no_glerror(), "")
-	g_vbos = append(g_vbos, vbo)
-	g_vboCount = g_vboCount + 1
+    gl.Uniform1i(sampler, slot)
+    assert_(no_glerror(), "gl.Uniform1i")
+}
 
-    gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-    assert_(no_glerror(), "")
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type mesh_s struct {
+    vertices [540]f32
+	attributes [3]i32
+    primitive i32
+    vao i32
+	vbo i32
+	stride i32
+    floatCount i32
+    vertexCount i32
+    dataSize i32
+    bufferSize i32
+	index i32
+}
 
-    gl.BufferData(gl.ARRAY_BUFFER, mesh.dataSize, vertexData, gl.DYNAMIC_DRAW)
-    assert_(no_glerror(), "")
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var g_opaqueVertexColoredTriangles mesh_s
+var g_opaqueVertexColoredLines mesh_s
+
+var g_opaqueTexturedTriangles mesh_s
+
+var g_alphaVertexColoredTriangles mesh_s
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var g_sizeofFloat i32 = 4
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func alloc_mesh(mesh *mesh_s, primitive i32, attributes [3]i32, vertexCount i32) () { // make it work with slices
+
+    assert_((primitive == gl.TRIANGLES || primitive == gl.LINES), "(primitive == gl.TRIANGLES || primitive == gl.LINES)")
+    assert_(vertexCount > 0, "vertexCount > 0")
+
+    if primitive == gl.TRIANGLES {
+        assert_((vertexCount % 3) == 0, "(vertexCount % 3) == 0")
+    } else if primitive == gl.LINES {
+        assert_((vertexCount % 2) == 0, "(vertexCount % 2) == 0")
+    }
+    (*mesh).attributes = attributes
+    (*mesh).primitive = primitive
+    (*mesh).vao = 0
+    (*mesh).vbo = 0
+	(*mesh).stride = 0
+    (*mesh).floatCount = 0
+    (*mesh).vertexCount = 0
+    (*mesh).dataSize = 0
+    (*mesh).bufferSize = 0
+    (*mesh).index = 0;
+
+    // stride
+    var i i32 = 0
+    var attributeCount i32 = len(attributes)
+    var stride i32 = 0
+    printf("attributeCount %d\n", attributeCount)
+    for i = 0; i < attributeCount; i = i + 1 {
+        (*mesh).stride = (*mesh).stride + attributes[i]
+        stride = stride + attributes[i]
+        printf("(*mesh).stride %d, stride %d, attributes[i] %d\n", (*mesh).stride, stride, attributes[i])
+    }
+    assert_((*mesh).stride > 0, "(*mesh).stride > 0")
+
+    var floatCount i32 = (*mesh).stride * vertexCount
+    var bufferSize i32 = floatCount * g_sizeofFloat
+    assert_(bufferSize > 0, "bufferSize > 0")
+	assert_((floatCount  % (*mesh).stride) == 0, "(floatCount % (*mesh).stride) == 0")
+    (*mesh).bufferSize = bufferSize
+
+    // vbo
+    (*mesh).vbo = gl.GenBuffers(1, (*mesh).vbo)
+    assert_(no_glerror(), "gl.GenBuffers")
+    g_vbos = append(g_vbos, (*mesh).vbo)
+    g_vboCount = g_vboCount + 1
+
+    gl.BindBuffer(gl.ARRAY_BUFFER, (*mesh).vbo)
+    assert_(no_glerror(), "gl.BindBuffer")
 
     // vao
-    mesh.vao = gl.GenVertexArrays(1, mesh.vao)
-    assert_(no_glerror(), "")
-	g_vaos = append(g_vaos, mesh.vao)
-	g_vaoCount = g_vaoCount + 1;
+    (*mesh).vao = gl.GenVertexArrays(1, (*mesh).vao)
+    assert_(no_glerror(), "gl.GenVertexArrays")
+    g_vaos = append(g_vaos, (*mesh).vao)
+    g_vaoCount = g_vaoCount + 1;
 
-    gl.BindVertexArray(mesh.vao)
-    assert_(no_glerror(), "")
+    gl.BindVertexArray((*mesh).vao)
+    assert_(no_glerror(), "gl.BindVertexArray")
 
-    gl.EnableVertexAttribArray(0)
-    assert_(no_glerror(), "")
+    gl.BindBuffer(gl.ARRAY_BUFFER, (*mesh).vbo)
+    assert_(no_glerror(), "gl.BindBuffer")
 
-    gl.EnableVertexAttribArray(1)
-    assert_(no_glerror(), "")
-
-    gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-    assert_(no_glerror(), "")
+	printf("bufferSize %d\n", bufferSize)
+    //var null *i32 = 0
+    var null []f32
+    gl.BufferData(gl.ARRAY_BUFFER, bufferSize, null, gl.DYNAMIC_DRAW)
+	assert_(no_glerror(), "gl.BufferData")
 
 	var offset i32 = 0
-	for i = 0; i < attributeCount; i = i + 1 {
-	    gl.VertexAttribPointer(i, attributes[i], gl.FLOAT, false, mesh.stride * sizeofFloat, offset)
-		assert_(no_glerror(), "")
+    for i = 0; i < attributeCount; i = i + 1 {
+        printf("VertexAttribPointer %d, %d, %d, %d\n", i, attributes[i], (*mesh).stride * g_sizeofFloat, offset)
 
-		offset = offset + sizeofFloat * attributes[i]
+        gl.EnableVertexAttribArray(i)
+        assert_(no_glerror(), "gl.EnableVertexAttribArray")
+
+        gl.VertexAttribPointer(i, attributes[i], gl.FLOAT, false, (*mesh).stride * g_sizeofFloat, offset)
+        assert_(no_glerror(), "gl.VertexAttribPointer")
+
+        offset = offset + g_sizeofFloat * attributes[i]
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func begin_mesh(mesh *mesh_s) () {
+	(*mesh).index = 0
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func end_mesh(mesh* mesh_s) () {
+
+	if (*mesh).index > 0 {
+		(*mesh).floatCount = (*mesh).index //len(g_vertices)
+		printf("floatCount %d\n", (*mesh).floatCount)
+
+		(*mesh).dataSize = (*mesh).floatCount * g_sizeofFloat
+		printf("dataSize %d\n", (*mesh).dataSize)
+
+		printf("stride %d\n", (*mesh).stride)
+		assert_(((*mesh).floatCount % (*mesh).stride) == 0, "((*mesh).floatCount % (*mesh).stride)) == 0")
+
+		(*mesh).vertexCount = (*mesh).floatCount / (*mesh).stride
+		printf("vertexCount %d\n", (*mesh).vertexCount)
+
+		printf("(*mesh).vbo %d\n", (*mesh).vbo)
+		gl.BindBuffer(gl.ARRAY_BUFFER, (*mesh).vbo)
+		assert_(no_glerror(), "gl.BindBuffer")
+
+	    gl.BufferSubData(gl.ARRAY_BUFFER, 0, (*mesh).dataSize, (*mesh).vertices)
+		assert_(no_glerror(), "gl.BufferSubData")
 	}
 }
 
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func render_mesh(mesh* mesh_s) {
+	gl.BindVertexArray((*mesh).vao)
+	assert_(no_glerror(), "gl.BindVertexArray")
+
+    printf("render mesh %d\n", (*mesh).vertexCount)
+	gl.DrawArrays((*mesh).primitive, 0, (*mesh).vertexCount)
+	assert_(no_glerror(), "gl.DrawArrays")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func append_line(mesh *mesh_s, x0 f32, y0 f32, x1 f32, y1 f32, r f32, g f32, b f32, a f32) {
+}
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func append_quad(mesh *mesh_s, x f32, y f32, w f32, h f32, r f32, g f32, b f32, a f32) (){
+    assert_((*mesh).primitive == gl.TRIANGLES, "(*mesh).primitive == gl.TRIANGLES")
+
+    var index i32 = (*mesh).index
+    /*var x1 f32 = x + w
+    var y1 f32 = y + h
+
+    (*mesh).vertices[index] = x
+    index = index + 1
+    (*mesh).vertices[index] = y
+    index = index + 1
+    (*mesh).vertices[index] = 0.0
+    index = index + 1
+    (*mesh).vertices[index] = r
+    index = index + 1
+    (*mesh).vertices[index] = g
+    index = index + 1
+    (*mesh).vertices[index] = b
+    index = index + 1
+    (*mesh).vertices[index] = a
+    index = index + 1
+    (*mesh).vertices[index] = 0.0
+    index = index + 1
+    (*mesh).vertices[index] = 1.0
+    index = index + 1
+
+    (*mesh).vertices[index] = x
+    index = index + 1
+    (*mesh).vertices[index] = y
+    index = index + 1
+    (*mesh).vertices[index] = 0.0
+    index = index + 1
+    (*mesh).vertices[index] = r
+    index = index + 1
+    (*mesh).vertices[index] = g
+    index = index + 1
+    (*mesh).vertices[index] = b
+    index = index + 1
+    (*mesh).vertices[index] = a
+    index = index + 1
+    (*mesh).vertices[index] = 0.0
+    index = index + 1
+    (*mesh).vertices[index] = 1.0
+    index = index + 1
+
+    (*mesh).vertices[index] = x1
+    index = index + 1
+    (*mesh).vertices[index] = y
+    index = index + 1
+    (*mesh).vertices[index] = 0.0
+    index = index + 1
+    (*mesh).vertices[index] = r
+    index = index + 1
+    (*mesh).vertices[index] = g
+    index = index + 1
+    (*mesh).vertices[index] = b
+    index = index + 1
+    (*mesh).vertices[index] = a
+    index = index + 1
+    (*mesh).vertices[index] = 1.0
+    index = index + 1
+    (*mesh).vertices[index] = 1.0
+    index = index + 1
+
+    (*mesh).vertices[index] = x
+    index = index + 1
+    (*mesh).vertices[index] = y1
+    index = index + 1
+    (*mesh).vertices[index] = 0.0
+    index = index + 1
+    (*mesh).vertices[index] = r
+    index = index + 1
+    (*mesh).vertices[index] = g
+    index = index + 1
+    (*mesh).vertices[index] = b
+    index = index + 1
+    (*mesh).vertices[index] = a
+    index = index + 1
+    (*mesh).vertices[index] = 0.0
+    index = index + 1
+    (*mesh).vertices[index] = 0.0
+    index = index + 1
+
+    (*mesh).vertices[index] = x1
+    index = index + 1
+    (*mesh).vertices[index] = y
+    index = index + 1
+    (*mesh).vertices[index] = 0.0
+    index = index + 1
+    (*mesh).vertices[index] = r
+    index = index + 1
+    (*mesh).vertices[index] = g
+    index = index + 1
+    (*mesh).vertices[index] = b
+    index = index + 1
+    (*mesh).vertices[index] = a
+    index = index + 1
+    (*mesh).vertices[index] = 1.0
+    index = index + 1
+    (*mesh).vertices[index] = 1.0
+    index = index + 1
+
+    (*mesh).vertices[index] = x1
+    index = index + 1
+    (*mesh).vertices[index] = y1
+    index = index + 1
+    (*mesh).vertices[index] = 0.0
+    index = index + 1
+    (*mesh).vertices[index] = r
+    index = index + 1
+    (*mesh).vertices[index] = g
+    index = index + 1
+    (*mesh).vertices[index] = b
+    index = index + 1
+    (*mesh).vertices[index] = a
+    index = index + 1
+    (*mesh).vertices[index] = 1.0
+    index = index + 1
+    (*mesh).vertices[index] = 0.0
+    index = index + 1*/
+
+
+  /*(*mesh).vertices[index + 0] = x
+	(*mesh).vertices[index + 1] = y
+	(*mesh).vertices[index + 2] = 0.0
+	(*mesh).vertices[index + 3] = r
+	(*mesh).vertices[index + 4] = g
+	(*mesh).vertices[index + 5] = b
+    (*mesh).vertices[index + 6] = a
+	(*mesh).vertices[index + 7] = 0.0
+	(*mesh).vertices[index + 8] = 1.0
+	index = index + 9
+
+	(*mesh).vertices[index + 0] = x1
+    (*mesh).vertices[index + 1] = y
+	(*mesh).vertices[index + 2] = 0.0
+	(*mesh).vertices[index + 3] = r
+	(*mesh).vertices[index + 4] = g
+	(*mesh).vertices[index + 5] = b
+    (*mesh).vertices[index + 6] = a
+	(*mesh).vertices[index + 7] = 1.0
+	(*mesh).vertices[index + 8] = 1.0
+	index = index + 9
+
+	(*mesh).vertices[index + 0] = x
+	(*mesh).vertices[index + 1] = y1
+	(*mesh).vertices[index + 2] = 0.0
+	(*mesh).vertices[index + 3] = r
+	(*mesh).vertices[index + 4] = g
+	(*mesh).vertices[index + 5] = b
+    (*mesh).vertices[index + 6] = a
+	(*mesh).vertices[index + 7] = 0.0
+	(*mesh).vertices[index + 8] = 0.0
+	index = index + 9
+
+	(*mesh).vertices[index + 0] = x
+	(*mesh).vertices[index + 1] = y1
+	(*mesh).vertices[index + 2] = 0.0
+	(*mesh).vertices[index + 3] = r
+	(*mesh).vertices[index + 4] = g
+	(*mesh).vertices[index + 5] = b
+    (*mesh).vertices[index + 6] = a
+	(*mesh).vertices[index + 7] = 0.0
+	(*mesh).vertices[index + 8] = 0.0
+	index = index + 9
+
+	(*mesh).vertices[index + 0] = x1
+	(*mesh).vertices[index + 1] = y
+	(*mesh).vertices[index + 2] = 0.0
+	(*mesh).vertices[index + 3] = r
+	(*mesh).vertices[index + 4] = g
+	(*mesh).vertices[index + 5] = b
+    (*mesh).vertices[index + 6] = a
+	(*mesh).vertices[index + 7] = 1.0
+	(*mesh).vertices[index + 8] = 1.0
+	index = index + 9
+
+	(*mesh).vertices[index + 0] = x1
+	(*mesh).vertices[index + 1] = y1
+	(*mesh).vertices[index + 2] = 0.0
+	(*mesh).vertices[index + 3] = r
+	(*mesh).vertices[index + 4] = g
+	(*mesh).vertices[index + 5] = b
+    (*mesh).vertices[index + 6] = a
+	(*mesh).vertices[index + 7] = 1.0
+	(*mesh).vertices[index + 8] = 0.0
+	index = index + 9*/
+
+	(*mesh).index = index
+}
 
 //-----------------------------------------------------------------------------
 // main
 //-----------------------------------------------------------------------------
 func main() {
-    var width i32 = 800
+	var width i32 = 800
     var height i32 = 600
-	var targetFps f64 = 60.0D
+    var targetFps f64 = 60.0D
 
     var window str // inline str init doesn't work
     window = "window"
@@ -450,57 +763,92 @@ func main() {
     color = [4]f32 { 1.0, 0.0, 1.0, 1.0 }
 
     init_glfw(window, "pump_cx", width, height, targetFps)
-    init_gl(width, height, color)
+    gl_init(width, height, color)
 
     // program
     var programVertexColor i32 = create_program("vsPassThrough", "psVertexColor")
+    printf("programVertexColor %d\n", programVertexColor)
     bind_attribute(programVertexColor, 0, "i_v3Position")
     bind_attribute(programVertexColor, 1, "i_v3Color")
 
-	// program
+    // program
     var programTexture i32 = create_program("vsPassThrough", "psTexture")
+    printf("programTexture %d\n", programTexture)
     bind_attribute(programTexture, 0, "i_v3Position")
-	bind_attribute(programTexture, 2, "i_v2Texcoord")
+    bind_attribute(programTexture, 2, "i_v2Texcoord")
+    var albedoSampler i32 = bind_texture(programTexture, "u_t2Albedo")
 
-    // mesh
-	var attributes [3]i32
-	attributes = [3]i32 {3, 3, 2 }
+    // texture
+    var texture i32 = gl.NewTexture("textures/skycoin.png")
 
-	var vertices [48]f32
-    vertices = [48]f32 {
-        -0.5, -0.5, 0.0,   1.0, 0.0, 0.0,   0.0, 0.0,
-         0.5, -0.5, 0.0,   0.0, 1.0, 0.0,   1.0, 0.0,
-        -0.5,  0.5, 0.0,   0.0, 0.0, 1.0,   0.0, 1.0,
-        -0.5,  0.5, 0.0,   0.0, 0.0, 1.0,   0.0, 1.0,
-         0.5, -0.5, 0.0,   0.0, 1.0, 0.0,   1.0, 0.0,
-         0.5,  0.5, 0.0,   1.0, 0.0, 0.0,   1.0, 1.0 }
+    // meshes
+    var attributes [3]i32
+    attributes = [3]i32{3, 4, 2} // can't use slice yet
+	alloc_mesh(&g_opaqueVertexColoredTriangles, gl.TRIANGLES, attributes, 1024 * 3)
+	alloc_mesh(&g_alphaVertexColoredTriangles, gl.TRIANGLES, attributes, 1024 * 3)
+	alloc_mesh(&g_opaqueTexturedTriangles, gl.TRIANGLES, attributes, 1024 * 3)
+    alloc_mesh(&g_opaqueVertexColoredLines, gl.LINES, attributes, 1024 * 2)
 
-	var mesh mesh_s = alloc_mesh(gl.TRIANGLES, attributes, vertices)
-
-	// main loop
-	var fps fps_s = fps_init(targetFps)
+    // main loop
+    var fps fps_s = fps_init(targetFps)
     for bool.not(glfw.ShouldClose(window)) {
 
-		fps = fps_begin_update(fps)
+        fps = fps_begin_update(fps)
 
-	    glfw.MakeContextCurrent(window)
+        glfw.MakeContextCurrent(window)
+
+        // update
+        begin_mesh(&g_opaqueTexturedTriangles)
+		append_quad(&g_opaqueTexturedTriangles, -1.0, -1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
+		append_quad(&g_opaqueTexturedTriangles,  0.0,  0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
+		end_mesh(&g_opaqueTexturedTriangles)
+
+		begin_mesh(&g_opaqueVertexColoredTriangles)
+		append_quad(&g_opaqueVertexColoredTriangles,  0.0, -1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
+		append_quad(&g_opaqueVertexColoredTriangles, -1.0,  0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
+		end_mesh(&g_opaqueVertexColoredTriangles)
+
+        begin_mesh(&g_opaqueVertexColoredLines)
+        append_line(&g_opaqueVertexColoredLines, -1.0, -1.0, 1.0,  1.0, 1.0, 1.0, 0.0, 1.0)
+        append_line(&g_opaqueVertexColoredLines, -1.0,  1.0, 1.0, -1.0, 1.0, 1.0, 0.0, 1.0)
+        end_mesh(&g_opaqueVertexColoredLines)
+
+		begin_mesh(&g_alphaVertexColoredTriangles)
+		append_quad(&g_alphaVertexColoredTriangles, -0.5, -0.5, 1.0, 1.0, 0.5, 1.0, 0.5, 0.5)
+		end_mesh(&g_alphaVertexColoredTriangles)
+
+        // render
         gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-        assert_(no_glerror(), "")
+        assert_(no_glerror(), "gl.Clear")
 
-        gl.UseProgram(programVertexColor)
-		//gl.UseProgram(programTexture)
-        assert_(no_glerror(), "")
+        // opaque
+        gl_disable(gl.BLEND)
 
-        gl.BindVertexArray(mesh.vao)
-        assert_(no_glerror(), "")
+        use_program(programTexture)
+        if g_opaqueTexturedTriangles.index > 0 {
+            assign_texture(0, albedoSampler, texture)
+            render_mesh(g_opaqueTexturedTriangles)
+        }
 
-        gl.DrawArrays(mesh.primitive, 0, mesh.vertexCount)
-        assert_(no_glerror(), "")
+        use_program(programVertexColor)
+        if g_opaqueVertexColoredTriangles.index > 0 {
+            render_mesh(g_opaqueVertexColoredTriangles)
+        }
+        if g_opaqueVertexColoredLines.index > 0 {
+            gl_disable(gl.BLEND)
+            render_mesh(g_opaqueVertexColoredLines)
+        }
+
+        // alpha
+        if g_alphaVertexColoredTriangles.index > 0 {
+            gl_enable(gl.BLEND)
+            render_mesh(g_alphaVertexColoredTriangles)
+        }
 
         glfw.PollEvents()
-		glfw.SwapBuffers(window)
+        glfw.SwapBuffers(window)
 
-		fps = fps_end_update(fps)
+        fps = fps_end_update(fps)
     }
 
     free_gl()
