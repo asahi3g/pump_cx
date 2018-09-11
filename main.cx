@@ -8,6 +8,8 @@ import "time"
 //-----------------------------------------------------------------------------
 // cx bugs
 //-----------------------------------------------------------------------------
+// implicit cast ui32 -> i32
+// printf %d ui32
 // pointers
 // assert doesn't stop program execution
 // multiline array init
@@ -34,6 +36,15 @@ func randNumGenerator() (rNum f32){
 
 }
 */
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func assert_(value bool, message str) {
+	if value == false {
+		printf("%s\n", message)
+		var crash i32 = 0 / 0
+	}
+}
 
 //-----------------------------------------------------------------------------
 // utils
@@ -141,6 +152,8 @@ var g_vboCount i32 = 0
 var g_programs []i32
 var g_programCount i32 = 0
 
+var g_sizeofFloat i32 = 4
+
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func glerror() (error bool) {
@@ -163,7 +176,7 @@ func glerror() (error bool) {
             } else if glerr == gl.OUT_OF_MEMORY {
                 printf("GL_OUT_OF_MEMORY\n")
             } else if glerr != 0 {
-                printf("invalid glError\n")
+                assert_(false, "invalid glError\n")
             }
         }
     }
@@ -178,16 +191,40 @@ func no_glerror() (noerror bool) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func gl_disable(flag i32) () {
-    gl.Disable(flag)
-    assert_(no_glerror(), "gl.Disable")
+func glstatus() (error bool) {
+	error = false
+	var glstat i32
+	glstat = gl.CheckFramebufferStatus(gl.FRAMEBUFFER)
+	assert_(no_glerror(), "CheckFramebufferStatus")
+	if (glstat != gl.FRAMEBUFFER_COMPLETE) {
+		error = true;
+		if (glstat == gl.FRAMEBUFFER_UNDEFINED) {
+			printf("GL_FRAMEBUFFER_UNDEFINED\n")
+		} else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT) {
+			printf("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT\n")
+		} else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT) {
+			printf("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT\n")
+		} else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER) {
+			printf("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER\n")
+		} else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_READ_BUFFER) {
+			printf("GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER\n")
+		} else if (glstat == gl.FRAMEBUFFER_UNSUPPORTED) {
+			printf("GL_FRAMEBUFFER_UNSUPPORTED\n")
+		} else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_MULTISAMPLE) {
+			printf("GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE\n")
+		} else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS) {
+			printf("GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS\n")
+		} else {
+			assert_(false, "invalid glFramebufferStatus")
+		}
+	}
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func gl_enable(flag i32) () {
-    gl.Enable(flag)
-    assert_(no_glerror(), "gl.Enable")
+func no_glstatus() (nostatus bool) {
+	var status bool = glstatus()
+	nostatus = status == false // panic if nostatus = (glstatus() == false)
 }
 
 //-----------------------------------------------------------------------------
@@ -195,9 +232,11 @@ func gl_enable(flag i32) () {
 func gl_init(width i32, height i32, color [4]f32)() {
 
     gl.Strs("i_v3Position", "i_v3Position")
-    gl.Strs("i_v3Color", "i_v3Color")
+    gl.Strs("i_v4Albedo", "i_v4Albedo")
     gl.Strs("i_v2Texcoord", "i_v2Texcoord")
     gl.Strs("u_t2Albedo", "u_t2Albedo")
+	gl.Strs("u_t2Source", "u_t2Source")
+	gl.Strs("u_t2Dest", "u_t2Dest")
 
     //-----------------------------------------------------------------------------
     // vsPassThrough
@@ -206,14 +245,14 @@ func gl_init(width i32, height i32, color [4]f32)() {
     `
     #version 130
     in vec3 i_v3Position;
-    in vec3 i_v3Color;
+    in vec4 i_v4Albedo;
     in vec2 i_v2Texcoord;
-    out vec3 v_v3Color;
+    out vec4 v_v4Albedo;
     out vec2 v_v2Texcoord;
     void main()
     {
         gl_Position = vec4(i_v3Position.rg, 0.0, 1);
-        v_v3Color = i_v3Color;
+        v_v4Albedo = i_v4Albedo;
         v_v2Texcoord = i_v2Texcoord;
     }`, "vsPassThrough")
 
@@ -223,11 +262,11 @@ func gl_init(width i32, height i32, color [4]f32)() {
     gl.Strs(
     `
     #version 130
-    in vec3 v_v3Color;
+    in vec4 v_v4Albedo;
     out vec4 o_v4Color;
     void main()
     {
-        o_v4Color = vec4(v_v3Color, 1);
+        o_v4Color = v_v4Albedo;
     }
     `, "psVertexColor")
 
@@ -238,26 +277,45 @@ func gl_init(width i32, height i32, color [4]f32)() {
     `
     #version 130
     uniform sampler2D u_t2Albedo;
-    in vec2 v_v2Texcoord;
-    out vec4 o_v4Color;
+    in vec4 v_v4Albedo;
+	in vec2 v_v2Texcoord;
+	out vec4 o_v4Color;
     void main()
     {
-        o_v4Color = vec4(texture2D(u_t2Albedo, v_v2Texcoord).rgb, 1);
+        o_v4Color = v_v4Albedo * texture2D(u_t2Albedo, v_v2Texcoord);
     }
     `, "psTexture")
 
     //-----------------------------------------------------------------------------
+    // psTransition_0
+	//-----------------------------------------------------------------------------
+    gl.Strs(
+	`
+	#version 130
+	uniform sampler2D u_t2Source;
+	uniform sampler2D u_t2Dest;
+	uniform float u_fTime;
+	in vec2 v_v2Texcoord;
+	out vec4 o_v4Color;
+	void main()
+	{
+		o_v4Color = mix(texture2D(u_t2Source, v_v2Texcoord), texture2D(u_t2Dest, v_v2Texcoord), u_fTime);
+	}
+	`, "psTransition_0")
+
+	//-----------------------------------------------------------------------------
     //-----------------------------------------------------------------------------
     gl.Init()
     assert_(no_glerror(), "gl.Init")
 
-    gl_disable(gl.BLEND)
+    gl.Disable(gl.BLEND)
+	assert_(no_glerror(), "gl.Disable(gl.BLEND)")
 
-    gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-    assert_(no_glerror(), "")
+    gl.Disable(gl.CULL_FACE)
+	assert_(no_glerror(), "gl.Disable(gl.CULL_FACE)")
 
-    gl_disable(gl.CULL_FACE)
-    gl_disable(gl.DEPTH_TEST)
+    gl.Disable(gl.DEPTH_TEST)
+	assert_(no_glerror(), "gl.Disable(gl.DEPTH_TEST)")
 
     printf("clear color : %f, %f, %f, %f\n", color[0], color[1], color[2], color[3])
     gl.ClearColor(color[0], color[1], color[2], color[3])
@@ -274,10 +332,13 @@ func free_gl()() {
     gl.Free("vsPassThrough")
     gl.Free("psVertexColor")
     gl.Free("psTexture")
-    gl.Free("i_v3Position")
-    gl.Free("i_v3Color")
+	gl.Free("psTransition_0")
+	gl.Free("i_v3Position")
+    gl.Free("i_v4Albedo")
     gl.Free("i_v2Texcoord")
     gl.Free("u_t2Albedo")
+	gl.Free("u_t2Source")
+	gl.Free("u_t2Dest")
 
     var i i32
 
@@ -295,6 +356,62 @@ func free_gl()() {
         printf("gl.DeleteVertexArrays(%d)\n", g_vaos[i])
         gl.DeleteVertexArrays(1, g_vaos[i])
     }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_texture(path str, mag i32, min i32, s i32, t i32, r i32, w i32, h i32) (texture i32) {
+	if (path == "") {
+		texture = gl.GenTextures(1, texture)
+		assert_(no_glerror(), "gl.GenTextures")
+	} else {
+		texture = gl.NewTexture(path)
+		assert_(no_glerror(), "gl.NewTexture")
+	}
+
+	gl.BindTexture(gl.TEXTURE_2D, texture)
+	assert_(no_glerror(), "gl.BindTexture")
+
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+	assert_(no_glerror(), "gl.TexParameteri")
+
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+	assert_(no_glerror(), "gl.TexParameteri")
+
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+	assert_(no_glerror(), "gl.TexParameteri")
+
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+	assert_(no_glerror(), "gl.TexParameteri")
+
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE)
+	assert_(no_glerror(), "gl.TexParameteri")
+
+	if (path == "") {
+		gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, 0)
+		assert_(no_glerror(), "gl.Image2D")
+	}
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_framebuffer(w i32, h i32) (framebuffer i32) {
+	framebuffer = gl.GenFramebuffers(1, framebuffer) // delete framebuffer
+	assert_(no_glerror(), "gl.GenFramebuffers")
+	printf("FRAMEBUFFER_0 : %d\n", framebuffer)
+
+	gl.BindFramebuffer(gl.FRAMEBUFFER, framebuffer)
+	assert_(no_glerror(), "gl.BindFramebuffer")
+	var texture i32 = create_texture("", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, w, h)
+
+	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0)
+	assert_(no_glerror(), "gl.FramebufferTexture2D")
+
+	assert_(no_glstatus(), "gl.CheckFramebufferStatus")
+
+	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
+	assert_(no_glerror(), "gl.BindFramebuffer")
+	assert_(no_glstatus(), "gl.CheckFramebufferStatus")
 }
 
 //-----------------------------------------------------------------------------
@@ -390,8 +507,8 @@ func assign_texture(slot i32, sampler i32, texture i32) () {
     gl.ActiveTexture(gl.TEXTURE0 + slot)
     assert_(no_glerror(), "gl.ActiveTexture")
 
-    gl.BindTexture(gl.TEXTURE_2D, texture)
-    assert_(no_glerror(), "gl.BindTexture")
+	gl.BindTexture(gl.TEXTURE_2D, texture)
+	assert_(no_glerror(), "gl.BindTexture")
 
     gl.Uniform1i(sampler, slot)
     assert_(no_glerror(), "gl.Uniform1i")
@@ -412,19 +529,6 @@ type mesh_s struct {
     bufferSize i32
 	index i32
 }
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-var g_opaqueVertexColoredTriangles mesh_s
-var g_opaqueVertexColoredLines mesh_s
-
-var g_opaqueTexturedTriangles mesh_s
-
-var g_alphaVertexColoredTriangles mesh_s
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-var g_sizeofFloat i32 = 4
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -520,18 +624,18 @@ func end_mesh(mesh* mesh_s) () {
 
 	if (*mesh).index > 0 {
 		(*mesh).floatCount = (*mesh).index //len(g_vertices)
-		printf("floatCount %d\n", (*mesh).floatCount)
+		//printf("floatCount %d\n", (*mesh).floatCount)
 
 		(*mesh).dataSize = (*mesh).floatCount * g_sizeofFloat
-		printf("dataSize %d\n", (*mesh).dataSize)
+		//printf("dataSize %d\n", (*mesh).dataSize)
 
-		printf("stride %d\n", (*mesh).stride)
+		//printf("stride %d\n", (*mesh).stride)
 		assert_(((*mesh).floatCount % (*mesh).stride) == 0, "((*mesh).floatCount % (*mesh).stride)) == 0")
 
 		(*mesh).vertexCount = (*mesh).floatCount / (*mesh).stride
-		printf("vertexCount %d\n", (*mesh).vertexCount)
+		//printf("vertexCount %d\n", (*mesh).vertexCount)
 
-		printf("(*mesh).vbo %d\n", (*mesh).vbo)
+		//printf("(*mesh).vbo %d\n", (*mesh).vbo)
 		gl.BindBuffer(gl.ARRAY_BUFFER, (*mesh).vbo)
 		assert_(no_glerror(), "gl.BindBuffer")
 
@@ -546,7 +650,7 @@ func render_mesh(mesh* mesh_s) {
 	gl.BindVertexArray((*mesh).vao)
 	assert_(no_glerror(), "gl.BindVertexArray")
 
-    printf("render mesh %d\n", (*mesh).vertexCount)
+    //printf("render mesh %d\n", (*mesh).vertexCount)
 	gl.DrawArrays((*mesh).primitive, 0, (*mesh).vertexCount)
 	assert_(no_glerror(), "gl.DrawArrays")
 }
@@ -554,6 +658,48 @@ func render_mesh(mesh* mesh_s) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func append_line(mesh *mesh_s, x0 f32, y0 f32, x1 f32, y1 f32, r f32, g f32, b f32, a f32) {
+	assert_((*mesh).primitive == gl.LINES, "(*mesh).primitive == gl.LINES")
+
+	var index i32 = (*mesh).index
+	(*mesh).vertices[index] = x0
+	index = index + 1
+	(*mesh).vertices[index] = y0
+	index = index + 1
+	(*mesh).vertices[index] = 0.0
+	index = index + 1
+	(*mesh).vertices[index] = r
+	index = index + 1
+	(*mesh).vertices[index] = g
+	index = index + 1
+	(*mesh).vertices[index] = b
+	index = index + 1
+	(*mesh).vertices[index] = a
+	index = index + 1
+	(*mesh).vertices[index] = 0.0
+	index = index + 1
+	(*mesh).vertices[index] = 0.0
+	index = index + 1
+
+	(*mesh).vertices[index] = x1
+	index = index + 1
+	(*mesh).vertices[index] = y1
+	index = index + 1
+	(*mesh).vertices[index] = 0.0
+	index = index + 1
+	(*mesh).vertices[index] = r
+	index = index + 1
+	(*mesh).vertices[index] = g
+	index = index + 1
+	(*mesh).vertices[index] = b
+	index = index + 1
+	(*mesh).vertices[index] = a
+	index = index + 1
+	(*mesh).vertices[index] = 0.0
+	index = index + 1
+	(*mesh).vertices[index] = 0.0
+	index = index + 1
+
+	(*mesh).index = index
 }
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -561,7 +707,7 @@ func append_quad(mesh *mesh_s, x f32, y f32, w f32, h f32, r f32, g f32, b f32, 
     assert_((*mesh).primitive == gl.TRIANGLES, "(*mesh).primitive == gl.TRIANGLES")
 
     var index i32 = (*mesh).index
-    /*var x1 f32 = x + w
+    var x1 f32 = x + w
     var y1 f32 = y + h
 
     (*mesh).vertices[index] = x
@@ -583,25 +729,6 @@ func append_quad(mesh *mesh_s, x f32, y f32, w f32, h f32, r f32, g f32, b f32, 
     (*mesh).vertices[index] = 1.0
     index = index + 1
 
-    (*mesh).vertices[index] = x
-    index = index + 1
-    (*mesh).vertices[index] = y
-    index = index + 1
-    (*mesh).vertices[index] = 0.0
-    index = index + 1
-    (*mesh).vertices[index] = r
-    index = index + 1
-    (*mesh).vertices[index] = g
-    index = index + 1
-    (*mesh).vertices[index] = b
-    index = index + 1
-    (*mesh).vertices[index] = a
-    index = index + 1
-    (*mesh).vertices[index] = 0.0
-    index = index + 1
-    (*mesh).vertices[index] = 1.0
-    index = index + 1
-
     (*mesh).vertices[index] = x1
     index = index + 1
     (*mesh).vertices[index] = y
@@ -619,6 +746,25 @@ func append_quad(mesh *mesh_s, x f32, y f32, w f32, h f32, r f32, g f32, b f32, 
     (*mesh).vertices[index] = 1.0
     index = index + 1
     (*mesh).vertices[index] = 1.0
+    index = index + 1
+
+    (*mesh).vertices[index] = x
+    index = index + 1
+    (*mesh).vertices[index] = y1
+    index = index + 1
+    (*mesh).vertices[index] = 0.0
+    index = index + 1
+    (*mesh).vertices[index] = r
+    index = index + 1
+    (*mesh).vertices[index] = g
+    index = index + 1
+    (*mesh).vertices[index] = b
+    index = index + 1
+    (*mesh).vertices[index] = a
+    index = index + 1
+    (*mesh).vertices[index] = 0.0
+    index = index + 1
+    (*mesh).vertices[index] = 0.0
     index = index + 1
 
     (*mesh).vertices[index] = x
@@ -676,7 +822,7 @@ func append_quad(mesh *mesh_s, x f32, y f32, w f32, h f32, r f32, g f32, b f32, 
     (*mesh).vertices[index] = 1.0
     index = index + 1
     (*mesh).vertices[index] = 0.0
-    index = index + 1*/
+    index = index + 1
 
 
   /*(*mesh).vertices[index + 0] = x
@@ -751,6 +897,163 @@ func append_quad(mesh *mesh_s, x f32, y f32, w f32, h f32, r f32, g f32, b f32, 
 //-----------------------------------------------------------------------------
 // main
 //-----------------------------------------------------------------------------
+var g_opaqueVertexColoredTriangles mesh_s
+var g_opaqueVertexColoredLines mesh_s
+
+var g_opaqueTexturedTriangles mesh_s
+
+var g_alphaVertexColoredTriangles mesh_s
+
+var g_fullscreenQuad mesh_s
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type menu_s struct {
+	label str
+	texture str
+	duration f64
+	fadein f64
+	fadeout f64
+	time f64
+	prev i32
+	next i32
+	state i32
+	prevState i32
+}
+
+var STATE_CLOSED i32 = 0
+var STATE_SHOWING i32 = 1
+var STATE_OPENED i32 = 2
+var STATE_CLOSING i32 = 3
+
+var g_menus [64]menu_s
+var g_menuCount i32
+var g_currentMenu i32 = -1
+var g_nextMenu i32 = -1
+
+var g_transitionDuration f64 = 0.5D
+var g_transitionTime f64 = 0.0D
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_menu(label str, texture str, duration f64, prev i32, next i32) (index i32) {
+	var menu menu_s
+
+	menu.label = label
+	menu.texture = texture
+	menu.duration = duration
+	menu.prev = prev
+	menu.next = next
+	menu.state = STATE_CLOSED
+	menu.prevState = STATE_CLOSED
+
+	index = g_menuCount
+	g_menus[g_menuCount] = menu
+	g_menuCount = g_menuCount + 1
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_menu(index i32) (value bool) {
+	value = ((index >= 0) && (index < g_menuCount))
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func change_menu_state(menu i32, state i32) () {
+	assert_(is_valid_menu(menu), "change_menu_state::invalid menu index")
+	g_menus[menu].prevState = g_menus[menu].state
+	printf("CHANGE %d\n", state)
+	g_menus[menu].state = state
+	var prev i32 = g_menus[menu].prevState
+	var curr i32 = g_menus[menu].state
+	if (prev != curr) {
+		printf("%s menu state changed %d -> %d\n", g_menus[menu].label, prev, curr)
+	}
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func menu_state_changed(menu i32, prev i32, curr i32) (value bool) {
+	assert_(is_valid_menu(menu), "menu_state_chaned:: invalid menu index")
+	var menuPrev i32 = g_menus[menu].prevState
+	var menuCurr i32 = g_menus[menu].state
+	value = ((menuPrev == prev) && (menuCurr == curr))
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func update_menu(menu i32, deltaTime f64) () {
+
+	assert_(is_valid_menu(menu), "update_menu::invalid menu index")
+	var t f64 = g_menus[menu].time
+	var d f64 = g_menus[menu].duration
+
+	g_menus[menu].time = t
+	var state i32 = g_menus[menu].state
+	if ((t <= 0) && (state == STATE_CLOSED)) {
+		printf("CHANGE SHOWING\n")
+		change_menu_state(menu, STATE_SHOWING)
+	} else if ((t >= d) && (d > 0) && (state == STATE_OPENED)) { // can't use g_menus[menu].state here
+		printf("CHANGE CLOSING %d\n", g_menus[menu].state)
+		change_menu_state(menu, STATE_CLOSING)
+	}
+
+	t = t + deltaTime
+	g_menus[menu].time = t
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func update_game(deltaTime f64)() { // rewrite
+
+	if (is_valid_menu(g_currentMenu)) {
+		update_menu(g_currentMenu, deltaTime)
+		if (menu_state_changed(g_currentMenu, STATE_OPENED, STATE_CLOSING)) {
+			g_nextMenu = g_menus[g_currentMenu].next
+			g_transitionTime = 0.0D
+			g_menus[g_currentMenu].prevState= g_menus[g_currentMenu].state
+			printf("menu : %s, STATE_CLOSING\n", g_menus[g_currentMenu].label)
+		} else if (menu_state_changed(g_currentMenu, STATE_CLOSING, STATE_CLOSED)) {
+			g_menus[g_currentMenu].time = 0.0D
+			g_menus[g_currentMenu].prevState= g_menus[g_currentMenu].state
+			g_currentMenu = g_nextMenu
+			printf("menu : %s, STATE_CLOSED\n")
+			printf("CURRENT %d, NEXT %d\n", g_currentMenu, g_nextMenu)
+		}
+	}
+
+	if (g_currentMenu != g_nextMenu) {
+		if (is_valid_menu(g_nextMenu)) {
+			update_menu(g_nextMenu, deltaTime)
+		}
+
+		if (g_transitionTime <= 0) {
+			printf("TRANSITION STARTED %f\n", f64.f32(g_transitionTime + deltaTime))
+			g_transitionTime = g_transitionTime + deltaTime
+		} else if (g_transitionTime <= g_transitionDuration) {
+			g_transitionTime = g_transitionTime + deltaTime
+		} else {
+			printf("TRANSITION ENDED\n")
+			if (is_valid_menu(g_currentMenu)) {
+				printf("CHANGE CLOSED\n")
+				change_menu_state(g_currentMenu, STATE_CLOSED)
+				printf("prev menu : %s, %d, %s\n", g_menus[g_currentMenu].label, g_menus[g_currentMenu].state, "STATE_CLOSED")
+			}
+			g_currentMenu = g_nextMenu
+			if (is_valid_menu(g_nextMenu)) {
+				var nextMenu i32 = g_menus[g_nextMenu].next
+				printf("CHANGE OPENED\n")
+				change_menu_state(g_nextMenu, STATE_OPENED)
+				printf("next menu : %s, %d, %s\n", g_menus[g_nextMenu].label, g_menus[g_nextMenu].state, "STATE_OPENED")
+				g_transitionTime = 0.0D
+			}
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func main() {
 	var width i32 = 800
     var height i32 = 600
@@ -762,32 +1065,50 @@ func main() {
     var color [4]f32 // inlin array init doesn't work
     color = [4]f32 { 1.0, 0.0, 1.0, 1.0 }
 
-    init_glfw(window, "pump_cx", width, height, targetFps)
+	init_glfw(window, "pump_cx", width, height, targetFps)
     gl_init(width, height, color)
 
-    // program
+    // programs
     var programVertexColor i32 = create_program("vsPassThrough", "psVertexColor")
     printf("programVertexColor %d\n", programVertexColor)
     bind_attribute(programVertexColor, 0, "i_v3Position")
-    bind_attribute(programVertexColor, 1, "i_v3Color")
+    bind_attribute(programVertexColor, 1, "i_v4Albedo")
 
-    // program
     var programTexture i32 = create_program("vsPassThrough", "psTexture")
     printf("programTexture %d\n", programTexture)
     bind_attribute(programTexture, 0, "i_v3Position")
+	bind_attribute(programTexture, 1, "i_v4Albedo")
     bind_attribute(programTexture, 2, "i_v2Texcoord")
     var albedoSampler i32 = bind_texture(programTexture, "u_t2Albedo")
 
-    // texture
-    var texture i32 = gl.NewTexture("textures/skycoin.png")
+	var programTrans_0 i32 = create_program("vsPassThrough", "psTransition_0")
+	bind_attribute(programTrans_0, 0, "i_v3Position")
+	bind_attribute(programTrans_0, 2, "i_v2Texcoord")
 
-    // meshes
+    // textures
+	var skycoinTexture i32 = create_texture("textures/skycoin.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0) // delete texture
+	printf("skycoinTexture %d\n", skycoinTexture)
+
+	// meshes
     var attributes [3]i32
     attributes = [3]i32{3, 4, 2} // can't use slice yet
 	alloc_mesh(&g_opaqueVertexColoredTriangles, gl.TRIANGLES, attributes, 1024 * 3)
 	alloc_mesh(&g_alphaVertexColoredTriangles, gl.TRIANGLES, attributes, 1024 * 3)
 	alloc_mesh(&g_opaqueTexturedTriangles, gl.TRIANGLES, attributes, 1024 * 3)
     alloc_mesh(&g_opaqueVertexColoredLines, gl.LINES, attributes, 1024 * 2)
+	alloc_mesh(&g_fullscreenQuad, gl.TRIANGLES, attributes, 6 * 3)
+
+	begin_mesh(&g_fullscreenQuad)
+	append_quad(&g_fullscreenQuad, -1.0, -1.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0)
+	end_mesh(&g_fullscreenQuad)
+
+	// targets
+	var framebuffer_0 i32 = create_framebuffer(width, height) // delete framebuffer // delete texture
+	var framebuffer_1 i32 = create_framebuffer(width, height) // delete framebuffer // delete texture
+	// menus
+	var menuSkycoin i32 = create_menu("skycoin", "skycoin.png", 2.0D, -1, 1)
+	var menuPumpcx i32 = create_menu("pump_cx", "", -1.0D, 0, 1)
+	g_nextMenu = menuSkycoin
 
     // main loop
     var fps fps_s = fps_init(targetFps)
@@ -798,23 +1119,25 @@ func main() {
         glfw.MakeContextCurrent(window)
 
         // update
-        begin_mesh(&g_opaqueTexturedTriangles)
-		append_quad(&g_opaqueTexturedTriangles, -1.0, -1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
-		append_quad(&g_opaqueTexturedTriangles,  0.0,  0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
+		update_game(fps.deltaTime)
+
+		begin_mesh(&g_opaqueTexturedTriangles)
+		append_quad(&g_opaqueTexturedTriangles, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
+		append_quad(&g_opaqueTexturedTriangles,  0.0,  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
 		end_mesh(&g_opaqueTexturedTriangles)
 
 		begin_mesh(&g_opaqueVertexColoredTriangles)
-		append_quad(&g_opaqueVertexColoredTriangles,  0.0, -1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
-		append_quad(&g_opaqueVertexColoredTriangles, -1.0,  0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0)
+		append_quad(&g_opaqueVertexColoredTriangles,  0.0, -1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0)
+		append_quad(&g_opaqueVertexColoredTriangles, -1.0,  0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0)
 		end_mesh(&g_opaqueVertexColoredTriangles)
 
         begin_mesh(&g_opaqueVertexColoredLines)
-        append_line(&g_opaqueVertexColoredLines, -1.0, -1.0, 1.0,  1.0, 1.0, 1.0, 0.0, 1.0)
-        append_line(&g_opaqueVertexColoredLines, -1.0,  1.0, 1.0, -1.0, 1.0, 1.0, 0.0, 1.0)
+        append_line(&g_opaqueVertexColoredLines, -1.0, -1.0, 1.0,  1.0, 1.0, 1.0, 1.0, 1.0)
+        append_line(&g_opaqueVertexColoredLines, -1.0,  1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0)
         end_mesh(&g_opaqueVertexColoredLines)
 
 		begin_mesh(&g_alphaVertexColoredTriangles)
-		append_quad(&g_alphaVertexColoredTriangles, -0.5, -0.5, 1.0, 1.0, 0.5, 1.0, 0.5, 0.5)
+		append_quad(&g_alphaVertexColoredTriangles, -0.5, -0.5, 1.0, 1.0, 0.0, 0.0, 1.0, 0.5)
 		end_mesh(&g_alphaVertexColoredTriangles)
 
         // render
@@ -822,27 +1145,33 @@ func main() {
         assert_(no_glerror(), "gl.Clear")
 
         // opaque
-        gl_disable(gl.BLEND)
+        gl.Disable(gl.BLEND)
+		assert_(no_glerror(), "gl.Disable(gl.BLEND)")
 
         use_program(programTexture)
         if g_opaqueTexturedTriangles.index > 0 {
-            assign_texture(0, albedoSampler, texture)
-            render_mesh(g_opaqueTexturedTriangles)
+            assign_texture(0, albedoSampler, skycoinTexture)
+            render_mesh(&g_opaqueTexturedTriangles)
         }
 
         use_program(programVertexColor)
         if g_opaqueVertexColoredTriangles.index > 0 {
-            render_mesh(g_opaqueVertexColoredTriangles)
+            render_mesh(&g_opaqueVertexColoredTriangles)
         }
+
         if g_opaqueVertexColoredLines.index > 0 {
-            gl_disable(gl.BLEND)
-            render_mesh(g_opaqueVertexColoredLines)
+            render_mesh(&g_opaqueVertexColoredLines)
         }
+
+		gl.Enable(gl.BLEND)
+		assert_(no_glerror(), "gl.Enable(gl.BLEND)")
+
+		gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+		assert_(no_glerror(), "gl.BlendFunc")
 
         // alpha
         if g_alphaVertexColoredTriangles.index > 0 {
-            gl_enable(gl.BLEND)
-            render_mesh(g_alphaVertexColoredTriangles)
+            render_mesh(&g_alphaVertexColoredTriangles)
         }
 
         glfw.PollEvents()
