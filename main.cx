@@ -21,21 +21,7 @@ import "time"
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-/*
-// Random Number between -0.6 to 0.6
-func randNumGenerator() (rNum f32){
-    var sign i32
-    sign = i32.rand(0,2) // Random Number between 0, 1
-
-    if sign == 1 {
-        rNum = f32.div(i32.rand(1, 6), 10)
-    } else {
-        rNum = f32.div(i32.rand(1, 6), 10)
-        rNum = f32.mul(rNum, -1.0)
-    }
-
-}
-*/
+//i32.rand(0,2)
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -56,6 +42,7 @@ type fps_s struct {
     fpsTime f64
     frameTime f64
     fps f64
+	init bool
 }
 
 //-----------------------------------------------------------------------------
@@ -71,6 +58,7 @@ func fps_init(targetFps f64)(out fps_s) {
 		out.frameTime = 1.0D / targetFps
     }
     out.fps = 0.0D
+	out.init = true
 }
 
 //-----------------------------------------------------------------------------
@@ -80,6 +68,10 @@ func fps_begin_update(in fps_s) (out fps_s) {
     out = in
     out.currentTime = glfw.GetTime()
     out.deltaTime = out.currentTime - out.previousTime
+	if (out.init == true) {
+		out.init = false
+		out.deltaTime = out.frameTime
+	}
 
     if out.currentTime - out.fpsTime > 1.0D {
         out.fpsTime = out.currentTime
@@ -119,6 +111,8 @@ func keyPressed(window str, key i32, scancode i32, action i32, mods i32) () {
 //-----------------------------------------------------------------------------
 func init_glfw(window str, name str, width i32, height i32, targetFps f64)() {
 
+	g_ratio = i32.f64(width) / i32.f64(height)
+
     printf("starting %s...\n", name)
 
     glfw.Init()
@@ -126,6 +120,7 @@ func init_glfw(window str, name str, width i32, height i32, targetFps f64)() {
     glfw.WindowHint(glfw.ContextVersionMajor, 2)
     glfw.WindowHint(glfw.ContextVersionMinor, 1)
     glfw.CreateWindow(window, 800, 600, name)
+	glfw.SetWindowPos(window, 100, 100) //1500, 100)
     glfw.MakeContextCurrent(window)
     var swapInterval i32 = 0
     if targetFps > 0.0D {
@@ -235,8 +230,9 @@ func gl_init(width i32, height i32, color [4]f32)() {
     gl.Strs("i_v4Albedo", "i_v4Albedo")
     gl.Strs("i_v2Texcoord", "i_v2Texcoord")
     gl.Strs("u_t2Albedo", "u_t2Albedo")
-	gl.Strs("u_t2Source", "u_t2Source")
-	gl.Strs("u_t2Dest", "u_t2Dest")
+	gl.Strs("u_t2Src", "u_t2Src")
+	gl.Strs("u_t2Dst", "u_t2Dst")
+	gl.Strs("u_fTime", "u_fTime")
 
     //-----------------------------------------------------------------------------
     // vsPassThrough
@@ -292,14 +288,14 @@ func gl_init(width i32, height i32, color [4]f32)() {
     gl.Strs(
 	`
 	#version 130
-	uniform sampler2D u_t2Source;
-	uniform sampler2D u_t2Dest;
+	uniform sampler2D u_t2Src;
+	uniform sampler2D u_t2Dst;
 	uniform float u_fTime;
 	in vec2 v_v2Texcoord;
 	out vec4 o_v4Color;
 	void main()
 	{
-		o_v4Color = mix(texture2D(u_t2Source, v_v2Texcoord), texture2D(u_t2Dest, v_v2Texcoord), u_fTime);
+		o_v4Color = mix(texture2D(u_t2Src, v_v2Texcoord), texture2D(u_t2Dst, v_v2Texcoord), u_fTime);
 	}
 	`, "psTransition_0")
 
@@ -337,25 +333,46 @@ func free_gl()() {
     gl.Free("i_v4Albedo")
     gl.Free("i_v2Texcoord")
     gl.Free("u_t2Albedo")
-	gl.Free("u_t2Source")
-	gl.Free("u_t2Dest")
+	gl.Free("u_t2Src")
+	gl.Free("u_t2Dst")
+	gl.Free("u_fTime")
+
+	use_program(0)
 
     var i i32
-
     for i = 0; i < g_programCount; i = i + 1 {
         printf("gl.DeleteProgram(%d)\n", g_programs[i])
-        gl.DeleteProgram(g_programs[i])
+        gl.DeleteProgram(g_programs[i]) // ##0 crash
+		assert_(no_glerror(), "gl.DeleteProgram")
     }
 
     for i = 0; i < g_vboCount; i = i + 1 {
         printf("gl.DeleteBuffers(%d)\n", g_vbos[i])
         gl.DeleteBuffers(1, g_vbos[i])
+		assert_(no_glerror(), "glDeleteBuffers")
     }
 
     for i = 0; i < g_vaoCount; i = i + 1 {
         printf("gl.DeleteVertexArrays(%d)\n", g_vaos[i])
         gl.DeleteVertexArrays(1, g_vaos[i])
+		assert_(no_glerror(), "g_DeleteVertexArrays")
     }
+
+
+	gl.DeleteFramebuffers(1, g_target_0.framebuffer)
+	assert_(no_glerror(), "g.DeleteFramebuffers")
+
+	gl.DeleteFramebuffers(1, g_target_1.framebuffer)
+	assert_(no_glerror(), "g_DeleteFramebuffers")
+
+	gl.DeleteTextures(1, g_target_0.texture)
+	assert_(no_glerror(), "g.DeleteTextures")
+
+	gl.DeleteTextures(1, g_target_1.texture)
+	assert_(no_glerror(), "g.DeleteTextures")
+
+	gl.DeleteTextures(1, g_skycoinTexture)
+	assert_(no_glerror(), "gl.DeleteTextures")
 }
 
 //-----------------------------------------------------------------------------
@@ -395,14 +412,22 @@ func create_texture(path str, mag i32, min i32, s i32, t i32, r i32, w i32, h i3
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func create_framebuffer(w i32, h i32) (framebuffer i32) {
-	framebuffer = gl.GenFramebuffers(1, framebuffer) // delete framebuffer
+type target_s struct {
+	framebuffer i32
+	texture i32
+}
+
+func create_target(w i32, h i32) (target target_s) {
+	var framebuffer i32 = -1
+	var texture i32 = -1
+
+	framebuffer = gl.GenFramebuffers(1, framebuffer)
 	assert_(no_glerror(), "gl.GenFramebuffers")
 	printf("FRAMEBUFFER_0 : %d\n", framebuffer)
 
 	gl.BindFramebuffer(gl.FRAMEBUFFER, framebuffer)
 	assert_(no_glerror(), "gl.BindFramebuffer")
-	var texture i32 = create_texture("", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, w, h)
+	texture = create_texture("", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, w, h)
 
 	gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0)
 	assert_(no_glerror(), "gl.FramebufferTexture2D")
@@ -412,6 +437,9 @@ func create_framebuffer(w i32, h i32) (framebuffer i32) {
 	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
 	assert_(no_glerror(), "gl.BindFramebuffer")
 	assert_(no_glstatus(), "gl.CheckFramebufferStatus")
+
+	target.framebuffer = framebuffer
+	target.texture = texture
 }
 
 //-----------------------------------------------------------------------------
@@ -495,11 +523,16 @@ func bind_attribute(program i32, location i32, name str) () {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func bind_texture(program i32, name str) (sampler i32) {
-    sampler = gl.GetUniformLocation(program, name)
-    assert_(no_glerror(), "gl.GetUniformLocation")
-    assert_(sampler >= 0, "sampler >= 0")
+	sampler = bind_uniform(program, name)
 }
 
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func bind_uniform(program i32, name str) (uniform i32) {
+    uniform = gl.GetUniformLocation(program, name) // ##2 crash find a way to test if str is present in gl.Strs
+    assert_(no_glerror(), "gl.GetUniformLocation")
+    assert_(uniform >= 0, "uniform>= 0")
+}
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -512,6 +545,13 @@ func assign_texture(slot i32, sampler i32, texture i32) () {
 
     gl.Uniform1i(sampler, slot)
     assert_(no_glerror(), "gl.Uniform1i")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func assign_float(slot i32, value f32) {
+	gl.Uniform1f(slot, value)
+	assert_(no_glerror(), "gl.Uniform1f")
 }
 
 //-----------------------------------------------------------------------------
@@ -906,6 +946,21 @@ var g_alphaVertexColoredTriangles mesh_s
 
 var g_fullscreenQuad mesh_s
 
+var g_target_0 target_s
+var g_target_1 target_s
+
+var g_programVertexColor i32
+
+var g_programTexture i32
+var g_albedoSampler i32 // per program, i need a effect struct
+
+var g_programTrans_0 i32
+var g_srcSampler i32
+var g_dstSampler i32
+var g_timeUniform i32
+
+var g_skycoinTexture i32
+
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 type menu_s struct {
@@ -933,6 +988,14 @@ var g_nextMenu i32 = -1
 
 var g_transitionDuration f64 = 0.5D
 var g_transitionTime f64 = 0.0D
+
+var g_skycoinMenu i32
+var g_pumpcxMenu i32
+var g_mainMenu i32
+
+var g_width i32 = 800
+var g_height i32 = 600
+var g_ratio f64
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -1054,40 +1117,206 @@ func update_game(deltaTime f64)() { // rewrite
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+func render_skycoin_menu() () {
+	var tw f32 = 2526.0
+	var th f32 = 1600.0
+	var tr f32 = tw / th
+
+	var targetW f32 = 1.16
+	var targetH f32 = 1.16
+
+	var w f32 = targetW * tr / f64.f32(g_ratio)
+	var h f32 = targetH
+	var x f32 = -1.0 + (2.0 - w) / 2.0
+	var y f32 = -1.0 + (2.0 - h) / 2.0
+
+	begin_mesh(&g_opaqueTexturedTriangles)
+	append_quad(&g_opaqueTexturedTriangles, x, y, w, h, 1.0, 1.0, 1.0, 1.0)
+	end_mesh(&g_opaqueTexturedTriangles)
+
+    use_program(g_programTexture)
+    if g_opaqueTexturedTriangles.index > 0 {
+        assign_texture(0, g_albedoSampler, g_skycoinTexture)
+        render_mesh(&g_opaqueTexturedTriangles)
+    }
+
+	gl.Disable(gl.BLEND)
+	assert_(no_glerror(), "gl.Disable(gl.BLEND)")
+
+	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+	assert_(no_glerror(), "gl.BlendFunc")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func render_pumpcx_menu() () {
+	render_debug()
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func render_main_menu() () {
+	begin_mesh(&g_opaqueVertexColoredTriangles)
+	append_quad(&g_opaqueVertexColoredTriangles,  -1.0, -1.0, 2.0, 2.0, 0.0, 114.0 / 255.0, 1.0, 1.0)
+	end_mesh(&g_opaqueVertexColoredTriangles)
+
+	// opaque
+	gl.Disable(gl.BLEND)
+	assert_(no_glerror(), "gl.Disable")
+
+    use_program(g_programVertexColor)
+    if g_opaqueVertexColoredTriangles.index > 0 {
+        render_mesh(&g_opaqueVertexColoredTriangles)
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func render_menu(menu i32) () {
+	       if (menu == g_skycoinMenu) {
+			render_skycoin_menu()
+	} else if (menu == g_pumpcxMenu) {
+			render_pumpcx_menu()
+	} else if (menu == g_mainMenu) {
+			render_main_menu()
+	}
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func render_debug() () {
+	// opaque
+	begin_mesh(&g_opaqueTexturedTriangles)
+	append_quad(&g_opaqueTexturedTriangles, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
+	append_quad(&g_opaqueTexturedTriangles,  0.0,  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
+	end_mesh(&g_opaqueTexturedTriangles)
+
+	begin_mesh(&g_opaqueVertexColoredTriangles)
+	append_quad(&g_opaqueVertexColoredTriangles,  0.0, -1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0)
+	append_quad(&g_opaqueVertexColoredTriangles, -1.0,  0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0)
+	end_mesh(&g_opaqueVertexColoredTriangles)
+
+    begin_mesh(&g_opaqueVertexColoredLines)
+    append_line(&g_opaqueVertexColoredLines, -1.0, -1.0, 1.0,  1.0, 1.0, 1.0, 1.0, 1.0)
+    append_line(&g_opaqueVertexColoredLines, -1.0,  1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0)
+    end_mesh(&g_opaqueVertexColoredLines)
+
+	// alpha
+	begin_mesh(&g_alphaVertexColoredTriangles)
+	append_quad(&g_alphaVertexColoredTriangles, -0.5, -0.5, 1.0, 1.0, 0.0, 0.0, 1.0, 0.5)
+	end_mesh(&g_alphaVertexColoredTriangles)
+
+	// opaque
+	gl.Disable(gl.BLEND)
+	assert_(no_glerror(), "gl.Disable")
+
+    use_program(g_programTexture)
+    if g_opaqueTexturedTriangles.index > 0 {
+        assign_texture(0, g_albedoSampler, g_skycoinTexture)
+        render_mesh(&g_opaqueTexturedTriangles)
+    }
+
+    use_program(g_programVertexColor)
+    if (g_opaqueVertexColoredTriangles.index > 0) {
+        render_mesh(&g_opaqueVertexColoredTriangles)
+    }
+
+    if g_opaqueVertexColoredLines.index > 0 {
+        render_mesh(&g_opaqueVertexColoredLines)
+    }
+
+	// alpha
+	gl.Enable(gl.BLEND)
+	assert_(no_glerror(), "gl.Enable(gl.BLEND)")
+
+	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+	assert_(no_glerror(), "gl.BlendFunc")
+
+    if g_alphaVertexColoredTriangles.index > 0 {
+        render_mesh(&g_alphaVertexColoredTriangles)
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func render_game() () {
+	gl.BindFramebuffer(gl.FRAMEBUFFER, g_target_0.framebuffer)
+	assert_(no_glerror(), "gl.BindFramebuffer")
+	gl.Clear(gl.COLOR_BUFFER_BIT)
+	assert_(no_glerror(), "gl.Clear")
+	if (is_valid_menu(g_currentMenu)) {
+		render_menu(g_currentMenu)
+	}
+
+	gl.BindFramebuffer(gl.FRAMEBUFFER, g_target_1.framebuffer)
+	assert_(no_glerror(), "gl.BindFramebuffer")
+	gl.Clear(gl.COLOR_BUFFER_BIT)
+	assert_(no_glerror(), "gl.Clear")
+	if (is_valid_menu(g_nextMenu)) {
+		render_menu(g_nextMenu)
+	}
+
+	// fullscreen transition
+	gl.BindFramebuffer(gl.FRAMEBUFFER, 0)
+	assert_(no_glerror(), "gl.BindFramebuffer")
+
+    gl.Clear(gl.COLOR_BUFFER_BIT)
+    assert_(no_glerror(), "gl.Clear")
+
+	gl.Disable(gl.DEPTH_TEST)
+	assert_(no_glerror(), "gl.Disable")
+
+	gl.Disable(gl.BLEND)
+	assert_(no_glerror(), "gl.Disable")
+
+	use_program(g_programTrans_0)
+	assign_texture(0, g_srcSampler, g_target_0.texture)
+	assign_texture(1, g_dstSampler, g_target_1.texture)
+	assign_float(g_timeUniform, f64.f32(g_transitionTime / g_transitionDuration))
+	render_mesh(&g_fullscreenQuad)
+}
+
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func main() {
-	var width i32 = 800
-    var height i32 = 600
-    var targetFps f64 = 60.0D
+
+	var targetFps f64 = 60.0D
 
     var window str // inline str init doesn't work
     window = "window"
 
     var color [4]f32 // inlin array init doesn't work
-    color = [4]f32 { 1.0, 0.0, 1.0, 1.0 }
+    color = [4]f32 { 30.0 / 255.0, 34.0 / 255.0, 39.0 / 255.0, 1.0 }
 
-	init_glfw(window, "pump_cx", width, height, targetFps)
-    gl_init(width, height, color)
+	init_glfw(window, "pumpcx", g_width, g_height, targetFps)
+    gl_init(g_width, g_height, color)
 
     // programs
-    var programVertexColor i32 = create_program("vsPassThrough", "psVertexColor")
-    printf("programVertexColor %d\n", programVertexColor)
-    bind_attribute(programVertexColor, 0, "i_v3Position")
-    bind_attribute(programVertexColor, 1, "i_v4Albedo")
+    g_programVertexColor = create_program("vsPassThrough", "psVertexColor")
+    //printf("g_programVertexColor %d\n", g_programVertexColor)
+    bind_attribute(g_programVertexColor, 0, "i_v3Position")
+    bind_attribute(g_programVertexColor, 1, "i_v4Albedo")
 
-    var programTexture i32 = create_program("vsPassThrough", "psTexture")
-    printf("programTexture %d\n", programTexture)
-    bind_attribute(programTexture, 0, "i_v3Position")
-	bind_attribute(programTexture, 1, "i_v4Albedo")
-    bind_attribute(programTexture, 2, "i_v2Texcoord")
-    var albedoSampler i32 = bind_texture(programTexture, "u_t2Albedo")
+    g_programTexture = create_program("vsPassThrough", "psTexture")
+    //printf("g_programTexture %d\n", g_programTexture)
+    bind_attribute(g_programTexture, 0, "i_v3Position")
+	bind_attribute(g_programTexture, 1, "i_v4Albedo")
+    bind_attribute(g_programTexture, 2, "i_v2Texcoord")
+    g_albedoSampler = bind_texture(g_programTexture, "u_t2Albedo")
 
-	var programTrans_0 i32 = create_program("vsPassThrough", "psTransition_0")
-	bind_attribute(programTrans_0, 0, "i_v3Position")
-	bind_attribute(programTrans_0, 2, "i_v2Texcoord")
+	g_programTrans_0 = create_program("vsPassThrough", "psTransition_0")
+	//printf("prgramTrans_0 %d\n", g_programTrans_0)
+	bind_attribute(g_programTrans_0, 0, "i_v3Position")
+	bind_attribute(g_programTrans_0, 2, "i_v2Texcoord")
+	g_srcSampler = bind_texture(g_programTrans_0, "u_t2Src")
+	g_dstSampler = bind_texture(g_programTrans_0, "u_t2Dst")
+	g_timeUniform = bind_uniform(g_programTrans_0, "u_fTime")
 
-    // textures
-	var skycoinTexture i32 = create_texture("textures/skycoin.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0) // delete texture
-	printf("skycoinTexture %d\n", skycoinTexture)
+	// textures
+	g_skycoinTexture = create_texture("textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png",
+		gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
+	//printf("g_skycoinTexture %d\n", g_skycoinTexture)
 
 	// meshes
     var attributes [3]i32
@@ -1099,88 +1328,33 @@ func main() {
 	alloc_mesh(&g_fullscreenQuad, gl.TRIANGLES, attributes, 6 * 3)
 
 	begin_mesh(&g_fullscreenQuad)
-	append_quad(&g_fullscreenQuad, -1.0, -1.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0)
+	append_quad(&g_fullscreenQuad, -1.0, 1.0, 2.0, -2.0, 1.0, 1.0, 1.0, 1.0)
 	end_mesh(&g_fullscreenQuad)
 
 	// targets
-	var framebuffer_0 i32 = create_framebuffer(width, height) // delete framebuffer // delete texture
-	var framebuffer_1 i32 = create_framebuffer(width, height) // delete framebuffer // delete texture
+	g_target_0 = create_target(g_width, g_height)
+	g_target_1 = create_target(g_width, g_height)
+
 	// menus
-	var menuSkycoin i32 = create_menu("skycoin", "skycoin.png", 2.0D, -1, 1)
-	var menuPumpcx i32 = create_menu("pump_cx", "", -1.0D, 0, 1)
-	g_nextMenu = menuSkycoin
+	g_skycoinMenu = create_menu("skycoin", "skycoin.png", 3.0D, -1, 1)
+	g_pumpcxMenu = create_menu("pumpcx", "", 2.0D, 0, 2)
+	g_mainMenu = create_menu("main", "", -2.0D, 1, 2)
+	g_nextMenu = g_skycoinMenu
 
     // main loop
     var fps fps_s = fps_init(targetFps)
     for bool.not(glfw.ShouldClose(window)) {
 
         fps = fps_begin_update(fps)
-
         glfw.MakeContextCurrent(window)
-
-        // update
 		update_game(fps.deltaTime)
-
-		begin_mesh(&g_opaqueTexturedTriangles)
-		append_quad(&g_opaqueTexturedTriangles, -1.0, -1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
-		append_quad(&g_opaqueTexturedTriangles,  0.0,  0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0)
-		end_mesh(&g_opaqueTexturedTriangles)
-
-		begin_mesh(&g_opaqueVertexColoredTriangles)
-		append_quad(&g_opaqueVertexColoredTriangles,  0.0, -1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0)
-		append_quad(&g_opaqueVertexColoredTriangles, -1.0,  0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 1.0)
-		end_mesh(&g_opaqueVertexColoredTriangles)
-
-        begin_mesh(&g_opaqueVertexColoredLines)
-        append_line(&g_opaqueVertexColoredLines, -1.0, -1.0, 1.0,  1.0, 1.0, 1.0, 1.0, 1.0)
-        append_line(&g_opaqueVertexColoredLines, -1.0,  1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0)
-        end_mesh(&g_opaqueVertexColoredLines)
-
-		begin_mesh(&g_alphaVertexColoredTriangles)
-		append_quad(&g_alphaVertexColoredTriangles, -0.5, -0.5, 1.0, 1.0, 0.0, 0.0, 1.0, 0.5)
-		end_mesh(&g_alphaVertexColoredTriangles)
-
-        // render
-        gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-        assert_(no_glerror(), "gl.Clear")
-
-        // opaque
-        gl.Disable(gl.BLEND)
-		assert_(no_glerror(), "gl.Disable(gl.BLEND)")
-
-        use_program(programTexture)
-        if g_opaqueTexturedTriangles.index > 0 {
-            assign_texture(0, albedoSampler, skycoinTexture)
-            render_mesh(&g_opaqueTexturedTriangles)
-        }
-
-        use_program(programVertexColor)
-        if g_opaqueVertexColoredTriangles.index > 0 {
-            render_mesh(&g_opaqueVertexColoredTriangles)
-        }
-
-        if g_opaqueVertexColoredLines.index > 0 {
-            render_mesh(&g_opaqueVertexColoredLines)
-        }
-
-		gl.Enable(gl.BLEND)
-		assert_(no_glerror(), "gl.Enable(gl.BLEND)")
-
-		gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-		assert_(no_glerror(), "gl.BlendFunc")
-
-        // alpha
-        if g_alphaVertexColoredTriangles.index > 0 {
-            render_mesh(&g_alphaVertexColoredTriangles)
-        }
-
+		render_game()
         glfw.PollEvents()
         glfw.SwapBuffers(window)
-
         fps = fps_end_update(fps)
     }
 
     free_gl()
 
-    printf("dump_cx\n")
+    printf("dumpcx\n")
 }
