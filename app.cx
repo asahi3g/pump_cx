@@ -1,0 +1,60 @@
+//-----------------------------------------------------------------------------
+// app
+//-----------------------------------------------------------------------------
+package app
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+import "glfw"
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var g_width i32 = 800
+var g_height i32 = 600
+var g_ratio f64
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func init(window str, name str, width i32, height i32, targetFps f64, major i32, minor i32, keyPressedCB str)() {
+
+	g_width = width
+	g_height = height
+    g_ratio = i32.f64(width) / i32.f64(height)
+
+    printf("starting %s...\n", name)
+
+    glfw.Init()
+    glfw.WindowHint(glfw.Resizable, glfw.False)
+    glfw.WindowHint(glfw.ContextVersionMajor, major)
+    glfw.WindowHint(glfw.ContextVersionMinor, minor)
+    glfw.CreateWindow(window, width, height, name)
+    //glfw.SetWindowPos(window, 100, 100) //1500, 100)
+    glfw.MakeContextCurrent(window)
+    var swapInterval i32 = 0
+    if targetFps > 0.0D {
+        swapInterval = 1 // should be based on targetFps
+    }
+    glfw.SwapInterval(swapInterval)
+    glfw.SetKeyCallback(window, keyPressedCB)
+    // xPos, yPos := glfw.GetCursorPos("window")
+    // glfw.SetMouseButtonCallback("window", "mouseButton") --> Doesn't work yet
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func running(window str) (value bool) {
+	value = (glfw.ShouldClose(window) == false)
+}
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func begin_update(window str) {
+    glfw.MakeContextCurrent(window)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func end_update(window str) {
+     glfw.PollEvents()
+    glfw.SwapBuffers(window)
+}
+

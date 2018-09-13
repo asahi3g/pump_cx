@@ -1,0 +1,160 @@
+//-----------------------------------------------------------------------------
+// gui
+//-----------------------------------------------------------------------------
+package gui
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+import "uti"
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type menu_s struct {
+    label str
+    texture str
+    duration f64
+    fadein f64
+    fadeout f64
+    time f64
+    prev i32
+    next i32
+    state i32
+    prevState i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var STATE_CLOSED i32 = 0
+var STATE_SHOWING i32 = 1
+var STATE_OPENED i32 = 2
+var STATE_CLOSING i32 = 3
+
+var g_menus [64]menu_s
+var g_menuCount i32
+var g_currentMenu i32 = -1
+var g_nextMenu i32 = -1
+
+var g_transitionDuration f64 = 0.5D
+var g_transitionTime f64 = 0.0D
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_menu(label str, texture str, duration f64, prev i32, next i32) (index i32) {
+    var menu menu_s
+
+    menu.label = label
+    menu.texture = texture
+    menu.duration = duration
+    menu.prev = prev
+    menu.next = next
+    menu.state = STATE_CLOSED
+    menu.prevState = STATE_CLOSED
+
+    index = g_menuCount
+    g_menus[g_menuCount] = menu
+    g_menuCount = g_menuCount + 1
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_menu(index i32) (value bool) {
+    value = ((index >= 0) && (index < g_menuCount))
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func change_menu_state(menu i32, state i32) () {
+    uti.assert_(is_valid_menu(menu), "change_menu_state::invalid menu index")
+    g_menus[menu].prevState = g_menus[menu].state
+    printf("CHANGE %d\n", state)
+    g_menus[menu].state = state
+    var prev i32 = g_menus[menu].prevState
+    var curr i32 = g_menus[menu].state
+    if (prev != curr) {
+        printf("%s menu state changed %d -> %d\n", g_menus[menu].label, prev, curr)
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func menu_state_changed(menu i32, prev i32, curr i32) (value bool) {
+    uti.assert_(is_valid_menu(menu), "menu_state_chaned:: invalid menu index")
+    var menuPrev i32 = g_menus[menu].prevState
+    var menuCurr i32 = g_menus[menu].state
+    value = ((menuPrev == prev) && (menuCurr == curr))
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func update_menu(menu i32, deltaTime f64) () {
+
+    uti.assert_(is_valid_menu(menu), "update_menu::invalid menu index")
+    var t f64 = g_menus[menu].time
+    var d f64 = g_menus[menu].duration
+
+    g_menus[menu].time = t
+    var state i32 = g_menus[menu].state
+    if ((t <= 0) && (state == STATE_CLOSED)) {
+        printf("CHANGE SHOWING\n")
+        change_menu_state(menu, STATE_SHOWING)
+    } else if ((t >= d) && (d > 0) && (state == STATE_OPENED)) { // can't use g_menus[menu].state here
+        printf("CHANGE CLOSING %d\n", g_menus[menu].state)
+        change_menu_state(menu, STATE_CLOSING)
+    }
+
+    t = t + deltaTime
+    g_menus[menu].time = t
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func update(deltaTime f64)() { // ##1 rewrite
+
+    if (is_valid_menu(g_currentMenu)) {
+        update_menu(g_currentMenu, deltaTime)
+        if (menu_state_changed(g_currentMenu, STATE_OPENED, STATE_CLOSING)) {
+            g_nextMenu = g_menus[g_currentMenu].next
+            g_transitionTime = 0.0D
+            g_menus[g_currentMenu].prevState= g_menus[g_currentMenu].state
+            printf("menu : %s, STATE_CLOSING\n", g_menus[g_currentMenu].label)
+        } else if (menu_state_changed(g_currentMenu, STATE_CLOSING, STATE_CLOSED)) {
+            g_menus[g_currentMenu].time = 0.0D
+            g_menus[g_currentMenu].prevState= g_menus[g_currentMenu].state
+            g_currentMenu = g_nextMenu
+            printf("menu : %s, STATE_CLOSED\n")
+            printf("CURRENT %d, NEXT %d\n", g_currentMenu, g_nextMenu)
+        }
+    }
+
+    if (g_currentMenu != g_nextMenu) {
+        if (is_valid_menu(g_nextMenu)) {
+            update_menu(g_nextMenu, deltaTime)
+        }
+
+        if (g_transitionTime <= 0) {
+            printf("TRANSITION STARTED %f\n", f64.f32(g_transitionTime + deltaTime))
+            g_transitionTime = g_transitionTime + deltaTime
+        } else if (g_transitionTime <= g_transitionDuration) {
+            g_transitionTime = g_transitionTime + deltaTime
+        } else {
+            printf("TRANSITION ENDED\n")
+            if (is_valid_menu(g_currentMenu)) {
+                printf("CHANGE CLOSED\n")
+                change_menu_state(g_currentMenu, STATE_CLOSED)
+                printf("prev menu : %s, %d, %s\n", g_menus[g_currentMenu].label, g_menus[g_currentMenu].state, "STATE_CLOSED")
+            }
+            g_currentMenu = g_nextMenu
+            if (is_valid_menu(g_nextMenu)) {
+                var nextMenu i32 = g_menus[g_nextMenu].next
+                printf("CHANGE OPENED\n")
+                change_menu_state(g_nextMenu, STATE_OPENED)
+                printf("next menu : %s, %d, %s\n", g_menus[g_nextMenu].label, g_menus[g_nextMenu].state, "STATE_OPENED")
+                g_transitionTime = 0.0D
+            }
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
