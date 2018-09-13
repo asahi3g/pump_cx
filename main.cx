@@ -307,7 +307,7 @@ func main() {
     g_nextMenu = 4
 
     // menus
-    g_bootMenu = gui.create_menu("boot", "", 0.5D, -1, g_skycoinMenu)
+    g_bootMenu = gui.create_menu("boot", "", 2.0D, -1, g_skycoinMenu)
     g_skycoinMenu = gui.create_menu("skycoin", "skycoin.png", 2.0D,  g_bootMenu, g_pumpcxMenu)
     g_pumpcxMenu = gui.create_menu("pumpcx", "", 2.0D,  g_skycoinMenu, g_mainMenu)
     g_mainMenu = gui.create_menu("main", "", -1.0D,  g_pumpcxMenu, g_mainMenu)
