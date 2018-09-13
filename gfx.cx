@@ -146,74 +146,74 @@ func no_glstatus() (nostatus bool) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func enable_blending(srcBlend i32, dstBlend i32) () {
-	if (g_blend == false) {
-		gl.Enable(gl.BLEND)
-		uti.assert_(no_glerror(), "gl.Enable(gl.BLEND)")
-		if ((g_srcBlend != srcBlend) || (g_dstBlend != dstBlend)) {
-			gl.BlendFunc(srcBlend, dstBlend)
-		    uti.assert_(no_glerror(), "gl.BlendFunc")
-		}
-		g_blend = true
-	}
+    if (g_blend == false) {
+        gl.Enable(gl.BLEND)
+        uti.assert_(no_glerror(), "gl.Enable(gl.BLEND)")
+        if ((g_srcBlend != srcBlend) || (g_dstBlend != dstBlend)) {
+            gl.BlendFunc(srcBlend, dstBlend)
+            uti.assert_(no_glerror(), "gl.BlendFunc")
+        }
+        g_blend = true
+    }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func disable_blending() () {
-	if (g_blend == true) {
-		gl.Disable(gl.BLEND)
-		uti.assert_(no_glerror(), "gl.Disable(gl.BLEND)")
-		g_blend = false
-	}
+    if (g_blend == true) {
+        gl.Disable(gl.BLEND)
+        uti.assert_(no_glerror(), "gl.Disable(gl.BLEND)")
+        g_blend = false
+    }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func enable_depth() () {
-	if (g_depth == false) {
-		gl.Enable(gl.DEPTH_TEST)
-		uti.assert_(no_glerror(), "gl.Enable(gl.DEPTH_TEST)")
-		g_depth = true
-	}
+    if (g_depth == false) {
+        gl.Enable(gl.DEPTH_TEST)
+        uti.assert_(no_glerror(), "gl.Enable(gl.DEPTH_TEST)")
+        g_depth = true
+    }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func disable_depth() () {
-	if (g_depth == true) {
-		gl.Disable(gl.DEPTH_TEST)
-		uti.assert_(no_glerror(), "gl.Disable(gl.DEPTH_TEST)")
-		g_depth = false
-	}
+    if (g_depth == true) {
+        gl.Disable(gl.DEPTH_TEST)
+        uti.assert_(no_glerror(), "gl.Disable(gl.DEPTH_TEST)")
+        g_depth = false
+    }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func clear(buffers i32, color mat.v4) () {
-	if ((g_clearColor.x != color.x) ||
-		(g_clearColor.y != color.y) ||
-		(g_clearColor.z != color.z) ||
-		(g_clearColor.w != color.w)) {
-		g_clearColor = color
-		gl.ClearColor(g_clearColor.x, g_clearColor.y, g_clearColor.z, g_clearColor.w)
-		uti.assert_(no_glerror(), "gl.ClearColor")
-	}
-	gl.Clear(buffers)
-	uti.assert_(no_glerror(), "gl.Clear")
+    if ((g_clearColor.x != color.x) ||
+        (g_clearColor.y != color.y) ||
+        (g_clearColor.z != color.z) ||
+        (g_clearColor.w != color.w)) {
+        g_clearColor = color
+        gl.ClearColor(g_clearColor.x, g_clearColor.y, g_clearColor.z, g_clearColor.w)
+        uti.assert_(no_glerror(), "gl.ClearColor")
+    }
+    gl.Clear(buffers)
+    uti.assert_(no_glerror(), "gl.Clear")
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func init(width i32, height i32)() {
 
-	red   = mat.v4_(1.0, 0.0, 0.0, 1.0)
-	green = mat.v4_(0.0, 1.0, 0.0, 1.0)
-	blue  = mat.v4_(0.0, 0.0, 1.0, 1.0)
-	pink  = mat.v4_(1.0, 0.0, 1.0, 1.0)
-	white = mat.v4_(1.0, 1.0, 1.0, 1.0)
-	zero  = mat.v4_(0.0, 0.0, 0.0, 0.0)
+    red   = mat.v4_(1.0, 0.0, 0.0, 1.0)
+    green = mat.v4_(0.0, 1.0, 0.0, 1.0)
+    blue  = mat.v4_(0.0, 0.0, 1.0, 1.0)
+    pink  = mat.v4_(1.0, 0.0, 1.0, 1.0)
+    white = mat.v4_(1.0, 1.0, 1.0, 1.0)
+    zero  = mat.v4_(0.0, 0.0, 0.0, 0.0)
 
-	g_clearColor = pink
+    g_clearColor = pink
 
     gl.Strs("i_v3Position", "i_v3Position")
     gl.Strs("i_v4Albedo", "i_v4Albedo")
@@ -346,17 +346,17 @@ func free()() {
         uti.assert_(no_glerror(), "g_DeleteVertexArrays")
     }
 
-	for i = 0; i < g_framebufferCount; i = i + 1 {
-		printf("gl.DeleteFramebuffers(%d)\n", g_framebuffers[i])
-		gl.DeleteFramebuffers(1, g_framebuffers[i])
-		uti.assert_(no_glerror(), "g.DeleteFramebuffers")
-	}
+    for i = 0; i < g_framebufferCount; i = i + 1 {
+        printf("gl.DeleteFramebuffers(%d)\n", g_framebuffers[i])
+        gl.DeleteFramebuffers(1, g_framebuffers[i])
+        uti.assert_(no_glerror(), "g.DeleteFramebuffers")
+    }
 
-	for i = 0; i < g_textureCount; i = i + 1 {
-		printf("gl.DeleteTextures(%d)\n", g_textures[i])
-		gl.DeleteTextures(1, g_textures[i])
-		uti.assert_(no_glerror(), "g.DeleteTextures")
-	}
+    for i = 0; i < g_textureCount; i = i + 1 {
+        printf("gl.DeleteTextures(%d)\n", g_textures[i])
+        gl.DeleteTextures(1, g_textures[i])
+        uti.assert_(no_glerror(), "g.DeleteTextures")
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -429,8 +429,8 @@ func create_target(w i32, h i32) (target target_s) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func bind_framebuffer(framebuffer i32) {
-	gl.BindFramebuffer(gl.FRAMEBUFFER, framebuffer)
-	uti.assert_(no_glerror(), "gl.BindFramebuffer")
+    gl.BindFramebuffer(gl.FRAMEBUFFER, framebuffer)
+    uti.assert_(no_glerror(), "gl.BindFramebuffer")
 }
 
 //-----------------------------------------------------------------------------
@@ -675,15 +675,15 @@ func render_mesh(mesh* mesh_s) {
 func append_line(mesh *mesh_s, line mat.v4, color mat.v4) () {
     uti.assert_((*mesh).primitive == gl.LINES, "(*mesh).primitive == gl.LINES")
 
-	var x0 f32 = line.x
-	var y0 f32 = line.y
-	var x1 f32 = line.z
-	var y1 f32 = line.w
+    var x0 f32 = line.x
+    var y0 f32 = line.y
+    var x1 f32 = line.z
+    var y1 f32 = line.w
 
-	var r f32 = color.x
-	var g f32 = color.y
-	var b f32 = color.z
-	var a f32 = color.w
+    var r f32 = color.x
+    var g f32 = color.y
+    var b f32 = color.z
+    var a f32 = color.w
 
     var index i32 = (*mesh).index
     (*mesh).vertices[index] = x0
@@ -731,15 +731,15 @@ func append_line(mesh *mesh_s, line mat.v4, color mat.v4) () {
 func append_quad(mesh *mesh_s, rect mat.v4, color mat.v4) {
     uti.assert_((*mesh).primitive == gl.TRIANGLES, "(*mesh).primitive == gl.TRIANGLES")
 
-	var x f32 = rect.x
-	var y f32 = rect.y
-	var w f32 = rect.z
-	var h f32 = rect.w
+    var x f32 = rect.x
+    var y f32 = rect.y
+    var w f32 = rect.z
+    var h f32 = rect.w
 
-	var r f32 = color.x
-	var g f32 = color.y
-	var b f32 = color.z
-	var a f32 = color.w
+    var r f32 = color.x
+    var g f32 = color.y
+    var b f32 = color.z
+    var a f32 = color.w
 
     var index i32 = (*mesh).index
     var x1 f32 = x + w

@@ -98,7 +98,7 @@ func render_boot_menu() () {
     gfx.end_mesh(&g_opaqueVertexColoredTriangles)
 
     // opaque
-	gfx.disable_blending()
+    gfx.disable_blending()
     gfx.use_program(g_programVertexColor)
     if g_opaqueVertexColoredTriangles.index > 0 {
         gfx.render_mesh(&g_opaqueVertexColoredTriangles)
@@ -124,7 +124,7 @@ func render_skycoin_menu() () {
     gfx.append_quad(&g_opaqueTexturedTriangles, mat.v4_(x, y, w, h), gfx.white)
     gfx.end_mesh(&g_opaqueTexturedTriangles)
 
-	gfx.disable_blending()
+    gfx.disable_blending()
     gfx.use_program(g_programTexture)
     if g_opaqueTexturedTriangles.index > 0 {
         gfx.assign_texture(0, g_albedoSampler, g_skycoinTexture)
@@ -143,10 +143,10 @@ func render_pumpcx_menu() () {
 func render_main_menu() () {
     gfx.begin_mesh(&g_opaqueVertexColoredTriangles)
     gfx.append_quad(&g_opaqueVertexColoredTriangles,  mat.v4_(-1.0, -1.0, 2.0, 2.0), sky.blue)
-	gfx.end_mesh(&g_opaqueVertexColoredTriangles)
+    gfx.end_mesh(&g_opaqueVertexColoredTriangles)
 
     // opaque
-	gfx.disable_blending()
+    gfx.disable_blending()
     gfx.use_program(g_programVertexColor)
     if g_opaqueVertexColoredTriangles.index > 0 {
         gfx.render_mesh(&g_opaqueVertexColoredTriangles)
@@ -178,7 +178,7 @@ func render_debug() () {
     gfx.end_mesh(&g_alphaVertexColoredTriangles)
 
     // opaque
-	gfx.disable_blending()
+    gfx.disable_blending()
     gfx.use_program(g_programTexture)
     if g_opaqueTexturedTriangles.index > 0 {
         gfx.assign_texture(0, g_albedoSampler, g_skycoinTexture)
@@ -195,7 +195,7 @@ func render_debug() () {
     }
 
     // alpha
-	gfx.enable_blending(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+    gfx.enable_blending(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
     if g_alphaVertexColoredTriangles.index > 0 {
         gfx.render_mesh(&g_alphaVertexColoredTriangles)
     }
@@ -213,31 +213,31 @@ func render_menu(menu i32) () {
     } else if (menu == g_mainMenu) {
             render_main_menu()
     } else {
-		uti.assert_(false, "render_menu::invalid menu index")
-	}
+        uti.assert_(false, "render_menu::invalid menu index")
+    }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func render_game() () {
-	gfx.bind_framebuffer(g_target_0.framebuffer)
-	gfx.clear(gl.COLOR_BUFFER_BIT, sky.black)
+    gfx.bind_framebuffer(g_target_0.framebuffer)
+    gfx.clear(gl.COLOR_BUFFER_BIT, sky.black)
     if (gui.is_valid_menu(g_currentMenu)) {
         render_menu(g_currentMenu)
     }
 
-	gfx.bind_framebuffer(g_target_1.framebuffer)
-	gfx.clear(gl.COLOR_BUFFER_BIT, sky.black)
+    gfx.bind_framebuffer(g_target_1.framebuffer)
+    gfx.clear(gl.COLOR_BUFFER_BIT, sky.black)
     if (gui.is_valid_menu(g_nextMenu)) {
         render_menu(g_nextMenu)
     }
 
     // fullscreen transition
-	gfx.bind_framebuffer(0)
-	gfx.clear(gl.COLOR_BUFFER_BIT, sky.black)
+    gfx.bind_framebuffer(0)
+    gfx.clear(gl.COLOR_BUFFER_BIT, sky.black)
 
-	gfx.disable_depth()
-	gfx.disable_blending()
+    gfx.disable_depth()
+    gfx.disable_blending()
 
     gfx.use_program(g_programTrans_0)
     gfx.assign_texture(0, g_srcSampler, g_target_0.texture)
@@ -256,7 +256,7 @@ func main() {
     var window str // inline str init doesn't work
     window = "window"
 
-	sky.init()
+    sky.init()
     app.init(window, "pumpcx", 800, 600, targetFps, 2, 1, "keyPressed")
     gfx.init(app.g_width, app.g_height)
 
@@ -317,10 +317,10 @@ func main() {
     var fps fps.fps_s = fps.init(targetFps)
     for app.running(window) {
         fps = fps.begin_update(fps)
-		app.begin_update(window)
+        app.begin_update(window)
         gui.update(fps.delta_time(&fps))
         render_game()
-		app.end_update(window)
+        app.end_update(window)
         fps = fps.end_update(fps)
     }
 

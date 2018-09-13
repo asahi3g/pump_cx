@@ -17,8 +17,8 @@ var g_ratio f64
 //-----------------------------------------------------------------------------
 func init(window str, name str, width i32, height i32, targetFps f64, major i32, minor i32, keyPressedCB str)() {
 
-	g_width = width
-	g_height = height
+    g_width = width
+    g_height = height
     g_ratio = i32.f64(width) / i32.f64(height)
 
     printf("starting %s...\n", name)
@@ -43,7 +43,7 @@ func init(window str, name str, width i32, height i32, targetFps f64, major i32,
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func running(window str) (value bool) {
-	value = (glfw.ShouldClose(window) == false)
+    value = (glfw.ShouldClose(window) == false)
 }
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
