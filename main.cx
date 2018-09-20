@@ -72,45 +72,6 @@ var g_pauseScreen    gui.screen_handle_s = gui.invalid_screen()
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-/*func render_keyboard() () {
-	var rowCount i32 = 10
-	var lineCount i32 = 4
-
-	var fRowCount f32 = i32.f32(rowCount)
-	var fLineCount f32 = i32.f32(lineCount)
-
-	var keyWidth f32 = 0.08
-	var keyHeight f32 = 0.08 * gfx.gfx_ratio
-
-	var height f32 = fLineCount * keyHeight + (fLineCount + 1.0) * gui.gui_padding_y
-	var width f32 = fRowCount * keyWidth + (fRowCount + 1.0) * gui.gui_padding_x
-
-	var w f32 = width
-	var h f32 = height
-	var x f32 = -1.0 + (2.0 - w) / 2.0
-	var y f32 = -1.0 + gui.gui_padding_y
-	gfx.append_quad(&g_opaqueVertexColoredTriangles, mat.v4_(x, y, w, h), mat.v4_(0.0, 0.0, 1.0, 1.0), gui.g_gray_2)
-	gfx.append_rect(&g_opaqueVertexColoredLines, mat.v4_(x, y, w, h), gui.g_gray_3, gui.g_gray_3, gui.g_gray_3, gui.g_gray_3)
-
-	var count i32 = 0
-	var i i32 = 0
-	var j i32 = 0
-	for i = 0; i < rowCount; i = i + 1 {
-		for j = 0; j < lineCount; j = j + 1 {
-			var kx f32 = gui.gui_padding_x + x + i32.f32(i) * (gui.gui_padding_x + keyWidth)
-			var ky f32 = gui.gui_padding_y + y + i32.f32(j) * (gui.gui_padding_y + keyHeight)
-			var kw f32 = keyWidth
-			var kh f32 = keyHeight
-			gfx.append_quad(&g_opaqueVertexColoredTriangles, mat.v4_(kx, ky, kw, kh), mat.v4_(0.0, 0.0, 1.0, 1.0), gui.g_primary_blue)
-			gfx.append_text(&g_alphaTexturedTriangles, g_skycoinFontTexture, "skycoin", kx, ky, gui.g_light_blue, "A", false, false)
-			gfx.append_rect(&g_opaqueVertexColoredLines, mat.v4_(kx, ky, kw, kh), gui.g_primary_blue, gui.g_primary_blue, gui.g_primary_blue, gui.g_primary_blue)
-			count = count + 1
-		}
-	}
-}*/
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
 func main() {
 
     var targetFps f64 = 60.0D
@@ -118,57 +79,57 @@ func main() {
     var window str // inline str init doesn't work
     window = "window"
 
-	// init
+    // init
     app.init(window, "pumpcx", 800, 600, targetFps, 2, 1, "main.keyPressed")
     gfx.init(app.g_width, app.g_height)
-	gui.init(app.g_width, app.g_height, gfx.gfx_ratio)
+    gui.init(app.g_width, app.g_height, gfx.gfx_ratio)
 
-	var screenBounds mat.v4 = mat.v4_(-1.0, -1.0, 2.0, 2.0)
+    var screenBounds mat.v4 = mat.v4_(-1.0, -1.0, 2.0, 2.0)
 
     // boot screen
     {
-		g_bootScreen = gui.create_screen(2.0D, gui.g_blackControlSkin, screenBounds)
+        g_bootScreen = gui.create_screen(2.0D, gui.g_blackControlSkin, screenBounds)
     }
 
-	// debug screen
-	{
-		g_debugScreen = gui.create_screen(2.0D, gui.g_blackControlSkin, screenBounds)
+    // debug screen
+    {
+        g_debugScreen = gui.create_screen(2.0D, gui.g_blackControlSkin, screenBounds)
         printf("g_debugScreen %d, %d\n", g_debugScreen.screen, g_debugScreen.control)
 
-		gui.control_add_control(g_debugScreen.control, gui.create_control(gui.GUI_CONTROL, gui.g_controlCount,
-			gui.g_redControlSkin, mat.v4_(-1.0, 0.0, 1.0, 1.0), 0, 0, 0, 0))
+        gui.control_add_control(g_debugScreen.control, gui.create_control(gui.GUI_CONTROL, gui.g_controlCount,
+            gui.g_redControlSkin, mat.v4_(-1.0, 0.0, 1.0, 1.0), 0, 0, 0, 0))
 
-		gui.control_add_control(g_debugScreen.control, gui.create_control(gui.GUI_CONTROL, gui.g_controlCount,
-			gui.g_greenControlSkin, mat.v4_(0.0, -1.0, 1.0, 1.0), 0, 0, 0, 0))
+        gui.control_add_control(g_debugScreen.control, gui.create_control(gui.GUI_CONTROL, gui.g_controlCount,
+            gui.g_greenControlSkin, mat.v4_(0.0, -1.0, 1.0, 1.0), 0, 0, 0, 0))
 
-		gui.control_add_picture(g_debugScreen.control, gui.create_picture(
-			gui.g_skycoinTexture, -1, mat.v4_(0.0, 0.0, 1.0, 1.0), 0, 0, 0, 0))
+        gui.control_add_picture(g_debugScreen.control, gui.create_picture(
+            gui.g_skycoinTexture, -1, mat.v4_(0.0, 0.0, 1.0, 1.0), 0, 0, 0, 0))
 
-		gui.control_add_picture(g_debugScreen.control, gui.create_picture(
-			gui.g_skycoinTexture, -1, mat.v4_(-1.0, -1.0, 1.0, 1.0), 0, 0, 0, 0))
+        gui.control_add_picture(g_debugScreen.control, gui.create_picture(
+            gui.g_skycoinTexture, -1, mat.v4_(-1.0, -1.0, 1.0, 1.0), 0, 0, 0, 0))
 
-		gui.control_add_control(g_debugScreen.control, gui.create_control(GUI_CONTROL, gui.g_controlCount,
-			gui.g_primaryBlueAlphaControlSkin, mat.v4_(-0.5, -0.5, 1.0, 1.0), 0, 0, 0, 0))
-	}
+        gui.control_add_control(g_debugScreen.control, gui.create_control(GUI_CONTROL, gui.g_controlCount,
+            gui.g_primaryBlueAlphaControlSkin, mat.v4_(-0.5, -0.5, 1.0, 1.0), 0, 0, 0, 0))
+    }
 
-	// skycoin screen
-	{
-		g_skycoinScreen = gui.create_screen(2.0D, gui.g_blackControlSkin, screenBounds)
+    // skycoin screen
+    {
+        g_skycoinScreen = gui.create_screen(2.0D, gui.g_blackControlSkin, screenBounds)
 
-		gui.control_add_picture(g_skycoinScreen.control, gui.create_picture(
-			gui.g_skycoinTexture, -1, mat.v4_(0.0, 0.0, 1.16, 1.16), 0, gui.AUTORATIO_X, gui.ALIGN_CENTER, 0))
+        gui.control_add_picture(g_skycoinScreen.control, gui.create_picture(
+            gui.g_skycoinTexture, -1, mat.v4_(0.0, 0.0, 1.16, 1.16), 0, gui.AUTORATIO_X, gui.ALIGN_CENTER, 0))
 
         //gui.control_add_control(g_skycoinScreen.control, gui.create_picture(
-		///	gui.g_skycoinTexture, -1, mat.v4_(0.0, 0.0, 1.16, 1.16), 0, gui.ALIGN_CENTER, 0).control) // ##issue_59 issue
-	}
+        ///    gui.g_skycoinTexture, -1, mat.v4_(0.0, 0.0, 1.16, 1.16), 0, gui.ALIGN_CENTER, 0).control) // ##issue_59 issue
+    }
 
-	// pumpcx screen
-	{
-		g_pumpcxScreen = gui.create_screen(2.0D, gui.g_blackControlSkin, screenBounds)
+    // pumpcx screen
+    {
+        g_pumpcxScreen = gui.create_screen(2.0D, gui.g_blackControlSkin, screenBounds)
 
-		gui.control_add_label(g_pumpcxScreen.control, gui.create_label(
-			"skycoin", "pumpcx", -1, gfx.zero, gui.AUTOSIZE, 0, gui.ALIGN_CENTER, 0))
-	}
+        gui.control_add_label(g_pumpcxScreen.control, gui.create_label(
+            "skycoin", "pumpcx", -1, gfx.zero, gui.AUTOSIZE, 0, gui.ALIGN_CENTER, 0))
+    }
 
     // main screen
     {
@@ -225,7 +186,7 @@ func main() {
     gui.screen_set_order(g_gameScreen   , g_mainScreen        , gui.invalid_screen())
 
     g_nextScreen = g_bootScreen
-	//g_nextScreen = g_mainScreen
+    //g_nextScreen = g_mainScreen
     //g_nextScreen = g_gameScreen
 
     gui.screen_set_on_exit(g_mainScreen, g_exitAppScreen)
@@ -241,7 +202,7 @@ func main() {
         app.begin_update(window)
         gui.update(fps.delta_time(&fps))
         gui.resize()
-		gui.render()
+        gui.render()
         app.end_update(window)
         fps = fps.end_update(fps)
     }

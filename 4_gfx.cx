@@ -54,16 +54,16 @@ var black mat.v4
 var zero mat.v4
 
 type texture_s struct {
-	name i32
-	width i32
-	height i32
+    name i32
+    width i32
+    height i32
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 type target_s struct {
     framebuffer i32
-	texture texture_s
+    texture texture_s
 }
 
 //-----------------------------------------------------------------------------
@@ -218,9 +218,9 @@ func clear(buffers i32, color mat.v4) () {
 //-----------------------------------------------------------------------------
 func init(width i32, height i32)() {
 
-	gfx_width = i32.f32(width)
-	gfx_height = i32.f32(height)
-	gfx_ratio = gfx_width / gfx_height
+    gfx_width = i32.f32(width)
+    gfx_height = i32.f32(height)
+    gfx_ratio = gfx_width / gfx_height
 
     red   = mat.v4_(1.0, 0.0, 0.0, 1.0)
     green = mat.v4_(0.0, 1.0, 0.0, 1.0)
@@ -412,11 +412,11 @@ func create_texture(path str, mag i32, min i32, s i32, t i32, r i32, w i32, h i3
         uti.assert_(no_glerror(), "gl.Image2D")
     }
 
-	texture.width = gl.GetTexLevelParameteriv(gl.TEXTURE_2D, 0, gl.TEXTURE_WIDTH);
-	uti.assert_(no_glerror(), "gl.GetTexLevelParameteriv")
+    texture.width = gl.GetTexLevelParameteriv(gl.TEXTURE_2D, 0, gl.TEXTURE_WIDTH);
+    uti.assert_(no_glerror(), "gl.GetTexLevelParameteriv")
 
-	texture.height = gl.GetTexLevelParameteriv(gl.TEXTURE_2D, 0, gl.TEXTURE_HEIGHT);
-	uti.assert_(no_glerror(), "gl.GetTexLevelParameteriv")
+    texture.height = gl.GetTexLevelParameteriv(gl.TEXTURE_2D, 0, gl.TEXTURE_HEIGHT);
+    uti.assert_(no_glerror(), "gl.GetTexLevelParameteriv")
 }
 
 //-----------------------------------------------------------------------------
@@ -694,7 +694,7 @@ func render_mesh(mesh* mesh_s) {
 //-----------------------------------------------------------------------------
 func append_line(mesh *mesh_s, line mat.v4, color mat.v4) () {
     //printf("primitive %d\n", (*mesh).primitive)
-//	uti.assert_((*mesh).primitive == gl.LINES, "(*mesh).primitive == gl.LINES")
+//    uti.assert_((*mesh).primitive == gl.LINES, "(*mesh).primitive == gl.LINES")
 
     var x0 f32 = line.x
     var y0 f32 = line.y
@@ -752,15 +752,15 @@ func append_line(mesh *mesh_s, line mat.v4, color mat.v4) () {
 //-----------------------------------------------------------------------------
 func append_rect(mesh *mesh_s, rect mat.v4, left mat.v4, right mat.v4, bottom mat.v4, top mat.v4) () {
 
-	var x0 f32 = rect.x
-	var y0 f32 = rect.y
-	var x1 f32 = x0 + rect.z
-	var y1 f32 = y0 + rect.w
+    var x0 f32 = rect.x
+    var y0 f32 = rect.y
+    var x1 f32 = x0 + rect.z
+    var y1 f32 = y0 + rect.w
 
-	append_line(mesh, mat.v4_(x0, y0, x0, y1), left)
-	append_line(mesh, mat.v4_(x1, y0, x1, y1), right)
-	append_line(mesh, mat.v4_(x0, y0, x1, y0), bottom)
-	append_line(mesh, mat.v4_(x0, y1, x1, y1), top)
+    append_line(mesh, mat.v4_(x0, y0, x0, y1), left)
+    append_line(mesh, mat.v4_(x1, y0, x1, y1), right)
+    append_line(mesh, mat.v4_(x0, y0, x1, y0), bottom)
+    append_line(mesh, mat.v4_(x0, y1, x1, y1), top)
 }
 
 //-----------------------------------------------------------------------------
@@ -782,10 +782,10 @@ func append_quad(mesh *mesh_s, rect mat.v4, uv mat.v4, color mat.v4) {
     var x1 f32 = x + w
     var y1 f32 = y + h
 
-	var u0 f32 = uv.x
-	var v0 f32 = uv.y
-	var u1 f32 = uv.z
-	var v1 f32 = uv.w
+    var u0 f32 = uv.x
+    var v0 f32 = uv.y
+    var u1 f32 = uv.z
+    var v1 f32 = uv.w
 
     (*mesh).vertices[index] = x
     index = index + 1
@@ -974,88 +974,88 @@ func append_quad(mesh *mesh_s, rect mat.v4, uv mat.v4, color mat.v4) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func create_font(name str, path str, scale i32, low i32, high i32, dir i32) (texture texture_s) {
-	os.Open(path)
-	gltext.LoadTrueType(name, path, scale, low, high, dir) // ##0 release
-	os.Close(path)
-	texture.name = gltext.Texture(name)
+    os.Open(path)
+    gltext.LoadTrueType(name, path, scale, low, high, dir) // ##0 release
+    os.Close(path)
+    texture.name = gltext.Texture(name)
 
-	gl.BindTexture(gl.TEXTURE_2D, texture.name)
-	uti.assert_(no_glerror(), "gl.BindTexture")
+    gl.BindTexture(gl.TEXTURE_2D, texture.name)
+    uti.assert_(no_glerror(), "gl.BindTexture")
 
-	texture.width = gl.GetTexLevelParameteriv(gl.TEXTURE_2D, 0, gl.TEXTURE_WIDTH)
-	uti.assert_(no_glerror(), "gl.GetTexLevelParameteriv")
+    texture.width = gl.GetTexLevelParameteriv(gl.TEXTURE_2D, 0, gl.TEXTURE_WIDTH)
+    uti.assert_(no_glerror(), "gl.GetTexLevelParameteriv")
 
-	texture.height = gl.GetTexLevelParameteriv(gl.TEXTURE_2D, 0, gl.TEXTURE_HEIGHT)
-	uti.assert_(no_glerror(), "gl.GetTexLevelParameteriv")
+    texture.height = gl.GetTexLevelParameteriv(gl.TEXTURE_2D, 0, gl.TEXTURE_HEIGHT)
+    uti.assert_(no_glerror(), "gl.GetTexLevelParameteriv")
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func append_text(mesh* mesh_s, texture texture_s, name str, x f32, y f32, ratio f32, color mat.v4, text str, debug bool, color0 mat.v4, color1 mat.v4) {
-	var index i32 = 0
-	var size i32 = 0
+    var index i32 = 0
+    var size i32 = 0
 
-	//var maxGlyphWidth i32 = 0;
-	//var maxGlyphHeight i32 = 0;
-	//maxGlyphWidth, maxGlyphHeight = gltext.GlyphBounds(name)
+    //var maxGlyphWidth i32 = 0;
+    //var maxGlyphHeight i32 = 0;
+    //maxGlyphWidth, maxGlyphHeight = gltext.GlyphBounds(name)
 
-	var textW i32
-	var textH i32
-	textW, textH := measure_text(name, text)
+    var textW i32
+    var textH i32
+    textW, textH := measure_text(name, text)
 
-	var textWidth f32 = ratio * i32.f32(textW)
-	var textHeight f32 = ratio * i32.f32(textH)
+    var textWidth f32 = ratio * i32.f32(textW)
+    var textHeight f32 = ratio * i32.f32(textH)
 
-	var quadX f32 = x
-	var quadY f32 = y// - ratio * i32.f32(textH) / gfx_height
-	//if (center == true) {
-	//	quadX = -1.0 + (2.0 - textWidth / gfx_width) / 2.0 // / gfx_width
-	//	quadY =  0.0 - textHeight / (gfx_height * 2.0) // / gfx_height
-	//}
+    var quadX f32 = x
+    var quadY f32 = y// - ratio * i32.f32(textH) / gfx_height
+    //if (center == true) {
+    //    quadX = -1.0 + (2.0 - textWidth / gfx_width) / 2.0 // / gfx_width
+    //    quadY =  0.0 - textHeight / (gfx_height * 2.0) // / gfx_height
+    //}
 
-	var tw f32 = i32.f32(texture.width)
-	var th f32 = i32.f32(texture.height)
-	var index i32 = 0
-	var dummyIndex i32 = 0
-	for (size >= 0) {
+    var tw f32 = i32.f32(texture.width)
+    var th f32 = i32.f32(texture.height)
+    var index i32 = 0
+    var dummyIndex i32 = 0
+    for (size >= 0) {
 
-		var rune i32
-		var glyphX i32
-		var glyphY i32
-		var glyphWidth i32
-		var glyphHeight i32
-		var glyphAdvance i32
+        var rune i32
+        var glyphX i32
+        var glyphY i32
+        var glyphWidth i32
+        var glyphHeight i32
+        var glyphAdvance i32
 
-		rune, size, glyphX, glyphY, glyphWidth, glyphHeight, glyphAdvance = gltext.NextRune(name, text, index)
-		if (size >= 0) {
+        rune, size, glyphX, glyphY, glyphWidth, glyphHeight, glyphAdvance = gltext.NextRune(name, text, index)
+        if (size >= 0) {
 
-			var quadAdvance f32 = ratio * i32.f32(glyphAdvance) / gfx_width
-			var quadWidth f32 = ratio * i32.f32(glyphWidth) / gfx_width
-			var quadHeight f32 = ratio * i32.f32(textH) / gfx_height
-			var qu0 f32 = i32.f32(glyphX) / tw
-			var qv0 f32 = i32.f32(glyphY) / th
+            var quadAdvance f32 = ratio * i32.f32(glyphAdvance) / gfx_width
+            var quadWidth f32 = ratio * i32.f32(glyphWidth) / gfx_width
+            var quadHeight f32 = ratio * i32.f32(textH) / gfx_height
+            var qu0 f32 = i32.f32(glyphX) / tw
+            var qv0 f32 = i32.f32(glyphY) / th
 
-			var qu1 f32 = qu0 + i32.f32(glyphAdvance) / tw
-			var qv1 f32 = qv0 + i32.f32(glyphHeight) / th
+            var qu1 f32 = qu0 + i32.f32(glyphAdvance) / tw
+            var qv1 f32 = qv0 + i32.f32(glyphHeight) / th
 
-			uti.assert_(rune >= 0, "invalid rune")
-			if (debug == true) {
-				color = color0
-				if ((dummyIndex % 2) == 0) {
-					color = color1
-			    }
+            uti.assert_(rune >= 0, "invalid rune")
+            if (debug == true) {
+                color = color0
+                if ((dummyIndex % 2) == 0) {
+                    color = color1
+                }
             }
-			append_quad(mesh, mat.v4_(quadX, quadY, quadAdvance, quadHeight), mat.v4_(qu0, qv0, qu1, qv1),  color)
-			index = index + size
-			quadX = quadX + quadAdvance
-			dummyIndex = dummyIndex + 1
-		}
-	}
+            append_quad(mesh, mat.v4_(quadX, quadY, quadAdvance, quadHeight), mat.v4_(qu0, qv0, qu1, qv1),  color)
+            index = index + size
+            quadX = quadX + quadAdvance
+            dummyIndex = dummyIndex + 1
+        }
+    }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func measure_text(name str, text str) (w i32, h i32) {
-	w, h = gltext.Metrics(name, text)
+    w, h = gltext.Metrics(name, text)
 }
 

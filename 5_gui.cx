@@ -341,14 +341,14 @@ func create_control_skin(back i32, fore i32, hoverBack i32, hoverFore i32, disab
 //-----------------------------------------------------------------------------
 // SKIN
 //-----------------------------------------------------------------------------
-var g_black			mat.v4 = mat.rgba_ui8( 30,  34,  39, 255)
-var g_white			mat.v4 = mat.rgba_ui8(255, 251, 251, 255)
-var g_primary_blue	mat.v4 = mat.rgba_ui8(  0, 114, 255, 255)
+var g_black         mat.v4 = mat.rgba_ui8( 30,  34,  39, 255)
+var g_white         mat.v4 = mat.rgba_ui8(255, 251, 251, 255)
+var g_primary_blue  mat.v4 = mat.rgba_ui8(  0, 114, 255, 255)
 var g_primary_blue_a50 mat.v4 = alpha(g_primary_blue, 0.5)
-var g_light_blue	mat.v4 = mat.rgba_ui8(  0, 195, 255, 255)
-var g_green			mat.v4 = mat.rgba_ui8(  0, 223, 128, 255)
-var g_red			mat.v4 = mat.rgba_ui8(255,   0,  78, 255)
-var g_gold			mat.v4 = mat.rgba_ui8(255, 193,  37, 255)
+var g_light_blue    mat.v4 = mat.rgba_ui8(  0, 195, 255, 255)
+var g_green         mat.v4 = mat.rgba_ui8(  0, 223, 128, 255)
+var g_red           mat.v4 = mat.rgba_ui8(255,   0,  78, 255)
+var g_gold          mat.v4 = mat.rgba_ui8(255, 193,  37, 255)
 var g_gray_0        mat.v4 = mat.rgba_ui8( 34,  38,  43, 255)
 var g_gray_1        mat.v4 = mat.rgba_ui8( 41,  45,  50, 255)
 var g_gray_2        mat.v4 = mat.rgba_ui8( 74,  77,  81, 255)
@@ -955,7 +955,7 @@ func resize_label(handle label_handle_s) () {
     var scale f32 = 3.0 // ## todo autoscale
 
     var w f32 = g_controls[handle.control].bounds.z
-	var h f32 = g_controls[handle.control].bounds.w
+    var h f32 = g_controls[handle.control].bounds.w
 
     if (autosize != AUTOSIZE_NONE) {
         var width i32
@@ -988,7 +988,7 @@ func render_label(handle label_handle_s) () {
     //control_print(handle.control, "render_label :")
     render_control(handle.control)
 
-	gfx.append_text(&g_alphaTexturedTriangles, g_skycoinFontTexture, "skycoin",
+    gfx.append_text(&g_alphaTexturedTriangles, g_skycoinFontTexture, "skycoin",
         g_controls[handle.control].renderBounds.x, g_controls[handle.control].renderBounds.y, g_controls[handle.control].scale,
         mat.v4_(1.0, 1.0, 1.0, 1.0), g_labels[handle.label].text, true, g_red, g_green)
 }
@@ -1237,6 +1237,43 @@ func resize_keyboard(handle keyboard_handle_s) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+/*func render_keyboard() () {
+    var rowCount i32 = 10
+    var lineCount i32 = 4
+
+    var fRowCount f32 = i32.f32(rowCount)
+    var fLineCount f32 = i32.f32(lineCount)
+
+    var keyWidth f32 = 0.08
+    var keyHeight f32 = 0.08 * gfx.gfx_ratio
+
+    var height f32 = fLineCount * keyHeight + (fLineCount + 1.0) * gui.gui_padding_y
+    var width f32 = fRowCount * keyWidth + (fRowCount + 1.0) * gui.gui_padding_x
+
+    var w f32 = width
+    var h f32 = height
+    var x f32 = -1.0 + (2.0 - w) / 2.0
+    var y f32 = -1.0 + gui.gui_padding_y
+    gfx.append_quad(&g_opaqueVertexColoredTriangles, mat.v4_(x, y, w, h), mat.v4_(0.0, 0.0, 1.0, 1.0), gui.g_gray_2)
+    gfx.append_rect(&g_opaqueVertexColoredLines, mat.v4_(x, y, w, h), gui.g_gray_3, gui.g_gray_3, gui.g_gray_3, gui.g_gray_3)
+
+    var count i32 = 0
+    var i i32 = 0
+    var j i32 = 0
+    for i = 0; i < rowCount; i = i + 1 {
+        for j = 0; j < lineCount; j = j + 1 {
+            var kx f32 = gui.gui_padding_x + x + i32.f32(i) * (gui.gui_padding_x + keyWidth)
+            var ky f32 = gui.gui_padding_y + y + i32.f32(j) * (gui.gui_padding_y + keyHeight)
+            var kw f32 = keyWidth
+            var kh f32 = keyHeight
+            gfx.append_quad(&g_opaqueVertexColoredTriangles, mat.v4_(kx, ky, kw, kh), mat.v4_(0.0, 0.0, 1.0, 1.0), gui.g_primary_blue)
+            gfx.append_text(&g_alphaTexturedTriangles, g_skycoinFontTexture, "skycoin", kx, ky, gui.g_light_blue, "A", false, false)
+            gfx.append_rect(&g_opaqueVertexColoredLines, mat.v4_(kx, ky, kw, kh), gui.g_primary_blue, gui.g_primary_blue, gui.g_primary_blue, gui.g_primary_blue)
+            count = count + 1
+        }
+    }
+}*/
+
 func render_keyboard(handle keyboard_handle_s) () {
     uti.assert_(is_valid_keyboard(handle), "render_keyboard : invalid keyboard handle")
     render_control(handle.control)
@@ -1356,23 +1393,23 @@ func init(width i32, height i32, ratio f32) () {
     g_skycoinFontTexture = gfx.create_font("skycoin", "fonts/Skycoin-Bold.ttf", 100, 32, 127, gltext.LeftToRight)
     g_skycoinTexture = gfx.create_texture("textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
 
-	// layers
-	g_debugLayerSkin			= create_layer_skin(g_red  , g_green , g_green , g_green , g_green )
-	g_bootLayerSkin				= create_layer_skin(g_black, gfx.zero, gfx.zero, gfx.zero, gfx.zero)
-	g_blackLayerSkin			= create_layer_skin(g_black, g_gray_3, g_gray_3, g_gray_3, g_gray_3)
-	g_redLayerSkin				= create_layer_skin(g_green, gfx.zero, gfx.zero, gfx.zero, gfx.zero)
-	g_greenLayerSkin			= create_layer_skin(g_red  , gfx.zero, gfx.zero, gfx.zero, gfx.zero)
+    // layers
+    g_debugLayerSkin            = create_layer_skin(g_red  , g_green , g_green , g_green , g_green )
+    g_bootLayerSkin             = create_layer_skin(g_black, gfx.zero, gfx.zero, gfx.zero, gfx.zero)
+    g_blackLayerSkin            = create_layer_skin(g_black, g_gray_3, g_gray_3, g_gray_3, g_gray_3)
+    g_redLayerSkin              = create_layer_skin(g_green, gfx.zero, gfx.zero, gfx.zero, gfx.zero)
+    g_greenLayerSkin            = create_layer_skin(g_red  , gfx.zero, gfx.zero, gfx.zero, gfx.zero)
     g_primaryBlueLayerSkin      = create_layer_skin(g_primary_blue, gfx.zero, gfx.zero, gfx.zero, gfx.zero)
-	g_primaryBlueAlphaLayerSkin = create_layer_skin(g_primary_blue_a50, gfx.zero, gfx.zero, gfx.zero, gfx.zero)
+    g_primaryBlueAlphaLayerSkin = create_layer_skin(g_primary_blue_a50, gfx.zero, gfx.zero, gfx.zero, gfx.zero)
     g_modalLayerSkin            = create_layer_skin(g_primary_blue_a50, gfx.zero, gfx.zero, gfx.zero, gfx.zero)
     g_windowLayerSkin           = create_layer_skin(g_black, gfx.zero, gfx.zero, gfx.zero, gfx.zero)
 
-	// controls
-	g_debugControlSkin			 = create_control_skin(g_debugLayerSkin,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
-	g_bootControlSkin			 = create_control_skin(g_bootLayerSkin ,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
-	g_blackControlSkin			 = create_control_skin(g_blackLayerSkin,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
-	g_redControlSkin			 = create_control_skin(g_redLayerSkin  ,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
-	g_greenControlSkin		 	 = create_control_skin(g_greenLayerSkin,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
+    // controls
+    g_debugControlSkin           = create_control_skin(g_debugLayerSkin,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
+    g_bootControlSkin            = create_control_skin(g_bootLayerSkin ,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
+    g_blackControlSkin           = create_control_skin(g_blackLayerSkin,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
+    g_redControlSkin             = create_control_skin(g_redLayerSkin  ,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
+    g_greenControlSkin           = create_control_skin(g_greenLayerSkin,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
     g_primaryBlueControlSkin     = create_control_skin(g_primaryBlueLayerSkin,                    -1, -1, -1, -1, -1, -1, -1, -1, -1)
     g_primaryBlueAlphaControlSkin= create_control_skin(              -1, g_primaryBlueAlphaLayerSkin, -1, -1, -1, -1, -1, -1, -1, -1)
     g_modalControlSkin           = create_control_skin(g_modalLayerSkin,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
