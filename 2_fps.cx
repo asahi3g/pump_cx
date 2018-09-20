@@ -1,0 +1,82 @@
+//-----------------------------------------------------------------------------
+// fps
+//-----------------------------------------------------------------------------
+package fps
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+import "glfw"
+import "time"
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type fps_s struct {
+    currentTime f64
+    previousTime f64
+    deltaTime f64
+    fpsTime f64
+    frameTime f64
+    fps f64
+    init bool
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func delta_time(fps *fps_s) (value f64) { // ##2 issue workaround
+    value = (*fps).deltaTime
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func init(targetFps f64)(out fps_s) {
+    out.currentTime = glfw.GetTime()
+    out.previousTime = out.currentTime
+    out.deltaTime = 0.0D
+    out.fpsTime = 0.0D
+    out.frameTime = 0.0D
+    if targetFps > 0.0D {
+            printf("TARGET_FPS\n")
+        out.frameTime = 1.0D / targetFps
+    }
+    out.fps = 0.0D
+    out.init = true
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func begin_update(in fps_s) (out fps_s) {
+
+    out = in
+    out.currentTime = glfw.GetTime()
+    out.deltaTime = out.currentTime - out.previousTime
+    if (out.init == true) {
+        out.init = false
+        out.deltaTime = out.frameTime
+    }
+
+    if out.currentTime - out.fpsTime > 1.0D {
+        out.fpsTime = out.currentTime
+        printf("fps : %d\n", f64.i32(out.fps))
+        out.fps = 0.0D
+    } else {
+        out.fps = out.fps + 1.0D;
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func end_update(in fps_s) (out fps_s) {
+    out = in
+
+    if out.frameTime > 0.0 {
+        var updateTime f64 = glfw.GetTime()
+        var    deltaUpdateTime f64 = updateTime - out.currentTime;
+        if (deltaUpdateTime < out.frameTime) {
+            time.Sleep(f64.i32(1000.0D * (out.frameTime - deltaUpdateTime)))
+        }
+    }
+
+    out.previousTime = out.currentTime
+}
+
+

@@ -1,0 +1,1494 @@
+//-----------------------------------------------------------------------------
+// gui
+//-----------------------------------------------------------------------------
+package gui
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+import "app"
+import "gl"
+import "gltext"
+import "gfx"
+import "mat"
+import "uti"
+
+//-----------------------------------------------------------------------------
+// gfx
+//-----------------------------------------------------------------------------
+var g_opaqueVertexColoredLines gfx.mesh_s
+
+var g_opaqueTexturedTriangles gfx.mesh_s
+
+var g_alphaVertexColoredTriangles gfx.mesh_s
+var g_alphaTexturedTriangles gfx.mesh_s
+
+var g_fullscreenQuad gfx.mesh_s
+
+var g_opaqueVertexColoredTriangles gfx.mesh_s
+
+var g_target_0 gfx.target_s
+var g_target_1 gfx.target_s
+
+var g_programVertexColor i32
+
+var g_programTexture i32
+var g_albedoSampler i32 // per program, i need a effect struct
+
+var g_programTrans_0 i32
+var g_srcSampler i32
+var g_dstSampler i32
+var g_timeUniform i32
+
+var g_skycoinTexture gfx.texture_s
+var g_skycoinFontTexture gfx.texture_s
+
+//-----------------------------------------------------------------------------
+// GUI
+//-----------------------------------------------------------------------------
+var gui_padding_x f32 = 0.01
+var gui_padding_y f32 = 0.01
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var GUI_INVALID i32 = 0
+var GUI_CONTROL i32 = 1
+var GUI_SCREEN i32 = 2
+var GUI_PICTURE i32 = 3
+var GUI_LABEL i32 = 4
+var GUI_PARTITION i32 = 5
+var GUI_KEYBOARD i32 = 6
+var GUI_WINDOW i32 = 7
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var STATE_CLOSED i32 = 0
+var STATE_SHOWING i32 = 1
+var STATE_OPENED i32 = 2
+var STATE_CLOSING i32 = 3
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var DOCK_NONE i32 = 0
+var DOCK_LEFT i32 = 1
+var DOCK_RIGHT i32 = 2
+var DOCK_TOP i32 = 3
+var DOCK_BOTTOM i32 = 4
+var DOCK_FILL i32 = 5
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var ALIGN_NONE i32 = 0
+var ALIGN_LEFT i32 = 1
+var ALIGN_RIGHT i32 = 2
+var ALIGN_BOTTOM i32 = 4
+var ALIGN_TOP i32 = 8
+var ALIGN_HORZ i32 = 3
+var ALIGN_VERT i32 = 12
+var ALIGN_LEFT_BOTTOM i32 = 5
+var ALIGN_RIGHT_BOTTOM i32 = 6
+var ALIGN_LEFT_TOP i32 = 9
+var ALIGN_RIGHT_TOP i32 =10
+var ALIGN_HORZ_BOTTOM i32 = 7
+var ALIGN_HORZ_TOP i32 = 11
+var ALIGN_VERT_LEFT i32 = 13
+var ALIGN_VERT_RIGHT i32 = 14
+var ALIGN_CENTER i32 = 15
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var AUTOSIZE_NONE i32 = 0
+var AUTOSIZE_X i32 = 1
+var AUTOSIZE_Y i32 = 2
+var AUTOSIZE i32 = 3
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var AUTORATIO_NONE i32 = 0
+var AUTORATIO_X i32 = 1
+var AUTORATIO_Y i32 = 2
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var AUTOSCALE_NONE i32 = 0
+var AUTOSCALE_X i32 = 1
+var AUTOSCALE_Y i32 = 2
+var AUTOSCALE i32 = 33
+
+/*
+//-----------------------------------------------------------------------------
+// DUMMY
+//-----------------------------------------------------------------------------
+type dummy_handle_s struct {
+    dummy i32
+    control i32
+}
+
+type dummy_s struct {
+    handle dummy_handle_s
+}
+
+func dummy_handle_(dummy i32, control i32) (out dummy_handle_s) {
+    out.dummy = dummy
+    out.control = control
+    uti.assert_(is_valid_dummy(out), "dummy_handle_: invalid handle")
+}
+
+func is_valid_dummy(handle dummy_handle_s) (out bool) {
+    out = handle.dummy >= 0 && handle.dummy < g_dummyCount && is_valid_control(handle.control)
+}
+
+var g_dummys[8] dummy_s
+var g_dummyCount i32
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func control_add_dummy(index i32, handle dummy_handle_s) {
+    uti.assert_(is_valid_dummy(handle), "control_add_dummy : invalid dummy handle")
+    control_add_control(index, handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_dummy(skin i32, bounds mat.v4, autosize i32, autoratio i32, align i32, dock i32) (out dummy_handle_s) {
+    out.dummy = g_dummyCount
+    out.control = create_control(GUI_DUMMY, out.dummy, skin, bounds, autosize, autoratio, align, dock)
+
+    var dummy dummy_s
+    dummy.handle = out
+
+    g_dummys[out.dummy] = dummy
+    g_dummyCount = out.dummy + 1
+    uti.assert_(is_valid_dummy(out), "create_dummy : invalid dummy handle")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func resize_dummy(handle dummy_handle_s) () {
+    uti.assert_(is_valid_dummy(handle), "resize_dummy : invalid dummy handle")
+    resize_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func render_dummy(handle dummy_handle_s) () {
+    uti.assert_(is_valid_dummy(handle), "render_dummy : invalid dummy handle")
+    render_control(handle.control)
+}
+*/
+
+//-----------------------------------------------------------------------------
+// SCOPE
+//-----------------------------------------------------------------------------
+var g_scopes [256]scope_s
+var g_scopeIndex i32 = 0
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type scope_s struct {
+    dockLeft f32
+    dockRight f32
+    dockBottom f32
+    dockTop f32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var g_dockLeft f32 = -1.0
+var g_dockRight f32 = 1.0
+var g_dockBottom f32 = -1.0
+var g_dockTop f32 = 1.0
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func push_scope() () {
+    //printf("push %d\n", g_scopeIndex)
+    g_scopes[g_scopeIndex].dockLeft = g_dockLeft
+    g_scopes[g_scopeIndex].dockRight = g_dockRight
+    g_scopes[g_scopeIndex].dockBottom = g_dockBottom
+    g_scopes[g_scopeIndex].dockTop = g_dockTop
+    g_scopeIndex = g_scopeIndex + 1
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func pop_scope() () {
+    uti.assert_(g_scopeIndex > 0, "stack underflow")
+    g_scopeIndex = g_scopeIndex - 1
+    g_dockLeft = g_scopes[g_scopeIndex].dockLeft
+    g_dockRight = g_scopes[g_scopeIndex].dockRight
+    g_dockBottom = g_scopes[g_scopeIndex].dockBottom
+    g_dockTop = g_scopes[g_scopeIndex].dockTop
+    //printf("pop %d\n", g_scopeIndex)
+}
+
+//-----------------------------------------------------------------------------
+// LAYER_SKIN
+//-----------------------------------------------------------------------------
+var g_layerSkins [256]layer_skin_s
+var g_layerSkinCount i32 = 0
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type layer_skin_s struct {
+    surface mat.v4
+    border_left mat.v4
+    border_right mat.v4
+    border_bottom mat.v4
+    border_top mat.v4
+}
+
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_layer_skin(index i32) (out bool) {
+    out = index >= 0 && index < g_layerSkinCount
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_layer_skin(surface mat.v4, border_left mat.v4, border_right mat.v4, border_bottom mat.v4, border_top mat.v4) (out i32) {
+    var layer layer_skin_s
+    out = g_layerSkinCount
+
+    layer.surface = surface
+    layer.border_left = border_left
+    layer.border_right = border_right
+    layer.border_bottom = border_bottom
+    layer.border_top = border_top
+
+    g_layerSkins[g_layerSkinCount] = layer
+    g_layerSkinCount = g_layerSkinCount + 1
+    uti.assert_(is_valid_layer_skin(out), "create_layer_skin : invalid index")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func get_layer_skin(index i32) (out *layer_skin_s) {
+    uti.assert_(is_valid_layer_skin(index), "get_layer_skin : invalid index")
+    out = &g_layerSkins[index]
+}
+
+//-----------------------------------------------------------------------------
+// CONTROL_SKIN
+//-----------------------------------------------------------------------------
+var g_controlSkins [256]control_skin_s
+var g_controlSkinCount i32 = 0
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type control_skin_s struct {
+    back i32
+    fore i32
+    hover_back i32
+    hover_fore i32
+    disabled_back i32
+    disabled_fore i32
+    focused_back i32
+    focused_fore i32
+    selected_back i32
+    selected_fore i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_control_skin(index i32) (out bool) {
+    out = index >= 0 && index < g_controlSkinCount
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func control_skin_print(index i32, message str) {
+    uti.assert_(is_valid_control_skin(index), "control_skin_print : invalid index")
+    printf("%s CONTROL_SKIN %d, b:%d, f:%d, hb:%d, hf:%d, db:%d, df:%d, fb:%d, ff:%d, sb:%d, sf:%d\n",
+        message,
+        index,
+        g_controlSkins[index].back,
+        g_controlSkins[index].fore,
+        g_controlSkins[index].hover_back,
+        g_controlSkins[index].hover_fore,
+        g_controlSkins[index].disabled_back,
+        g_controlSkins[index].disabled_fore,
+        g_controlSkins[index].focused_back,
+        g_controlSkins[index].focused_fore,
+        g_controlSkins[index].selected_back,
+        g_controlSkins[index].selected_fore)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_control_skin(back i32, fore i32, hoverBack i32, hoverFore i32, disabledBack i32, disabledFore i32,
+    focusedBack i32, focusedFore i32, selectedBack i32, selectedFore i32)  (out i32) {
+    out = g_controlSkinCount
+
+    var skin control_skin_s
+
+    skin.back = back
+    skin.fore = fore
+    skin.hover_back = hoverBack
+    skin.hover_fore = hoverFore
+    skin.disabled_back = disabledBack
+    skin.disabled_fore = disabledFore
+    skin.focused_back = focusedBack
+    skin.focused_fore = focusedFore
+    skin.selected_back = selectedBack
+    skin.selected_fore = selectedFore
+
+    g_controlSkins[g_controlSkinCount] = skin
+    g_controlSkinCount = g_controlSkinCount + 1
+    uti.assert_(is_valid_control_skin(out), "create_control_skin : invalid index")
+}
+
+//-----------------------------------------------------------------------------
+// SKIN
+//-----------------------------------------------------------------------------
+var g_black			mat.v4 = mat.rgba_ui8( 30,  34,  39, 255)
+var g_white			mat.v4 = mat.rgba_ui8(255, 251, 251, 255)
+var g_primary_blue	mat.v4 = mat.rgba_ui8(  0, 114, 255, 255)
+var g_primary_blue_a50 mat.v4 = alpha(g_primary_blue, 0.5)
+var g_light_blue	mat.v4 = mat.rgba_ui8(  0, 195, 255, 255)
+var g_green			mat.v4 = mat.rgba_ui8(  0, 223, 128, 255)
+var g_red			mat.v4 = mat.rgba_ui8(255,   0,  78, 255)
+var g_gold			mat.v4 = mat.rgba_ui8(255, 193,  37, 255)
+var g_gray_0        mat.v4 = mat.rgba_ui8( 34,  38,  43, 255)
+var g_gray_1        mat.v4 = mat.rgba_ui8( 41,  45,  50, 255)
+var g_gray_2        mat.v4 = mat.rgba_ui8( 74,  77,  81, 255)
+var g_gray_3        mat.v4 = mat.rgba_ui8(140, 142, 145, 255)
+var g_gray_4        mat.v4 = mat.rgba_ui8(206, 207, 208, 255)
+var g_gray_5        mat.v4 = mat.rgba_ui8(239, 240, 240, 255)
+var g_gray_6        mat.v4 = mat.rgba_ui8(247, 247, 247, 255)
+var g_gray_7        mat.v4 = mat.rgba_ui8(251, 251, 251, 255)
+
+var g_debugLayerSkin i32
+var g_bootLayerSkin i32
+var g_blackLayerSkin i32
+var g_redLayerSkin i32
+var g_greenLayerSkin i32
+var g_primaryBlueLayerSkin i32
+var g_primaryBlueAlphaLayerSkin i32
+var g_modalLayerSkin i32
+var g_windowLayerSkin i32
+
+var g_debugControlSkin i32
+var g_bootControlSkin i32
+var g_blackControlSkin i32
+var g_redControlSkin i32
+var g_greenControlSkin i32
+var g_primaryBlueControlSkin i32
+var g_primaryBlueAlphaControlSkin i32
+var g_modalControlSkin i32
+var g_windowControlSkin i32
+
+var fontBold str = "fonts/Skycoin-Bold.ttf"
+var textureLogo str = "textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png"
+
+func alpha(color mat.v4, a f32) (out mat.v4) {
+    //out = mat.v4_(color.x, color.y, color.z, (color.w * a)) // ##issue_57  out.w == 0
+
+    out.x = color.x
+    out.y = color.y
+    out.z = color.z
+    out.w = color.w * a
+}
+
+//-----------------------------------------------------------------------------
+// CONTROL
+//-----------------------------------------------------------------------------
+var g_controls [256]control_s
+var g_controlCount i32 = 0
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type control_s struct {
+    gui_type i32
+    gui_index i32
+    skin i32
+    dock i32
+    align i32
+    autosize i32
+    bounds mat.v4
+    renderBounds mat.v4
+    autoratio i32
+    ratio f32
+    autoscale i32
+    scale f32
+    children [8]i32 // can't make it work with slices
+    childrenCount i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_control(index i32) (out bool) {
+    out = index >= 0 && index < g_controlCount
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func control_add_control(index i32, child i32) {
+    uti.assert_(is_valid_control(index), "control_add_control : invalid parent index")
+    uti.assert_(is_valid_control(child), "control_add_control : invalid child index")
+    var count i32 = g_controls[index].childrenCount
+    g_controls[index].children[count] = child
+    g_controls[index].childrenCount = count + 1
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func control_print(index i32, message str) {
+    uti.assert_(is_valid_control(index), "control_print : invalid control index")
+    printf("%s CONTROL %d, GUI_TYPE %d, GUI_INDEX %d, SKIN %d, DOCK %d, BOUNDS %f, %f, %f, %f, RENDER_BOUNDS %f, %f, %f, %f, CHILDREN %d\n",
+        message, index, g_controls[index].gui_type, g_controls[index].gui_index, g_controls[index].skin, g_controls[index].dock,
+        g_controls[index].bounds.x, g_controls[index].bounds.y, g_controls[index].bounds.z, g_controls[index].bounds.w,
+        g_controls[index].renderBounds.x, g_controls[index].renderBounds.y, g_controls[index].renderBounds.z, g_controls[index].renderBounds.w,
+        g_controls[index].childrenCount)
+    //uti.assert_(is_valid_control_skin(g_controls[index].skin) || (g_controls[index].skin == -1), "control_print : invalid control skin index") // ##pending issue
+    var controlSkin i32 = g_controls[index].skin
+    uti.assert_(is_valid_control_skin(controlSkin) || controlSkin == -1, "control_print : invalid control skin index")
+    if is_valid_control_skin(controlSkin) {
+        control_skin_print(controlSkin, message)
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_control(gui_type i32, gui_index i32, skin i32, bounds mat.v4, autosize i32, autoratio i32, align i32, dock i32) (out i32) {
+    out = g_controlCount
+
+    var control control_s
+    control.gui_type = gui_type
+    control.gui_index = gui_index
+    control.skin = skin
+    control.bounds = bounds
+    control.autosize = autosize
+    control.autoratio = autoratio
+    control.ratio = 1.0
+    control.align = align
+    control.dock = dock
+
+    control.childrenCount = 0
+    g_controls[out] = control
+    g_controlCount = out + 1
+    uti.assert_(is_valid_control(out), "create_control : invalid control index")
+    control_print(out, "create_control : ")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func resize_control(index i32) () {
+    uti.assert_(is_valid_control(index), "resize_control : invalid control index")
+
+    var w f32 = 0.0
+    var h f32 = 0.0
+    var x f32 = 0.0
+    var y f32 = 0.0
+
+    var dock i32 = g_controls[index].dock
+    var align i32 = g_controls[index].align
+    var autosize i32 = g_controls[index].autosize
+    var bounds mat.v4 = g_controls[index].bounds
+
+    if (dock != DOCK_NONE) {
+        uti.assert_(align == ALIGN_NONE, "resize_control : incompatible align & dock options")
+    }
+
+    if (dock == DOCK_FILL) {
+        x = g_dockLeft + gui_padding_x
+        w = g_dockRight - g_dockLeft - 2.0 * gui_padding_x
+        h = g_dockTop - g_dockBottom - 2.0 * gui_padding_y
+        y = g_dockTop - gui_padding_y - h
+        //control_print(index, "DOCK_FILL : ")
+    } else if (dock == DOCK_LEFT) {
+        x = g_dockLeft + gui_padding_x
+        w = bounds.z
+        g_dockLeft = x + w
+        h = g_dockTop - g_dockBottom - 2.0 * gui_padding_y
+        y = g_dockTop - gui_padding_y - h
+        //control_print(index, "DOCK_LEFT : ")
+    } else if (dock == DOCK_RIGHT) {
+        uti.assert_(false, "not implemented : DOCK_RIGHT")
+    } else if (dock == DOCK_TOP) {
+        x = g_dockLeft + gui_padding_x
+        w = g_dockRight - g_dockLeft - 2.0 * gui_padding_x
+        h = bounds.w
+        y = g_dockTop - gui_padding_y - h
+        //uti.assert_(false, "not implemented : DOCK_TOP")
+    } else if (dock == DOCK_BOTTOM) {
+        uti.assert_(false, "not implemented : DOCK_BOTTOM")
+    } else if (dock == DOCK_NONE) {
+        x = bounds.x
+        y = bounds.y
+        w = bounds.z
+        h = bounds.w
+    } else {
+        uti.assert_(false, "invalid dock value")
+    }
+
+    var ratio f32 = g_controls[index].ratio
+    var autoratio i32 = g_controls[index].autoratio
+    if (autoratio == AUTORATIO_X) {
+        ratio = ratio / f64.f32(app.g_ratio)
+    } else if (autoratio == AUTORATIO_Y) {
+        ratio = ratio * f64.f32(app.g_ratio)
+    } else if (autoratio == AUTORATIO_NONE) {
+        ratio = ratio
+    }
+
+    if (align == ALIGN_CENTER) {
+        w = bounds.z * ratio
+        h = bounds.w
+        x = -1.0 + (2.0 - w) / 2.0 // ##0 use scoped bounds
+        y = -1.0 + (2.0 - h) / 2.0 // ##0 use scoped bounds
+    } else if (align == ALIGN_HORZ_BOTTOM) {
+        w = bounds.z * ratio
+        h = bounds.w
+        x = g_dockLeft + ((g_dockRight - g_dockLeft) - w) / 2.0
+        y = g_dockBottom + gui_padding_y
+        //control_print(index, "ALIGN_HORZ_BOTTOM : ")
+    } else if (align == ALIGN_HORZ_TOP) {
+        uti.assert_(false, "ALIGN_HORZ_TOP not implemented")
+    } else if (align == ALIGN_VERT_LEFT) {
+        uti.assert_(false, "ALIGN_VERT_LEFT not implemented")
+    } else if (align == ALIGN_VERT_RIGHT) {
+        uti.assert_(false, "ALIGN_VERT_RIGHT not implemented")
+    } else if (align == ALIGN_LEFT_BOTTOM) {
+        uti.assert_(false, "ALIGN_LEFT_BOTTOM not implemented")
+    } else if (align == ALIGN_RIGHT_BOTTOM) {
+        uti.assert_(false, "ALIGN_RIGHT_BOTTOM not implemented")
+    } else if (align == ALIGN_HORZ) {
+        uti.assert_(false, "ALIGN_HORZ not implemented")
+    } else if (align == ALIGN_VERT) {
+        uti.assert_(false, "ALIGN_VERT not implemented")
+    } else if (align == ALIGN_LEFT_TOP) {
+        uti.assert_(false, "ALIGN_LEFT_TOP not implemented")
+    } else if (align == ALIGN_RIGHT_TOP) {
+        uti.assert_(false, "ALIGN_RIGHT_TOP not implemented")
+    } else if (align == ALIGN_LEFT) {
+         uti.assert_(false, "ALIGN_LEFT not implemented")
+    } else if (align == ALIGN_RIGHT) {
+        uti.assert_(false, "ALIGN_RIGHT not implemented")
+    } else if (align == ALIGN_BOTTOM) {
+        uti.assert_(false, "ALIGN_BOTTOM not implemented")
+    } else if (align == ALIGN_TOP) {
+        uti.assert_(false, "ALIGN_TOP not implemented")
+    } else if (align != ALIGN_NONE) {
+        /*x = bounds.x
+        y = bounds.y
+        w = bounds.z
+        h = bounds.w
+    } else {*/
+        uti.assert_(false, "invalid align property")
+    }
+
+    push_scope()
+    var count i32 = g_controls[index].childrenCount
+    for i := 0; i < count; i = i + 1 {
+        var child i32 = g_controls[index].children[i]
+        uti.assert_(is_valid_control(child), "resize_control : invalid child control")
+        var guiType i32 = g_controls[child].gui_type
+        var guiIndex i32 = g_controls[child].gui_index
+
+        if (guiType == GUI_INVALID) {
+            uti.assert_(false, "invalid gui type (GUI_INVALID)")
+        } else if (guiType == GUI_CONTROL) {
+            resize_control(guiIndex)
+        } else if (guiType == GUI_SCREEN) {
+            uti.assert_(false, "unhandled recursive screen")
+        } else if (guiType == GUI_PICTURE) {
+            resize_picture(picture_handle_(guiIndex, child))
+        } else if (guiType == GUI_LABEL) {
+            resize_label(label_handle_(guiIndex, child))
+        } else if (guiType == GUI_PARTITION) {
+            resize_partition(partition_handle_(guiIndex, child))
+        } else if (guiType == GUI_KEYBOARD) {
+            resize_keyboard(keyboard_handle_(guiIndex, child))
+        } else if (guiType == GUI_WINDOW) {
+            resize_window(window_handle_(guiIndex, child))
+        } else {
+            uti.assert_(false, "unknown gui type")
+        }
+    }
+
+    g_controls[index].renderBounds = mat.v4_(x, y, w, h)
+    //control_print(index, "end of resize_control : ")
+    pop_scope()
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func render_control(index i32) () {
+    //control_print(index, "render_control : ")
+    uti.assert_(is_valid_control(index), "render_control : invalid control index")
+
+    var controlSkin i32 = g_controls[index].skin
+    uti.assert_(is_valid_control_skin(controlSkin) || controlSkin == -1, "render_control : invalid control skin")
+    if is_valid_control_skin(controlSkin) {
+        var backLayerSkin i32 = g_controlSkins[controlSkin].back
+        uti.assert_(is_valid_layer_skin(backLayerSkin) || backLayerSkin == -1, "render_control : invalid layer skin")
+        if is_valid_layer_skin(backLayerSkin) {
+           gfx.append_quad(&g_opaqueVertexColoredTriangles, g_controls[index].renderBounds, mat.v4_(0.0, 0.0, 1.0, 1.0), g_layerSkins[backLayerSkin].surface)
+            gfx.append_rect(&g_opaqueVertexColoredLines, g_controls[index].renderBounds,
+                g_layerSkins[backLayerSkin].border_left,
+                g_layerSkins[backLayerSkin].border_right,
+                g_layerSkins[backLayerSkin].border_bottom,
+                g_layerSkins[backLayerSkin].border_top)
+        }
+        var foreLayerSkin i32 = g_controlSkins[controlSkin].fore
+        uti.assert_(is_valid_layer_skin(foreLayerSkin) || foreLayerSkin == -1, "render_control : invalid layer skin")
+        if foreLayerSkin >= 0 {
+            gfx.append_quad(&g_alphaVertexColoredTriangles, g_controls[index].renderBounds, mat.v4_(0.0, 0.0, 1.0, 1.0), g_layerSkins[foreLayerSkin].surface)
+            /*gfx.append_rect(&g_alphaVertexColoredLines, g_controls[index].renderBounds,
+                g_layerSkins[backLayerSkin].border_left,
+                g_layerSkins[backLayerSkin].border_right,
+                g_layerSkins[backLayerSkin].border_bottom,
+                g_layerSkins[backLayerSkin].border_top)*/
+        }
+    }
+
+    var count i32 = g_controls[index].childrenCount
+    for i := 0; i < count; i = i + 1 {
+        var child i32 = g_controls[index].children[i]
+        uti.assert_(is_valid_control(child), "render_control : invalid child control")
+        var guiType i32 = g_controls[child].gui_type
+        var guiIndex i32 = g_controls[child].gui_index
+
+        if (guiType == GUI_INVALID) {
+            uti.assert_(false, "invalid gui type (GUI_INVALID)")
+        } else if (guiType == GUI_CONTROL) {
+            //control_print(guiIndex, "render_control_child GUI_CONTROL : ")
+            render_control(guiIndex)
+        } else if (guiType == GUI_SCREEN) {
+            uti.assert_(false, "unhandled recursive screen")
+        } else if (guiType == GUI_PICTURE) {
+            render_picture(picture_handle_(guiIndex, child))
+        } else if (guiType == GUI_LABEL) {
+            render_label(label_handle_(guiIndex, child))
+        } else if (guiType == GUI_PARTITION) {
+            render_partition(partition_handle_(guiIndex, child))
+        } else if (guiType == GUI_KEYBOARD) {
+            render_keyboard(keyboard_handle_(guiIndex, child))
+        } else if (guiType == GUI_WINDOW) {
+            render_window(window_handle_(guiIndex, child))
+        } else {
+            uti.assert_(false, "unknown gui type")
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------
+// SCREEN
+//-----------------------------------------------------------------------------
+var g_screens [64]screen_s
+var g_screenCount i32
+
+var g_modals[64] screen_handle_s
+var g_currentScreen screen_handle_s = invalid_screen()
+var g_nextScreen screen_handle_s = invalid_screen()
+
+var g_transitionDuration f64 = 0.5D
+var g_transitionTime f64 = 0.0D
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type screen_handle_s struct {
+    screen i32
+    control i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type screen_s struct {
+    handle screen_handle_s
+    on_exit screen_handle_s
+    on_menu screen_handle_s
+    duration f64
+    time f64
+    prev screen_handle_s
+    next screen_handle_s
+    state i32
+    prevState i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func screen_handle_(screen i32, control i32) (out screen_handle_s) {
+    out.screen = screen
+    out.control = control
+    uti.assert_(is_valid_screen(out), "screen_handle_ : invalid screen handle")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+//func invalid_screen() { // ##pending issue
+func invalid_screen() (out screen_handle_s) {
+    out.screen = -1
+    out.control = -1
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func unsafe_screen(screen i32, control i32) (out screen_handle_s) {
+    out.screen = screen
+    out.control = control
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_screen(handle screen_handle_s) (out bool) {
+    out = handle.screen >= 0 && handle.screen < g_screenCount && is_valid_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func screen_set_on_exit(handle screen_handle_s, exit screen_handle_s) () {
+    uti.assert_(is_valid_screen(handle), "screen_on_exit : invalid screen handle")
+    uti.assert_(is_valid_screen(exit), "screen_on_exit : invalid screen handle")
+    g_screens[handle.screen].on_exit = exit
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func screen_set_on_menu(handle screen_handle_s, menu screen_handle_s) () {
+    uti.assert_(is_valid_screen(handle), "screen_on_menu : invalid screen handle")
+    uti.assert_(is_valid_screen(menu), "screen_on_menu : invalid screen handle")
+    g_screens[handle.screen].on_menu = menu
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func screen_set_order(handle screen_handle_s, prev screen_handle_s, next screen_handle_s) () {
+    uti.assert_(is_valid_screen(handle), "screen_set_order : invalid screen handle")
+    g_screens[handle.screen].prev = prev
+    g_screens[handle.screen].next = next
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_screen(duration f64, skin i32, bounds mat.v4) (out screen_handle_s) {
+    out.screen = g_screenCount
+    out.control = create_control(GUI_SCREEN, out.screen, skin, bounds, AUTOSIZE_NONE, AUTORATIO_NONE, ALIGN_NONE, DOCK_NONE)
+
+    var screen screen_s
+    screen.handle = out
+    screen.duration = duration
+    screen.prev = invalid_screen()
+    screen.next = invalid_screen()
+    screen.state = STATE_CLOSED
+    screen.prevState = STATE_CLOSED
+
+    g_screens[out.screen] = screen
+    g_screenCount = out.screen + 1
+    uti.assert_(is_valid_screen(out), "create_screen : invalid screen handle")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func change_screen_state(handle screen_handle_s, state i32) () {
+    uti.assert_(is_valid_screen(handle), "change_screen_state::invalid screen index")
+    g_screens[handle.screen].prevState = g_screens[handle.screen].state
+    printf("CHANGE %d\n", state)
+    g_screens[handle.screen].state = state
+    var prev i32 = g_screens[handle.screen].prevState
+    var curr i32 = g_screens[handle.screen].state
+    if (prev != curr) {
+        printf("%d screen state changed %d -> %d\n", handle.screen, prev, curr)
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func screen_state_changed(handle screen_handle_s, prev i32, curr i32) (value bool) {
+    uti.assert_(is_valid_screen(handle), "screen_state_chaned:: invalid screen index")
+    var screenPrev i32 = g_screens[handle.screen].prevState
+    var screenCurr i32 = g_screens[handle.screen].state
+    value = ((screenPrev == prev) && (screenCurr == curr))
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func update_screen(handle screen_handle_s, deltaTime f64) () {
+
+    uti.assert_(is_valid_screen(handle), "update_screen : invalid screen index")
+    var t f64 = g_screens[handle.screen].time
+    var d f64 = g_screens[handle.screen].duration
+
+    g_screens[handle.screen].time = t
+    var state i32 = g_screens[handle.screen].state
+    if ((t <= 0) && (state == STATE_CLOSED)) {
+        printf("CHANGE SHOWING\n")
+        change_screen_state(handle, STATE_SHOWING)
+    } else if ((t >= d) && (d > 0) && (state == STATE_OPENED)) { // can't use g_screens[screen].state here
+        printf("CHANGE CLOSING %d\n", g_screens[handle.screen].state)
+        change_screen_state(handle, STATE_CLOSING)
+    }
+
+    t = t + deltaTime
+    g_screens[handle.screen].time = t
+//    printf("time %f", f64.f32(t))
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func resize_screen(handle screen_handle_s) () {
+    uti.assert_(is_valid_screen(handle), "resize_screen : invalid screen handle")
+    resize_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func render_screen(handle screen_handle_s) () {
+    uti.assert_(is_valid_screen(handle), "render_screen : invalid screen handle")
+
+    gfx.begin_mesh(&g_opaqueVertexColoredTriangles)
+    gfx.begin_mesh(&g_opaqueVertexColoredLines)
+    gfx.begin_mesh(&g_opaqueTexturedTriangles)
+    gfx.begin_mesh(&g_alphaVertexColoredTriangles)
+    gfx.begin_mesh(&g_alphaTexturedTriangles)
+
+    render_control(handle.control)
+
+    gfx.end_mesh(&g_alphaTexturedTriangles)
+    gfx.end_mesh(&g_alphaVertexColoredTriangles)
+    gfx.end_mesh(&g_opaqueTexturedTriangles)
+    gfx.end_mesh(&g_opaqueVertexColoredLines)
+    gfx.end_mesh(&g_opaqueVertexColoredTriangles)
+
+    // opaque
+    if g_opaqueVertexColoredTriangles.index > 0 {
+        gfx.disable_blending()
+        gfx.use_program(g_programVertexColor)
+        gfx.render_mesh(&g_opaqueVertexColoredTriangles)
+    }
+
+    if g_opaqueTexturedTriangles.index > 0 {
+        gfx.disable_blending()
+        gfx.use_program(g_programTexture)
+        gfx.assign_texture(0, g_albedoSampler, g_skycoinTexture.name)
+        gfx.render_mesh(&g_opaqueTexturedTriangles)
+    }
+
+    if g_opaqueVertexColoredLines.index > 0 {
+        gfx.disable_blending()
+        gfx.use_program(g_programVertexColor)
+        gfx.render_mesh(&g_opaqueVertexColoredLines)
+    }
+
+    // alpha
+    if g_alphaVertexColoredTriangles.index > 0 {
+        gfx.enable_blending(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+        gfx.use_program(g_programVertexColor)
+        gfx.render_mesh(&g_alphaVertexColoredTriangles)
+    }
+
+    if g_alphaTexturedTriangles.index > 0 {
+        gfx.enable_blending(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+        gfx.use_program(g_programTexture)
+        gfx.assign_texture(0, g_albedoSampler, g_skycoinFontTexture.name)
+        gfx.render_mesh(&g_alphaTexturedTriangles)
+    }
+}
+
+//-----------------------------------------------------------------------------
+// LABEL
+//-----------------------------------------------------------------------------
+var g_labels [64]label_s
+var g_labelCount i32
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type label_handle_s struct {
+    label i32
+    control i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type label_s struct {
+    handle label_handle_s
+    font str
+    text str
+    bounds mat.v4
+    renderBounds mat.v4
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func label_handle_(label i32, control i32) (out label_handle_s) {
+    out.label = label
+    out.control = control
+    uti.assert_(is_valid_label(out), "label_handle_ : invalid label handle")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_label(handle label_handle_s) (out bool) {
+    out = handle.label >= 0 && handle.label < g_labelCount && is_valid_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func control_add_label(index i32, handle label_handle_s) {
+    uti.assert_(is_valid_label(handle), "control_add_label : invalid label handle")
+    control_add_control(index, handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_label(font str, text str, skin i32, bounds mat.v4, autosize i32, autoratio i32, align i32, dock i32) (out label_handle_s) {
+    out.label = g_labelCount
+    out.control = create_control(GUI_LABEL, out.label, skin, bounds, autosize, autoratio, align, dock)
+
+    var label label_s
+    label.handle = out
+    label.font = font
+    label.text = text
+
+    g_labels[out.label] = label
+    g_labelCount = out.label + 1
+    uti.assert_(is_valid_label(out), "create_label : invalid label handle")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func resize_label(handle label_handle_s) () {
+    uti.assert_(is_valid_label(handle), "resize_label : invalid label handle")
+
+    var autosize i32 = g_controls[handle.control].autosize
+    var scale f32 = 3.0 // ## todo autoscale
+
+    var w f32 = g_controls[handle.control].bounds.z
+	var h f32 = g_controls[handle.control].bounds.w
+
+    if (autosize != AUTOSIZE_NONE) {
+        var width i32
+        var height i32
+        width, height := gfx.measure_text("skycoin", "pumpcx")
+        if (autosize == AUTOSIZE) {
+            w = i32.f32(width) * scale / gfx.gfx_width
+            h = i32.f32(height) * scale / gfx.gfx_height
+        } else if (autosize == AUTOSIZE_X) {
+            w = i32.f32(width) * scale / gfx.gfx_width
+        } else if (autosize == AUTOSIZE_Y) {
+            h = i32.f32(height) * scale / gfx.gfx_height
+        } else {
+            uti.assert_(false, "render_label : invalid autosize value")
+        }
+    }
+
+    g_controls[handle.control].scale = scale
+    g_controls[handle.control].bounds.z = w
+    g_controls[handle.control].bounds.w = h
+
+    resize_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func render_label(handle label_handle_s) () {
+    uti.assert_(is_valid_label(handle), "render_label : invalid label handle")
+
+    //control_print(handle.control, "render_label :")
+    render_control(handle.control)
+
+	gfx.append_text(&g_alphaTexturedTriangles, g_skycoinFontTexture, "skycoin",
+        g_controls[handle.control].renderBounds.x, g_controls[handle.control].renderBounds.y, g_controls[handle.control].scale,
+        mat.v4_(1.0, 1.0, 1.0, 1.0), g_labels[handle.label].text, true, g_red, g_green)
+}
+
+//-----------------------------------------------------------------------------
+// PICTURE
+//-----------------------------------------------------------------------------
+var g_pictures [64]picture_s
+var g_pictureCount i32
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type picture_handle_s struct {
+    picture i32
+    control i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type picture_s struct {
+    handle picture_handle_s
+    texture gfx.texture_s
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func picture_handle_(picture i32, control i32) (out picture_handle_s) {
+    out.picture = picture
+    out.control = control
+    uti.assert_(is_valid_picture(out), "picture_handle_ : invalid picture handle")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_picture(handle picture_handle_s) (out bool) {
+    out = handle.picture >= 0 && handle.picture < g_pictureCount && is_valid_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func control_add_picture(index i32, handle picture_handle_s) {
+    uti.assert_(is_valid_picture(handle), "control_add_picture : invalid picture handle")
+    control_add_control(index, handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_picture(texture gfx.texture_s, skin i32, bounds mat.v4, autosize i32, autoratio i32, align i32, dock i32) (out picture_handle_s) {
+    out.picture = g_pictureCount
+    out.control = create_control(GUI_PICTURE, out.picture, skin, bounds, autosize, autoratio, align, dock)
+
+    var picture picture_s
+    picture.handle = out
+    picture.texture = texture
+
+    g_pictures[out.picture] = picture
+    g_pictureCount = out.picture + 1
+    uti.assert_(is_valid_picture(out), "create_picture : invalid picture handle")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func resize_picture(handle picture_handle_s) () {
+    uti.assert_(is_valid_picture(handle), "resize_picture : invalid picture handle")
+
+    var tw f32 = i32.f32(g_pictures[handle.picture].texture.width)
+    var th f32 = i32.f32(g_pictures[handle.picture].texture.height)
+    var tr f32 = tw / th
+
+    var ratio f32 = 1.0
+    var autoratio i32 = g_controls[handle.control].autoratio
+
+    if (autoratio == AUTORATIO_X) {
+        ratio = tr
+    } else if (autoratio == AUTORATIO_Y) {
+        ratio = 1.0 / tr
+    } else if (autoratio == AUTORATIO_NONE) {
+        ratio = 1.0
+    } else {
+        ratio = 1.0
+    }
+
+    g_controls[handle.control].ratio = ratio
+
+    resize_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func render_picture(handle picture_handle_s) () {
+    uti.assert_(is_valid_picture(handle), "render_picture : invalid picture handle")
+
+    render_control(handle.control)
+
+    var color mat.v4 = gfx.white
+    var controlSkin i32 = g_controls[handle.control].skin
+    uti.assert_(is_valid_control_skin(controlSkin) || controlSkin == -1, "render_picture : invalid control skin")
+    if is_valid_control_skin(controlSkin) {
+        var backLayerSkin i32 = g_controlSkins[controlSkin].back
+        uti.assert_(is_valid_layer_skin(backLayerSkin) || backLayerSkin == -1, "render_picture : invalid layer skin")
+        if is_valid_layer_skin(backLayerSkin) {
+            color = g_layerSkins[backLayerSkin].surface
+        }
+    }
+
+    var texture gfx.texture_s = g_pictures[handle.picture].texture
+    if texture.name > 0 {
+        /*printf("RENDER_BOUNDS %f, %f, %f, %f\n",
+            g_controls[control].renderBounds.x,
+            g_controls[control].renderBounds.y,
+            g_controls[control].renderBounds.z,
+            g_controls[control].renderBounds.w)*/
+
+        gfx.append_quad(&g_opaqueTexturedTriangles, g_controls[handle.control].renderBounds, mat.v4_(0.0, 0.0, 1.0, 1.0), color)
+    }
+}
+
+//-----------------------------------------------------------------------------
+// WINDOW
+//-----------------------------------------------------------------------------
+var g_windows[8] window_s
+var g_windowCount i32
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type window_handle_s struct {
+    window i32
+    control i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type window_s struct {
+    handle window_handle_s
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func window_handle_(window i32, control i32) (out window_handle_s) {
+    out.window = window
+    out.control = control
+    uti.assert_(is_valid_window(out), "window_handle_: invalid handle")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_window(handle window_handle_s) (out bool) {
+    out = handle.window >= 0 && handle.window < g_windowCount && is_valid_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func control_add_window(index i32, handle window_handle_s) {
+    uti.assert_(is_valid_window(handle), "control_add_window : invalid window handle")
+    control_add_control(index, handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_window(skin i32, bounds mat.v4, autosize i32, autoratio i32, align i32, dock i32) (out window_handle_s) {
+    out.window = g_windowCount
+    out.control = create_control(GUI_WINDOW, out.window, skin, bounds, autosize, autoratio, align, dock)
+
+    var window window_s
+    window.handle = out
+
+    g_windows[out.window] = window
+    g_windowCount = out.window + 1
+    uti.assert_(is_valid_window(out), "create_window : invalid window handle")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func resize_window(handle window_handle_s) () {
+    uti.assert_(is_valid_window(handle), "resize_window : invalid window handle")
+    resize_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func render_window(handle window_handle_s) () {
+    uti.assert_(is_valid_window(handle), "render_window : invalid window handle")
+    render_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+// KEYBOARD
+//-----------------------------------------------------------------------------
+var g_keyboards[8] keyboard_s
+var g_keyboardCount i32
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type keyboard_handle_s struct {
+    keyboard i32
+    control i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type keyboard_s struct {
+    handle keyboard_handle_s
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func keyboard_handle_(keyboard i32, control i32) (out keyboard_handle_s) {
+    out.keyboard = keyboard
+    out.control = control
+    uti.assert_(is_valid_keyboard(out), "keyboard_handle_: invalid handle")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_keyboard(handle keyboard_handle_s) (out bool) {
+    out = handle.keyboard >= 0 && handle.keyboard < g_keyboardCount && is_valid_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func control_add_keyboard(index i32, handle keyboard_handle_s) {
+    uti.assert_(is_valid_keyboard(handle), "control_add_keyboard : invalid keyboard handle")
+    control_add_control(index, handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_keyboard(skin i32, bounds mat.v4, autosize i32, autoratio i32, align i32, dock i32) (out keyboard_handle_s) {
+    out.keyboard = g_keyboardCount
+    out.control = create_control(GUI_KEYBOARD, out.keyboard, skin, bounds, autosize, autoratio, align, dock)
+
+    var keyboard keyboard_s
+    keyboard.handle = out
+
+    g_keyboards[out.keyboard] = keyboard
+    g_keyboardCount = out.keyboard + 1
+    uti.assert_(is_valid_keyboard(out), "create_keyboard : invalid keyboard handle")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func resize_keyboard(handle keyboard_handle_s) () {
+    uti.assert_(is_valid_keyboard(handle), "resize_keyboard : invalid keyboard handle")
+    resize_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func render_keyboard(handle keyboard_handle_s) () {
+    uti.assert_(is_valid_keyboard(handle), "render_keyboard : invalid keyboard handle")
+    render_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+// PARTITION
+//-----------------------------------------------------------------------------
+var g_partitions[8] partition_s
+var g_partitionCount i32
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type partition_handle_s struct {
+    partition i32
+    control i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type partition_s struct {
+    handle partition_handle_s
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func partition_handle_(partition i32, control i32) (out partition_handle_s) {
+    out.partition = partition
+    out.control = control
+    uti.assert_(is_valid_partition(out), "partition_handle_: invalid handle")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_partition(handle partition_handle_s) (out bool) {
+    out = handle.partition >= 0 && handle.partition < g_partitionCount && is_valid_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func control_add_partition(index i32, handle partition_handle_s) {
+    uti.assert_(is_valid_partition(handle), "control_add_partition : invalid partition handle")
+    control_add_control(index, handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_partition(skin i32, bounds mat.v4, autosize i32, autoratio i32, align i32, dock i32) (out partition_handle_s) {
+    out.partition = g_partitionCount
+    out.control = create_control(GUI_PARTITION, out.partition, skin, bounds, autosize, autoratio, align, dock)
+
+    var partition partition_s
+    partition.handle = out
+
+    g_partitions[out.partition] = partition
+    g_partitionCount = out.partition + 1
+    uti.assert_(is_valid_partition(out), "create_partition : invalid partition handle")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func resize_partition(handle partition_handle_s) () {
+    uti.assert_(is_valid_partition(handle), "resize_partition : invalid partition handle")
+    resize_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func render_partition(handle partition_handle_s) () {
+    uti.assert_(is_valid_partition(handle), "render_partition : invalid partition handle")
+    render_control(handle.control)
+}
+
+//-----------------------------------------------------------------------------
+// GUI
+//-----------------------------------------------------------------------------
+func init(width i32, height i32, ratio f32) () {
+    gui_padding_y = gui_padding_y * ratio
+
+    // targets
+    g_target_0 = gfx.create_target(width, height)
+    g_target_1 = gfx.create_target(width, height)
+
+    // programs
+    g_programVertexColor = gfx.create_program("vsPassThrough", "psVertexColor")
+    gfx.bind_attribute(g_programVertexColor, 0, "i_v3Position")
+    gfx.bind_attribute(g_programVertexColor, 1, "i_v4Albedo")
+
+    g_programTexture = gfx.create_program("vsPassThrough", "psTexture")
+    gfx.bind_attribute(g_programTexture, 0, "i_v3Position")
+    gfx.bind_attribute(g_programTexture, 1, "i_v4Albedo")
+    gfx.bind_attribute(g_programTexture, 2, "i_v2Texcoord")
+    g_albedoSampler = gfx.bind_texture(g_programTexture, "u_t2Albedo")
+
+    g_programTrans_0 = gfx.create_program("vsPassThrough", "psTransition_0")
+    gfx.bind_attribute(g_programTrans_0, 0, "i_v3Position")
+    gfx.bind_attribute(g_programTrans_0, 2, "i_v2Texcoord")
+    g_srcSampler = gfx.bind_texture(g_programTrans_0, "u_t2Src")
+    g_dstSampler = gfx.bind_texture(g_programTrans_0, "u_t2Dst")
+    g_timeUniform = gfx.bind_uniform(g_programTrans_0, "u_fTime")
+
+    // meshes
+    var attributes [3]i32
+    attributes = [3]i32{3, 4, 2} // can't use slice yet
+    gfx.alloc_mesh(&g_opaqueVertexColoredTriangles, gl.TRIANGLES, attributes, 10 * 2048 * 3)
+    gfx.alloc_mesh(&g_alphaVertexColoredTriangles, gl.TRIANGLES, attributes, 10 * 2048 * 3)
+    gfx.alloc_mesh(&g_opaqueTexturedTriangles, gl.TRIANGLES, attributes, 10 * 2048 * 3)
+    gfx.alloc_mesh(&g_opaqueVertexColoredLines, gl.LINES, attributes, 10 * 2048 * 2)
+    gfx.alloc_mesh(&g_fullscreenQuad, gl.TRIANGLES, attributes, 6 * 3)
+    gfx.alloc_mesh(&g_alphaTexturedTriangles, gl.TRIANGLES, attributes, 10 * 2048 * 3)
+
+    gfx.begin_mesh(&g_fullscreenQuad)
+    gfx.append_quad(&g_fullscreenQuad, mat.v4_(-1.0, 1.0, 2.0, -2.0), mat.v4_(0.0, 0.0, 1.0, 1.0), gfx.white)
+    gfx.end_mesh(&g_fullscreenQuad)
+
+    // textures
+    g_skycoinFontTexture = gfx.create_font("skycoin", "fonts/Skycoin-Bold.ttf", 100, 32, 127, gltext.LeftToRight)
+    g_skycoinTexture = gfx.create_texture("textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
+
+	// layers
+	g_debugLayerSkin			= create_layer_skin(g_red  , g_green , g_green , g_green , g_green )
+	g_bootLayerSkin				= create_layer_skin(g_black, gfx.zero, gfx.zero, gfx.zero, gfx.zero)
+	g_blackLayerSkin			= create_layer_skin(g_black, g_gray_3, g_gray_3, g_gray_3, g_gray_3)
+	g_redLayerSkin				= create_layer_skin(g_green, gfx.zero, gfx.zero, gfx.zero, gfx.zero)
+	g_greenLayerSkin			= create_layer_skin(g_red  , gfx.zero, gfx.zero, gfx.zero, gfx.zero)
+    g_primaryBlueLayerSkin      = create_layer_skin(g_primary_blue, gfx.zero, gfx.zero, gfx.zero, gfx.zero)
+	g_primaryBlueAlphaLayerSkin = create_layer_skin(g_primary_blue_a50, gfx.zero, gfx.zero, gfx.zero, gfx.zero)
+    g_modalLayerSkin            = create_layer_skin(g_primary_blue_a50, gfx.zero, gfx.zero, gfx.zero, gfx.zero)
+    g_windowLayerSkin           = create_layer_skin(g_black, gfx.zero, gfx.zero, gfx.zero, gfx.zero)
+
+	// controls
+	g_debugControlSkin			 = create_control_skin(g_debugLayerSkin,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
+	g_bootControlSkin			 = create_control_skin(g_bootLayerSkin ,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
+	g_blackControlSkin			 = create_control_skin(g_blackLayerSkin,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
+	g_redControlSkin			 = create_control_skin(g_redLayerSkin  ,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
+	g_greenControlSkin		 	 = create_control_skin(g_greenLayerSkin,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
+    g_primaryBlueControlSkin     = create_control_skin(g_primaryBlueLayerSkin,                    -1, -1, -1, -1, -1, -1, -1, -1, -1)
+    g_primaryBlueAlphaControlSkin= create_control_skin(              -1, g_primaryBlueAlphaLayerSkin, -1, -1, -1, -1, -1, -1, -1, -1)
+    g_modalControlSkin           = create_control_skin(g_modalLayerSkin,                          -1, -1, -1, -1, -1, -1, -1, -1, -1)
+    g_windowControlSkin          = create_control_skin(g_windowLayerSkin,                         -1, -1, -1, -1, -1, -1, -1, -1, -1)
+
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func update(deltaTime f64)() { // ##1 rewrite
+
+    //printf("UPDATE %d, %d\n", g_currentScreen.screen, g_nextScreen.screen)
+    if (is_valid_screen(g_currentScreen)) {
+        update_screen(g_currentScreen, deltaTime)
+        if (screen_state_changed(g_currentScreen, STATE_OPENED, STATE_CLOSING)) {
+            g_nextScreen = g_screens[g_currentScreen.screen].next // ##issue_58 issue array index with struct
+            printf("NEXT_SCREEN %d\n", g_nextScreen.screen)
+            printf("CURRENT %d, NEXT %d\n", g_currentScreen.screen, g_nextScreen.screen)
+            g_transitionTime = 0.0D
+            g_screens[g_currentScreen.screen].prevState= g_screens[g_currentScreen.screen].state
+            printf("screen : %d, STATE_CLOSING\n", g_currentScreen.screen)
+        } else if (screen_state_changed(g_currentScreen, STATE_CLOSING, STATE_CLOSED)) {
+            g_screens[g_currentScreen.screen].time = 0.0D
+            g_screens[g_currentScreen.screen].prevState = g_screens[g_currentScreen.screen].state
+            g_currentScreen = g_nextScreen
+            printf("screen : %d, STATE_CLOSED\n", g_currentScreen.screen)
+        }
+    }
+
+    if (g_currentScreen.screen != g_nextScreen.screen) {
+        if (is_valid_screen(g_nextScreen)) {
+            update_screen(g_nextScreen, deltaTime)
+        }
+
+        if (g_transitionTime <= 0) {
+            printf("TRANSITION STARTED %f\n", f64.f32(g_transitionTime + deltaTime))
+            g_transitionTime = g_transitionTime + deltaTime
+        } else if (g_transitionTime <= g_transitionDuration) {
+            g_transitionTime = g_transitionTime + deltaTime
+        } else {
+            printf("TRANSITION ENDED\n")
+            if (is_valid_screen(g_currentScreen)) {
+                printf("CHANGE CLOSED\n")
+                change_screen_state(g_currentScreen, STATE_CLOSED)
+                printf("prev screen : %d, %d, %s\n", g_currentScreen.screen, g_screens[g_currentScreen.screen].state, "STATE_CLOSED")
+            }
+            
+            g_currentScreen = g_nextScreen
+            printf("CURRENT_SCREEN %d\n", g_nextScreen.screen)
+            if (is_valid_screen(g_nextScreen)) {
+                var nextScreen screen_handle_s = g_screens[g_nextScreen.screen].next
+                printf("CHANGE OPENED\n")
+                change_screen_state(g_nextScreen, STATE_OPENED)
+                printf("next screen : %d, %d, %s\n", g_nextScreen.screen, g_screens[g_nextScreen.screen].state, "STATE_OPENED")
+                g_transitionTime = 0.0D
+            }
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var KEY_RELEASE i32 = 0
+var KEY_PRESS i32 = 1
+var KEY_REPEAT i32 = 2
+
+func process_keyboard(window str, key i32, scancode i32, action i32, mods i32) () {
+    printf("key pressed : %d, scancode %d, action %d, mods %d\n", key, scancode, action, mods)
+    if (key == 256 && action == KEY_RELEASE) {
+        printf("Exit pumpcx ?\n")
+    }
+    //if key == 32 && action == 1 || key == 265 && action == 1 {
+    //}
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func resize() () {
+    if (is_valid_screen(g_currentScreen)) {
+        resize_screen(g_currentScreen)
+    }
+    if (is_valid_screen(g_nextScreen)) {
+        resize_screen(g_nextScreen)
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func render() () {
+
+    gfx.bind_framebuffer(g_target_0.framebuffer)
+    gfx.clear(gl.COLOR_BUFFER_BIT, g_black)
+    if (is_valid_screen(g_currentScreen)) {
+        render_screen(g_currentScreen)
+    }
+
+    gfx.bind_framebuffer(g_target_1.framebuffer)
+    gfx.clear(gl.COLOR_BUFFER_BIT, g_black)
+    if (is_valid_screen(g_nextScreen)) {
+        render_screen(g_nextScreen)
+    }
+
+    // fullscreen transition
+    gfx.bind_framebuffer(0)
+    gfx.clear(gl.COLOR_BUFFER_BIT, g_black)
+
+    gfx.disable_depth()
+    gfx.disable_blending()
+
+    gfx.use_program(g_programTrans_0)
+    gfx.assign_texture(0, g_srcSampler, g_target_0.texture.name)
+    gfx.assign_texture(1, g_dstSampler, g_target_1.texture.name)
+    gfx.assign_float(g_timeUniform, f64.f32(g_transitionTime / g_transitionDuration))
+    gfx.render_mesh(&g_fullscreenQuad)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+
