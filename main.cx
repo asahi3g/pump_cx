@@ -24,6 +24,7 @@ import "uti"
 // if b {} else {} unexpected ELSE
 // for true { return false }
 // if glerror == 0 { break } unexpected RBRACE
+///    gui.g_skycoinTexture, -1, mat.v4_(0.0, 0.0, 1.16, 1.16), 0, gui.ALIGN_CENTER, 0).control) // ##issue_59 issue
 
 
 //-----------------------------------------------------------------------------
@@ -31,6 +32,7 @@ import "uti"
 //-----------------------------------------------------------------------------
 // fix crash when deleting programs
 // fix lag at startup (shader creation ?)
+// flickering screen when on_exit during the boot sequence
 
 //-----------------------------------------------------------------------------
 // TODO
@@ -76,134 +78,260 @@ func main() {
 
     var targetFps f64 = 60.0D
 
-    var window str // inline str init doesn't work
-    window = "window"
+    var application str // ##pending inline string init
+    application = "window"
+    app.init(application, "pumpcx", 800, 600, targetFps, 2, 1, "main.keyPressed")
+    gfx.init(app.app_width, app.app_height)
+    gui.init()
 
-    // init
-    app.init(window, "pumpcx", 800, 600, targetFps, 2, 1, "main.keyPressed")
-    gfx.init(app.g_width, app.g_height)
-    gui.init(app.g_width, app.g_height, gfx.gfx_ratio)
-
-    var screenBounds mat.v4 = mat.v4_(-1.0, -1.0, 2.0, 2.0)
-
-    // boot screen
-    {
-        g_bootScreen = gui.create_screen(2.0D, gui.g_blackControlSkin, screenBounds)
-    }
-
-    // debug screen
-    {
-        g_debugScreen = gui.create_screen(2.0D, gui.g_blackControlSkin, screenBounds)
-        printf("g_debugScreen %d, %d\n", g_debugScreen.screen, g_debugScreen.control)
-
-        gui.control_add_control(g_debugScreen.control, gui.create_control(gui.GUI_CONTROL, gui.g_controlCount,
-            gui.g_redControlSkin, mat.v4_(-1.0, 0.0, 1.0, 1.0), 0, 0, 0, 0))
-
-        gui.control_add_control(g_debugScreen.control, gui.create_control(gui.GUI_CONTROL, gui.g_controlCount,
-            gui.g_greenControlSkin, mat.v4_(0.0, -1.0, 1.0, 1.0), 0, 0, 0, 0))
-
-        gui.control_add_picture(g_debugScreen.control, gui.create_picture(
-            gui.g_skycoinTexture, -1, mat.v4_(0.0, 0.0, 1.0, 1.0), 0, 0, 0, 0))
-
-        gui.control_add_picture(g_debugScreen.control, gui.create_picture(
-            gui.g_skycoinTexture, -1, mat.v4_(-1.0, -1.0, 1.0, 1.0), 0, 0, 0, 0))
-
-        gui.control_add_control(g_debugScreen.control, gui.create_control(GUI_CONTROL, gui.g_controlCount,
-            gui.g_primaryBlueAlphaControlSkin, mat.v4_(-0.5, -0.5, 1.0, 1.0), 0, 0, 0, 0))
-    }
-
-    // skycoin screen
-    {
-        g_skycoinScreen = gui.create_screen(2.0D, gui.g_blackControlSkin, screenBounds)
-
-        gui.control_add_picture(g_skycoinScreen.control, gui.create_picture(
-            gui.g_skycoinTexture, -1, mat.v4_(0.0, 0.0, 1.16, 1.16), 0, gui.AUTORATIO_X, gui.ALIGN_CENTER, 0))
-
-        //gui.control_add_control(g_skycoinScreen.control, gui.create_picture(
-        ///    gui.g_skycoinTexture, -1, mat.v4_(0.0, 0.0, 1.16, 1.16), 0, gui.ALIGN_CENTER, 0).control) // ##issue_59 issue
-    }
-
-    // pumpcx screen
-    {
-        g_pumpcxScreen = gui.create_screen(2.0D, gui.g_blackControlSkin, screenBounds)
-
-        gui.control_add_label(g_pumpcxScreen.control, gui.create_label(
-            "skycoin", "pumpcx", -1, gfx.zero, gui.AUTOSIZE, 0, gui.ALIGN_CENTER, 0))
-    }
-
-    // main screen
-    {
-        g_mainScreen = gui.create_screen(2.0D, gui.g_primaryBlueControlSkin, screenBounds)
-
-        gui.control_add_control(g_mainScreen.control, gui.create_control(gui.GUI_CONTROL, gui.g_controlCount,
-            gui.g_redControlSkin, mat.v4_(0.0, 0.0, 0.5, 0.0), 0, 0, 0, gui.DOCK_LEFT))
-
-        gui.control_add_control(g_mainScreen.control, gui.create_control(gui.GUI_CONTROL, gui.g_controlCount,
-            gui.g_greenControlSkin, gfx.zero, 0, 0, 0, gui.DOCK_FILL)) //##pending issue g_greenControlSkin is not in SKY package
-    }
-
-    // game screen
-    {
-        g_gameScreen = gui.create_screen(-2.0D, gui.g_blackControlSkin, screenBounds)
-
-        gui.control_add_partition(g_gameScreen.control, gui.create_partition(
-            gui.g_redControlSkin, mat.v4_(0.0, 0.0, 0.0, 0.2), 0, 0, 0, gui.DOCK_TOP))
-
-
-        gui.control_add_keyboard(g_gameScreen.control, gui.create_keyboard(
-            g_greenControlSkin, mat.v4_(0.0, 0.0, 0.8, 0.3), 0/*gui.AUTOSIZE_Y*/, 0, gui.ALIGN_HORZ_BOTTOM, 0))
-    }
+    var screenBounds mat.v4 = mat.v4_(0.0, 0.0, 2.0, 2.0)
+    var screenSize mat.v2 = mat.v2_(2.0, 2.0)
 
     // exit app screen
     {
-        g_exitAppScreen = gui.create_screen(-1.0D, gui.g_modalControlSkin, screenBounds)
+        g_exitAppScreen = gui.create_screen("exit_app")
+        gui.control_set_skin(g_exitAppScreen.base, gui.g_modalControlSkin)
+        gui.control_set_bounds(g_exitAppScreen.base, screenBounds)
+        gui.screen_set_duration(g_exitAppScreen, -2.0D)
+        gui.screen_set_modal(g_exitAppScreen, true)
 
-        gui.control_add_window(g_exitAppScreen.control, gui.create_window(
-            gui.g_windowControlSkin, gfx.zero, gui.AUTOSIZE, 0, gui.ALIGN_CENTER, 0))
+        {
+            var window gui.window_handle_s = gui.create_window("exit_app_window") // ##pending window vs window at main scope
+            gui.control_add_child(g_exitAppScreen.base, window.base)
+            gui.control_set_skin(window.base, gui.g_windowControlSkin)
+            gui.control_set_bounds(window.base, mat.v4_(-0.5, -0.5, 1.0, 1.0))
+            //gui.control_set_autosize(window.base, gui.AUTOSIZE)
+            gui.control_set_align(window.base, gui.ALIGN_CENTER)
+            gui.window_set_caption(window, "pumpcx")
+            gui.window_set_dialog(window, gui.DIALOG_YES_NO)
+        }
     }
 
     // exit game screen
     {
-        g_exitGameScreen = gui.create_screen(-1.0D, gui.g_modalControlSkin, screenBounds)
+        g_exitGameScreen = gui.create_screen("exit_game")
+        gui.control_set_skin(g_exitGameScreen.base, gui.g_modalControlSkin)
+        gui.control_set_bounds(g_exitGameScreen.base, screenBounds)
+        gui.screen_set_duration(g_exitGameScreen, -2.0D)
+        gui.screen_set_modal(g_exitGameScreen, true)
 
-        gui.control_add_window(g_exitGameScreen.control, gui.create_window(
-            gui.g_windowControlSkin, gfx.zero, gui.AUTOSIZE, 0, gui.ALIGN_CENTER, 0))
+        {
+            var window gui.window_handle_s = gui.create_window("exit_game_window")
+            gui.control_add_child(g_exitGameScreen.base, window.base)
+            gui.control_set_skin(g_exitGameScreen.base, gui.g_windowControlSkin)
+            gui.control_set_bounds(window.base, mat.v4_(-0.5, -0.5, 1.0, 1.0))
+            //gui.control_set_autosize(window.base, gui.AUTOSIZE)
+            gui.control_set_align(window.base, gui.ALIGN_CENTER)
+            gui.window_set_caption(window, "pumpcx")
+        }
     }
 
     // pause screen
     {
-        g_pauseScreen = gui.create_screen(-1.0D, gui.g_modalControlSkin, screenBounds)
+        g_pauseScreen = gui.create_screen("pause")
+        gui.control_set_skin(g_pauseScreen.base, gui.g_modalControlSkin)
+        gui.control_set_bounds(g_pauseScreen.base, screenBounds)
+        gui.screen_set_duration(g_pauseScreen, -2.0D)
+        gui.screen_set_modal(g_pauseScreen, true)
 
-        gui.control_add_window(g_pauseScreen.control, gui.create_window(
-            gui.g_windowControlSkin, gfx.zero, gui.AUTOSIZE, 0, gui.ALIGN_CENTER, 0))
+        {
+            var window gui.window_handle_s = gui.create_window("pause")
+            gui.control_add_child(g_pauseScreen.base, window.base)
+            gui.control_set_skin(g_pauseScreen.base, gui.g_windowControlSkin)
+            gui.control_set_bounds(window.base, mat.v4_(-0.5, -0.5, 1.0, 1.0))
+            gui.control_set_autosize(window.base, gui.AUTOSIZE)
+            gui.control_set_align(window.base, gui.ALIGN_CENTER)
+            gui.window_set_caption(window, "pumpcx")
+        }
     }
 
-    gui.screen_set_order(g_bootScreen   , gui.invalid_screen(), g_debugScreen)
-    gui.screen_set_order(g_debugScreen  , g_bootScreen        , g_skycoinScreen)
-    gui.screen_set_order(g_skycoinScreen, g_debugScreen       , g_pumpcxScreen)
-    gui.screen_set_order(g_pumpcxScreen , g_skycoinScreen     , g_mainScreen)
-    gui.screen_set_order(g_mainScreen   , g_pumpcxScreen      , g_gameScreen)
-    gui.screen_set_order(g_gameScreen   , g_mainScreen        , gui.invalid_screen())
 
-    g_nextScreen = g_bootScreen
-    //g_nextScreen = g_mainScreen
-    //g_nextScreen = g_gameScreen
+    // game screen
+    {
+        g_gameScreen = gui.create_screen("game")
+        gui.control_set_skin(g_gameScreen.base, gui.g_blackControlSkin)
+        gui.control_set_bounds(g_gameScreen.base, screenBounds)
+        gui.control_set_padding(g_gameScreen.base, mat.v4_(0.08, 0.08, 0.08, 0.08))
+        gui.screen_set_duration(g_gameScreen, -2.0D)
+        gui.screen_set_on_enter(g_gameScreen, g_pauseScreen)
+        gui.screen_set_on_exit(g_gameScreen, g_exitGameScreen)
+        gui.screen_set_on_menu(g_gameScreen, g_pauseScreen)
 
-    gui.screen_set_on_exit(g_mainScreen, g_exitAppScreen)
-    gui.screen_set_on_exit(g_gameScreen, g_exitGameScreen)
+        {
+            var partition partition_handle_s = gui.create_partition("partition")
+            gui.control_add_child(g_gameScreen.base, partition.base)
+            gui.control_set_skin(partition.base, gui.g_blackControlSkin)
+            gui.control_set_size(partition.base, mat.v2_(0.0, 0.2))
+            gui.control_set_dock(partition.base, gui.DOCK_TOP)
+        }
 
-    gui.screen_set_on_menu(g_mainScreen, g_pauseScreen)
-    gui.screen_set_on_menu(g_gameScreen, g_pauseScreen)
+        {
+            var keyboard keyboard_handle_s = gui.create_keyboard("keyboard")
+            gui.control_add_child(g_gameScreen.base, keyboard.base)
+            gui.control_set_skin(keyboard.base, gui.g_blackControlSkin)
+            gui.control_set_size(keyboard.base, mat.v2_(0.0, 0.3))
+            gui.control_set_align(keyboard.base, gui.ALIGN_HORZ_BOTTOM)
+        }
+    }
+
+    // main screen
+    {
+        g_mainScreen = gui.create_screen("main")
+        gui.control_set_skin(g_mainScreen.base, gui.g_blackControlSkin)
+        gui.control_set_bounds(g_mainScreen.base, screenBounds)
+//        gui.control_set_padding(g_mainScreen.base, mat.v4_(0.01, 0.01, 0.01, 0.01))
+        gui.screen_set_duration(g_mainScreen, -2.0D)
+        gui.screen_set_on_next(g_mainScreen, g_gameScreen)
+        gui.screen_set_on_enter(g_mainScreen, g_gameScreen)
+        gui.screen_set_on_exit(g_mainScreen, g_exitAppScreen)
+        gui.screen_set_on_menu(g_mainScreen, g_pauseScreen)
+
+        {
+            var control control_handle_s = gui.create_control("graph")
+            gui.control_add_child(g_mainScreen.base, control)
+            gui.control_set_padding(control, mat.v4_(0.01, 0.01, 0.01, 0.01))
+            gui.control_set_skin(control, gui.g_blackControlSkin)
+            gui.control_set_dock(control, gui.DOCK_FILL)
+
+            {
+                var picture picture_handle_s = gui.create_picture("skycoin")
+                gui.control_add_child(control, picture.base)
+                gui.control_set_dock(picture.base, gui.DOCK_FILL)
+                gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
+                gui.picture_set_align(picture, gui.ALIGN_CENTER)
+                gui.picture_set_texture(picture, gui.g_skycoinTexture)
+            }
+        }
+    }
+
+    // pumpcx screen
+    {
+        g_pumpcxScreen = gui.create_screen("pumpcx")
+        gui.control_set_skin(g_pumpcxScreen.base, gui.g_blackControlSkin)
+        gui.control_set_bounds(g_pumpcxScreen.base, screenBounds)
+        gui.screen_set_duration(g_pumpcxScreen, 2.0D)
+        gui.screen_set_on_next(g_pumpcxScreen, g_mainScreen)
+        gui.screen_set_on_event(g_pumpcxScreen, g_mainScreen)
+
+        {
+            var label label_handle_s = gui.create_label("pumpcx")
+            gui.control_add_child(g_pumpcxScreen.base, label.base)
+            //gui.control_set_skin(label.base, gui.g_redControlSkin)
+            gui.control_set_bounds(label.base, mat.v4_(0.0, 0.0, 1.16, 1.16))
+            gui.control_set_autoscale(label.base, gui.AUTOSCALE)
+            gui.control_set_align(label.base, gui.ALIGN_CENTER)
+            gui.label_set_font(label, "skycoin")
+            gui.label_set_text(label, "pumpcx")
+            gui.label_set_align(label, gui.ALIGN_CENTER)
+        }
+    }
+
+    // skycoin screen
+    {
+        g_skycoinScreen = gui.create_screen("skycoin")
+        gui.control_set_skin(g_skycoinScreen.base, gui.g_blackControlSkin)
+        gui.control_set_bounds(g_skycoinScreen.base, screenBounds)
+        gui.screen_set_duration(g_skycoinScreen, 2.0D)
+        gui.screen_set_on_next(g_skycoinScreen, g_pumpcxScreen)
+        gui.screen_set_on_event(g_skycoinScreen, g_mainScreen)
+
+        {
+            var picture picture_handle_s = gui.create_picture("skycoin")
+            gui.control_add_child(g_skycoinScreen.base, picture.base)
+            //gui.control_set_skin(picture.base, g_blackControlSkin) // panic if no skin g_redControlSkin)
+            gui.control_set_bounds(picture.base, mat.v4_(0.0, 0.0, 1.16, 1.16))
+            gui.control_set_align(picture.base, gui.ALIGN_CENTER)
+            gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
+            gui.picture_set_align(picture, gui.ALIGN_CENTER)
+            gui.picture_set_texture(picture, gui.g_skycoinTexture)
+        }
+    }
+
+    // debug screen
+    {
+        g_debugScreen = gui.create_screen("debug")
+        gui.control_set_skin(g_debugScreen.base, gui.g_blackControlSkin)
+        gui.control_set_bounds(g_debugScreen.base, screenBounds)
+        gui.screen_set_duration(g_debugScreen, 2.0D)
+        gui.screen_set_on_next(g_debugScreen, g_skycoinScreen)
+        gui.screen_set_on_event(g_debugScreen, g_mainScreen)
+
+        {
+            var label label_handle_s = gui.create_label("pumpcx_top_left")
+            gui.control_add_child(g_debugScreen.base, label.base)
+            gui.control_set_skin(label.base, gui.g_redControlSkin)
+            gui.control_set_bounds(label.base, mat.v4_(0.0, 1.0, 1.0, 1.0))
+            gui.control_set_autoscale(label.base, gui.AUTOSCALE)
+            gui.label_set_font(label, "skycoin")
+            gui.label_set_text(label, "pumpcx")
+            gui.label_set_align(label, gui.ALIGN_CENTER)
+            gui.label_set_color(label, gui.g_green)
+        }
+
+        {
+            var label label_handle_s = gui.create_label("pumpcx_bottom_right")
+            gui.control_add_child(g_debugScreen.base, label.base)
+            gui.control_set_skin(label.base, gui.g_greenControlSkin)
+            gui.control_set_bounds(label.base, mat.v4_(1.0, 0.0, 1.0, 1.0))
+            gui.control_set_autoscale(label.base, gui.AUTOSCALE)
+            gui.label_set_font(label, "skycoin")
+            gui.label_set_text(label, "pumpcx")
+            gui.label_set_align(label, gui.ALIGN_CENTER)
+            gui.label_set_color(label, gui.g_red)
+        }
+
+        {
+            var picture picture_handle_s = gui.create_picture("skycoin_0")
+            gui.control_add_child(g_debugScreen.base, picture.base)
+            gui.control_set_bounds(picture.base, mat.v4_(0.0, 0.0, 1.0, 1.0))
+            gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
+            gui.picture_set_texture(picture, gui.g_skycoinTexture)
+            gui.picture_set_align(picture, gui.ALIGN_CENTER)
+        }
+
+        {
+            var picture picture_handle_s = gui.create_picture("skycoin_1")
+            gui.control_add_child(g_debugScreen.base, picture.base)
+            gui.control_set_bounds(picture.base, mat.v4_(1.0, 1.0, 1.0, 1.0))
+            gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
+            gui.picture_set_texture(picture, gui.g_skycoinTexture)
+            gui.picture_set_align(picture, gui.ALIGN_CENTER)
+        }
+
+        {
+            var control control_handle_s = gui.create_control("alpha")
+            gui.control_add_child(g_debugScreen.base, control)
+            gui.control_set_skin(control, gui.g_primaryBlueAlphaControlSkin)
+            gui.control_set_bounds(control, mat.v4_(0.5, 0.5, 1.0, 1.0))
+        }
+    }
+
+    // boot screen
+    {
+        g_bootScreen = gui.create_screen("boot")
+        gui.control_set_skin(g_bootScreen.base, gui.g_blackControlSkin)
+        gui.control_set_size(g_bootScreen.base, screenSize)
+        gui.screen_set_duration(g_bootScreen, 2.0D)
+        gui.screen_set_on_next(g_bootScreen, g_debugScreen)
+        gui.screen_set_on_event(g_bootScreen, g_mainScreen)
+    }
+
+    gui.g_nextScreen = g_bootScreen
+    //gui.g_nextScreen = g_debugScreen
+    //gui.g_nextScreen = g_skycoinScreen
+    //gui.g_nextScreen = g_pumpcxScreen
+    //gui.g_nextScreen = g_mainScreen
+    //gui.g_nextScreen = g_gameScreen
 
     // main loop
     var fps fps.fps_s = fps.init(targetFps)
-    for app.running(window) {
+    for app.running(application) {
         fps = fps.begin_update(fps)
-        app.begin_update(window)
+        app.begin_update(application)
         gui.update(fps.delta_time(&fps))
         gui.resize()
         gui.render()
-        app.end_update(window)
+        app.end_update(application)
         fps = fps.end_update(fps)
     }
 

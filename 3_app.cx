@@ -11,14 +11,12 @@ import "gui"
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_width i32 = 800
-var g_height i32 = 600
-var g_ratio f64
+var app_width i32 = 800
+var app_height i32 = 600
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func __process_keyboard(window str, key i32, scancode i32, action i32, mods i32) () { // ##1 move in gui when we can callback from another package than the calling expression
-    printf("FUCK FUCK\n")
     gui.process_keyboard(window, key, scancode, action, mods)
 }
 
@@ -26,9 +24,8 @@ func __process_keyboard(window str, key i32, scancode i32, action i32, mods i32)
 //-----------------------------------------------------------------------------
 func init(window str, name str, width i32, height i32, targetFps f64, major i32, minor i32, keyPressed str)() {
 
-    g_width = width
-    g_height = height
-    g_ratio = i32.f64(width) / i32.f64(height)
+    app_width = width
+    app_height = height
 
     printf("starting %s...\n", name)
 
