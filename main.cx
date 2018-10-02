@@ -57,20 +57,16 @@ import "uti"
 //-----------------------------------------------------------------------------
 // main
 //-----------------------------------------------------------------------------
-
-var g_skycoinTexture gfx.texture_s
-var g_skycoinFontTexture gfx.texture_s
-
 // rewrite screen init
-var g_bootScreen     gui.screen_handle_s = gui.invalid_screen()
-var g_debugScreen    gui.screen_handle_s = gui.invalid_screen()
-var g_skycoinScreen  gui.screen_handle_s = gui.invalid_screen()
-var g_pumpcxScreen   gui.screen_handle_s = gui.invalid_screen()
-var g_mainScreen     gui.screen_handle_s = gui.invalid_screen()
-var g_gameScreen     gui.screen_handle_s = gui.invalid_screen()
-var g_exitAppScreen  gui.screen_handle_s = gui.invalid_screen()
-var g_exitGameScreen gui.screen_handle_s = gui.invalid_screen()
-var g_pauseScreen    gui.screen_handle_s = gui.invalid_screen()
+var g_bootScreen     gui.screen_id = gui.invalid_screen()
+var g_debugScreen    gui.screen_id = gui.invalid_screen()
+var g_skycoinScreen  gui.screen_id = gui.invalid_screen()
+var g_pumpcxScreen   gui.screen_id = gui.invalid_screen()
+var g_mainScreen     gui.screen_id = gui.invalid_screen()
+var g_gameScreen     gui.screen_id = gui.invalid_screen()
+var g_exitAppScreen  gui.screen_id = gui.invalid_screen()
+var g_exitGameScreen gui.screen_id = gui.invalid_screen()
+var g_pauseScreen    gui.screen_id = gui.invalid_screen()
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -96,14 +92,27 @@ func main() {
         gui.screen_set_modal(g_exitAppScreen, true)
 
         {
-            var window gui.window_handle_s = gui.create_window("exit_app_window") // ##pending window vs window at main scope
+            var window gui.window_id = gui.create_window("exit_app_window") // ##pending window vs window at main scope
             gui.control_add_child(g_exitAppScreen.base, window.base)
             gui.control_set_skin(window.base, gui.g_windowControlSkin)
-            gui.control_set_bounds(window.base, mat.v4_(-0.5, -0.5, 1.0, 1.0))
+            gui.control_set_bounds(window.base, mat.v4_(-0.5, -0.5, 0.8, 0.4))
             //gui.control_set_autosize(window.base, gui.AUTOSIZE)
             gui.control_set_align(window.base, gui.ALIGN_CENTER)
             gui.window_set_caption(window, "pumpcx")
             gui.window_set_dialog(window, gui.DIALOG_YES_NO)
+
+            {
+                var text gui.label_id = gui.create_label("exit_app_label")
+                gui.window_set_containee(window, text.base)
+                gui.control_set_skin(text.base, gui.g_primaryBlueControlSkin)
+                gui.control_set_dock(text.base, gui.DOCK_FILL)
+                //gui.control_set_autosize(text.base, gui.AUTOSIZE)
+                gui.label_set_font(text, gui.g_regularFont)
+                gui.label_set_text(text, "Do you really want to dumpcx ?")
+                gui.label_set_size(text, gui.g_fontSizeText)
+                gui.label_set_color(text, gui.g_white)
+                gui.label_set_align(text, gui.ALIGN_CENTER)
+            }
         }
     }
 
@@ -116,7 +125,7 @@ func main() {
         gui.screen_set_modal(g_exitGameScreen, true)
 
         {
-            var window gui.window_handle_s = gui.create_window("exit_game_window")
+            var window gui.window_id = gui.create_window("exit_game_window")
             gui.control_add_child(g_exitGameScreen.base, window.base)
             gui.control_set_skin(g_exitGameScreen.base, gui.g_windowControlSkin)
             gui.control_set_bounds(window.base, mat.v4_(-0.5, -0.5, 1.0, 1.0))
@@ -135,7 +144,7 @@ func main() {
         gui.screen_set_modal(g_pauseScreen, true)
 
         {
-            var window gui.window_handle_s = gui.create_window("pause")
+            var window gui.window_id = gui.create_window("pause")
             gui.control_add_child(g_pauseScreen.base, window.base)
             gui.control_set_skin(g_pauseScreen.base, gui.g_windowControlSkin)
             gui.control_set_bounds(window.base, mat.v4_(-0.5, -0.5, 1.0, 1.0))
@@ -158,7 +167,7 @@ func main() {
         gui.screen_set_on_menu(g_gameScreen, g_pauseScreen)
 
         {
-            var partition partition_handle_s = gui.create_partition("partition")
+            var partition partition_id = gui.create_partition("partition")
             gui.control_add_child(g_gameScreen.base, partition.base)
             gui.control_set_skin(partition.base, gui.g_blackControlSkin)
             gui.control_set_size(partition.base, mat.v2_(0.0, 0.2))
@@ -166,7 +175,7 @@ func main() {
         }
 
         {
-            var keyboard keyboard_handle_s = gui.create_keyboard("keyboard")
+            var keyboard keyboard_id = gui.create_keyboard("keyboard")
             gui.control_add_child(g_gameScreen.base, keyboard.base)
             gui.control_set_skin(keyboard.base, gui.g_blackControlSkin)
             gui.control_set_size(keyboard.base, mat.v2_(0.0, 0.3))
@@ -187,14 +196,14 @@ func main() {
         gui.screen_set_on_menu(g_mainScreen, g_pauseScreen)
 
         {
-            var control control_handle_s = gui.create_control("graph")
+            var control control_id = gui.create_control("graph")
             gui.control_add_child(g_mainScreen.base, control)
             gui.control_set_padding(control, mat.v4_(0.01, 0.01, 0.01, 0.01))
             gui.control_set_skin(control, gui.g_blackControlSkin)
             gui.control_set_dock(control, gui.DOCK_FILL)
 
             {
-                var picture picture_handle_s = gui.create_picture("skycoin")
+                var picture picture_id = gui.create_picture("skycoin")
                 gui.control_add_child(control, picture.base)
                 gui.control_set_dock(picture.base, gui.DOCK_FILL)
                 gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
@@ -214,14 +223,15 @@ func main() {
         gui.screen_set_on_event(g_pumpcxScreen, g_mainScreen)
 
         {
-            var label label_handle_s = gui.create_label("pumpcx")
+            var label label_id = gui.create_label("pumpcx")
             gui.control_add_child(g_pumpcxScreen.base, label.base)
             //gui.control_set_skin(label.base, gui.g_redControlSkin)
             gui.control_set_bounds(label.base, mat.v4_(0.0, 0.0, 1.16, 1.16))
             gui.control_set_autoscale(label.base, gui.AUTOSCALE)
             gui.control_set_align(label.base, gui.ALIGN_CENTER)
-            gui.label_set_font(label, "skycoin")
+            gui.label_set_font(label, gui.g_boldFont)
             gui.label_set_text(label, "pumpcx")
+            gui.label_set_size(label, gui.g_fontSizeTitle)
             gui.label_set_align(label, gui.ALIGN_CENTER)
         }
     }
@@ -236,7 +246,7 @@ func main() {
         gui.screen_set_on_event(g_skycoinScreen, g_mainScreen)
 
         {
-            var picture picture_handle_s = gui.create_picture("skycoin")
+            var picture picture_id = gui.create_picture("skycoin")
             gui.control_add_child(g_skycoinScreen.base, picture.base)
             //gui.control_set_skin(picture.base, g_blackControlSkin) // panic if no skin g_redControlSkin)
             gui.control_set_bounds(picture.base, mat.v4_(0.0, 0.0, 1.16, 1.16))
@@ -257,31 +267,33 @@ func main() {
         gui.screen_set_on_event(g_debugScreen, g_mainScreen)
 
         {
-            var label label_handle_s = gui.create_label("pumpcx_top_left")
+            var label label_id = gui.create_label("pumpcx_top_left")
             gui.control_add_child(g_debugScreen.base, label.base)
             gui.control_set_skin(label.base, gui.g_redControlSkin)
             gui.control_set_bounds(label.base, mat.v4_(0.0, 1.0, 1.0, 1.0))
             gui.control_set_autoscale(label.base, gui.AUTOSCALE)
-            gui.label_set_font(label, "skycoin")
+            gui.label_set_font(label, gui.g_boldFont)
             gui.label_set_text(label, "pumpcx")
             gui.label_set_align(label, gui.ALIGN_CENTER)
             gui.label_set_color(label, gui.g_green)
+            gui.label_set_size(label, gui.g_fontSizeTitle)
         }
 
         {
-            var label label_handle_s = gui.create_label("pumpcx_bottom_right")
+            var label label_id = gui.create_label("pumpcx_bottom_right")
             gui.control_add_child(g_debugScreen.base, label.base)
             gui.control_set_skin(label.base, gui.g_greenControlSkin)
             gui.control_set_bounds(label.base, mat.v4_(1.0, 0.0, 1.0, 1.0))
             gui.control_set_autoscale(label.base, gui.AUTOSCALE)
-            gui.label_set_font(label, "skycoin")
+            gui.label_set_font(label, gui.g_boldFont)
             gui.label_set_text(label, "pumpcx")
             gui.label_set_align(label, gui.ALIGN_CENTER)
             gui.label_set_color(label, gui.g_red)
+            gui.label_set_size(label, gui.g_fontSizeTitle)
         }
 
         {
-            var picture picture_handle_s = gui.create_picture("skycoin_0")
+            var picture picture_id = gui.create_picture("skycoin_0")
             gui.control_add_child(g_debugScreen.base, picture.base)
             gui.control_set_bounds(picture.base, mat.v4_(0.0, 0.0, 1.0, 1.0))
             gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
@@ -290,7 +302,7 @@ func main() {
         }
 
         {
-            var picture picture_handle_s = gui.create_picture("skycoin_1")
+            var picture picture_id = gui.create_picture("skycoin_1")
             gui.control_add_child(g_debugScreen.base, picture.base)
             gui.control_set_bounds(picture.base, mat.v4_(1.0, 1.0, 1.0, 1.0))
             gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
@@ -299,7 +311,7 @@ func main() {
         }
 
         {
-            var control control_handle_s = gui.create_control("alpha")
+            var control control_id = gui.create_control("alpha")
             gui.control_add_child(g_debugScreen.base, control)
             gui.control_set_skin(control, gui.g_primaryBlueAlphaControlSkin)
             gui.control_set_bounds(control, mat.v4_(0.5, 0.5, 1.0, 1.0))
@@ -320,7 +332,7 @@ func main() {
     //gui.g_nextScreen = g_debugScreen
     //gui.g_nextScreen = g_skycoinScreen
     //gui.g_nextScreen = g_pumpcxScreen
-    //gui.g_nextScreen = g_mainScreen
+    gui.g_nextScreen = g_mainScreen
     //gui.g_nextScreen = g_gameScreen
 
     // main loop
