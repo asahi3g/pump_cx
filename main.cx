@@ -95,8 +95,8 @@ func main() {
             var window gui.window_id = gui.create_window("exit_app_window") // ##pending window vs window at main scope
             gui.control_add_child(g_exitAppScreen.base, window.base)
             gui.control_set_skin(window.base, gui.g_windowControlSkin)
-            gui.control_set_bounds(window.base, mat.v4_(-0.5, -0.5, 0.8, 0.4))
-            //gui.control_set_autosize(window.base, gui.AUTOSIZE)
+            //gui.control_set_padding(window.base, mat.v4_(0.1, 0.1, 0.1, 0.1))
+            gui.control_set_autosize(window.base, gui.AUTOSIZE)
             gui.control_set_align(window.base, gui.ALIGN_CENTER)
             gui.window_set_caption(window, "pumpcx")
             gui.window_set_dialog(window, gui.DIALOG_YES_NO)
@@ -104,9 +104,9 @@ func main() {
             {
                 var text gui.label_id = gui.create_label("exit_app_label")
                 gui.window_set_containee(window, text.base)
-                gui.control_set_skin(text.base, gui.g_primaryBlueControlSkin)
+                //gui.control_set_skin(text.base, gui.g_primaryBlueControlSkin)
                 gui.control_set_dock(text.base, gui.DOCK_FILL)
-                //gui.control_set_autosize(text.base, gui.AUTOSIZE)
+                gui.control_set_autosize(text.base, gui.AUTOSIZE)
                 gui.label_set_font(text, gui.g_regularFont)
                 gui.label_set_text(text, "Do you really want to dumpcx ?")
                 gui.label_set_size(text, gui.g_fontSizeText)
