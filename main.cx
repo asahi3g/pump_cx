@@ -226,7 +226,7 @@ func main() {
         g_mainScreen = gui.create_screen("main")
         gui.control_set_skin(g_mainScreen.base, gui.g_blackControlSkin)
         gui.control_set_bounds(g_mainScreen.base, screenBounds)
-//        gui.control_set_padding(g_mainScreen.base, mat.v4_(0.01, 0.01, 0.01, 0.01))
+        gui.control_set_padding(g_mainScreen.base, mat.v4_(0.01, 0.01, 0.01, 0.01))
         gui.screen_set_duration(g_mainScreen, -2.0D)
         gui.screen_set_on_next(g_mainScreen, g_gameScreen)
         gui.screen_set_on_enter(g_mainScreen, g_gameScreen)
@@ -234,20 +234,20 @@ func main() {
         gui.screen_set_on_menu(g_mainScreen, g_pauseScreen)
 
         {
-            var control control_id = gui.create_control("graph")
+            var control control_id = gui.create_control("toolbar")
             gui.control_add_child(g_mainScreen.base, control)
             gui.control_set_padding(control, mat.v4_(0.01, 0.01, 0.01, 0.01))
+            gui.control_set_size(control, mat.v2_(0.0, 0.1))
             gui.control_set_skin(control, gui.g_blackControlSkin)
-            gui.control_set_dock(control, gui.DOCK_FILL)
+            gui.control_set_dock(control, gui.DOCK_TOP)
+        }
 
-            {
-                var picture picture_id = gui.create_picture("skycoin")
-                gui.control_add_child(control, picture.base)
-                gui.control_set_dock(picture.base, gui.DOCK_FILL)
-                gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
-                gui.picture_set_align(picture, gui.ALIGN_CENTER)
-                gui.picture_set_texture(picture, gui.g_skycoinTexture)
-            }
+        {
+            var graph graph_id = gui.graph_create("panel")
+            gui.control_add_child(g_mainScreen.base, graph.base)
+            gui.control_set_padding(graph.base, mat.v4_(0.01, 0.01, 0.01, 0.01))
+            gui.control_set_skin(graph.base, gui.g_redControlSkin)
+            gui.control_set_dock(graph.base, gui.DOCK_FILL)
         }
     }
 

@@ -34,6 +34,7 @@ var GUI_LABEL       i32 = 4
 var GUI_PARTITION   i32 = 5
 var GUI_KEYBOARD    i32 = 6
 var GUI_WINDOW      i32 = 7
+var GUI_GRAPH       i32 = 8
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -102,32 +103,40 @@ var AUTOSCALE       i32 = 3
 // DUMMY
 //-----------------------------------------------------------------------------
 /*type dummy_id struct {
+    base control_id
     dummy i32
-    control i32
 }
 
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 type dummy_s struct {
     id dummy_id
 }
 
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func dummy_id_(base control_id, dummy i32) (out dummy_id) {
     out.base = base
     out.dummy = dummy
     uti.assert_(is_valid_dummy(out), "dummy_id_: invalid id")
 }
 
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func is_valid_dummy(id dummy_id) (out bool) {
     out = id.dummy >= 0 && id.dummy < g_dummyCount && is_valid_control(id.base)
 }
 
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 var g_dummys[8] dummy_s
 var g_dummyCount i32
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func create_dummy(name str) (out dummy_id) {
+func dummy_create(name str) (out dummy_id) {
+    out.base = create_control_(name, GUI_DUMMY, out.dummy)
     out.dummy = g_dummyCount
-    out.control = create_control_(name, GUI_DUMMY, out.dummy)
 
     var dummy dummy_s
     dummy.id = out
@@ -139,14 +148,21 @@ func create_dummy(name str) (out dummy_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func resize_dummy(id dummy_id) () {
+func graph_process_event(id graph_id, event *event_s) (out i32) {
+    uti.assert_(is_valid_graph(id), "graph_process_event : invalid id")
+    out = control_process_event(id.base, event)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func dummy_resize(id dummy_id) () {
     uti.assert_(is_valid_dummy(id), "resize_dummy : invalid id")
     control_resize(id.base)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func render_dummy(id dummy_id) () {
+func dummy_render(id dummy_id) () {
     uti.assert_(is_valid_dummy(id), "render_dummy : invalid id")
     control_render(id.base)
 }*/
@@ -1222,6 +1238,8 @@ func control_resize_(id control_id, pixelBounds mat.v2, bounds mat.v2, autoBound
             keyboard_resize(keyboard_id_(child, guiIndex))
         } else if (guiType == GUI_WINDOW) {
             window_resize(window_id_(child, guiIndex))
+        } else if (guiType == GUI_GRAPH) {
+            graph_resize(graph_id_(child, guiIndex))
         } else {
             uti.assert_(false, "unknown gui type")
         }
@@ -1485,6 +1503,8 @@ func control_redock(id control_id, padding mat.v4) () {
         } else if (guiType == GUI_WINDOW) {
             //redock_window(window_id_(child, guiIndex))
             control_redock(control_id_(childControl), parentPadding)
+        } else if (guiType == GUI_GRAPH) {
+            control_redock(control_id_(childControl), parentPadding)
         } else {
             uti.assert_(false, "unknown gui type")
         }
@@ -1614,6 +1634,8 @@ func control_render(id control_id) () {
             keyboard_render(keyboard_id_(child, guiIndex))
         } else if (guiType == GUI_WINDOW) {
             window_render(window_id_(child, guiIndex))
+        } else if (guiType == GUI_GRAPH) {
+            graph_render(graph_id_(child, guiIndex))
         } else {
             uti.assert_(false, "unknown gui type")
         }
@@ -2732,6 +2754,74 @@ func partition_render(id partition_id) () {
 }
 
 //-----------------------------------------------------------------------------
+// GRAPH
+//-----------------------------------------------------------------------------
+type graph_id struct {
+    base control_id
+    graph i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type graph_s struct {
+    id graph_id
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func graph_id_(base control_id, graph i32) (out graph_id) {
+    out.base = base
+    out.graph = graph
+    uti.assert_(is_valid_graph(out), "graph_id_: invalid id")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_graph(id graph_id) (out bool) {
+    out = id.graph >= 0 && id.graph < g_graphCount && is_valid_control(id.base)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var g_graphs[8] graph_s
+var g_graphCount i32
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func graph_create(name str) (out graph_id) {
+    out.base = create_control_(name, GUI_GRAPH, out.graph)
+    out.graph = g_graphCount
+
+    var graph graph_s
+    graph.id = out
+
+    g_graphs[out.graph] = graph
+    g_graphCount = out.graph + 1
+    uti.assert_(is_valid_graph(out), "graph_create : invalid id")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func graph_process_event(id graph_id, event *event_s) (out i32) {
+    uti.assert_(is_valid_graph(id), "graph_process_event : invalid id")
+    out = control_process_event(id.base, event)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func graph_resize(id graph_id) () {
+    uti.assert_(is_valid_graph(id), "graph_resize : invalid id")
+    control_resize(id.base)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func graph_render(id graph_id) () {
+    uti.assert_(is_valid_graph(id), "graph_render : invalid id")
+    control_render(id.base)
+}
+
+//-----------------------------------------------------------------------------
 // GUI
 //-----------------------------------------------------------------------------
 func init() () {
@@ -2935,6 +3025,8 @@ func control_process_event(id control_id, event *event_s) (out i32) {
             out = keyboard_process_event(keyboard_id_(child, guiIndex), event)
         } else if (guiType == GUI_WINDOW) {
             out = window_process_event(window_id_(child, guiIndex), event)
+        } else if (guiType == GUI_GRAPH) {
+            out = graph_process_event(graph_id_(child, guiIndex), event)
         } else {
             uti.assert_(false, "unknown gui type")
         }
@@ -2952,7 +3044,7 @@ func control_process_event(id control_id, event *event_s) (out i32) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func hide_modal(id screen_id) {
-    printf("HIDE_MODAL %d\n", g_modalCount)
+    //printf("HIDE_MODAL %d\n", g_modalCount)
     uti.assert_(is_valid_screen(id), "hide_modal : invalid screen")
     uti.assert_(g_modalCount > 0, "hide_modal : invalid count")
     if (g_modalCount > 0) {
@@ -2969,6 +3061,7 @@ func hide_modal(id screen_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func process_keyboard(window str, key i32, scancode i32, action i32, mods i32) () {
+    printf("key pressed : %d, scancode %d, action %d, mods %d\n", key, scancode, action, mods)
 
     var event event_s
     event.keyboard.key = key
@@ -2978,7 +3071,6 @@ func process_keyboard(window str, key i32, scancode i32, action i32, mods i32) (
 
     var currentScreen screen_id = invalid_screen()
     if (g_modalCount > 0) {
-    printf("key pressed : %d, scancode %d, action %d, mods %d\n", key, scancode, action, mods)
         var modalIndex i32 = g_modalCount - 1
         var modalScreen screen_id = g_modals[modalIndex]
         if (control_process_event(modalScreen.base, &event) == EVENT_UNUSED) {
@@ -2989,7 +3081,7 @@ func process_keyboard(window str, key i32, scancode i32, action i32, mods i32) (
             }
         }
     } else if (is_valid_screen(g_currentScreen)) {
-    printf("NO MODAL\n")
+    //printf("NO MODAL\n")
     if (control_process_event(g_currentScreen.base, &event) == EVENT_UNUSED) {
             var screen i32 = g_currentScreen.screen
             var state i32 = g_screens[screen].state
