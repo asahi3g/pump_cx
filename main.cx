@@ -70,6 +70,43 @@ var g_pauseScreen    gui.screen_id = gui.invalid_screen()
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+func on_exit_app_window_no_state(controlIndex i32, action i32) {
+    var id gui.control_id = gui.control_id_(controlIndex)
+
+    // close dialog
+    if (action == gui.KEY_PRESS) {
+        printf("NO PRESSED\n")
+    } else if (action == gui.KEY_RELEASE) {
+        printf("NO RELEASED\n")
+        gui.hide_modal(g_exitAppScreen)
+    } else if (action == gui.KEY_REPEAT) {
+        printf("NO REPEAT\n")
+    } else {
+        uti.assert_(false, "on_exit_app_window_no_state : invalid action")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func on_exit_app_window_yes_state(controlIndex i32, action i32) {
+    var id gui.control_id = gui.control_id_(controlIndex)
+
+    // terminate
+    if (action == gui.KEY_PRESS) {
+        printf("YES PRESSED\n")
+    } else if (action == gui.KEY_RELEASE) {
+        printf("YES RELEASED\n")
+        gui.hide_modal(g_exitAppScreen)
+        app.exit()
+    } else if (action == gui.KEY_REPEAT) {
+        printf("YES REPEAT\n")
+    } else {
+        uti.assert_(false, "on_exit_app_window_yes_state : invalid action")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func main() {
 
     var targetFps f64 = 60.0D
@@ -99,7 +136,8 @@ func main() {
             gui.control_set_autosize(window.base, gui.AUTOSIZE)
             gui.control_set_align(window.base, gui.ALIGN_CENTER)
             gui.window_set_caption(window, "pumpcx")
-            gui.window_set_dialog(window, gui.DIALOG_YES_NO)
+            gui.window_add_button(window, "no", "No", "main", "on_exit_app_window_no_state")
+            gui.window_add_button(window, "yes", "Yes", "main", "on_exit_app_window_yes_state")
 
             {
                 var text gui.label_id = gui.create_label("exit_app_label")
