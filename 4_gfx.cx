@@ -266,7 +266,7 @@ type mesh_id struct {
 //-----------------------------------------------------------------------------
 type mesh_s struct {
     id mesh_id
-    vertices [4096]f32
+    vertices [8192]f32
     attributes [3]i32
     primitive i32
     vao i32
@@ -277,6 +277,26 @@ type mesh_s struct {
     dataSize i32
     bufferSize i32
     index i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func mesh_print(message str, id mesh_id) {
+    uti.assert_(is_valid_mesh(id), "mesh_print : invalid id")
+    var index i32 = id.mesh
+    printf("id %d, vertices %d, attributes %d, primitive %d, vao %d, vbo %d, stride %d, floatCount %d, vertexCount %d, dataSize %d, bufferSize %d, index %d\n",
+        index,
+        len(g_meshes[index].vertices),
+        len(g_meshes[index].attributes),
+        g_meshes[index].primitive,
+        g_meshes[index].vao,
+        g_meshes[index].vbo,
+        g_meshes[index].stride,
+        g_meshes[index].floatCount,
+        g_meshes[index].vertexCount,
+        g_meshes[index].dataSize,
+        g_meshes[index].bufferSize,
+        g_meshes[index].index)
 }
 
 //-----------------------------------------------------------------------------
@@ -432,23 +452,26 @@ func begin_mesh(id mesh_id) () {
 func end_mesh(id mesh_id) () {
     uti.assert_(is_valid_mesh(id), "end_mesh : invalid id")
 
+    //mesh_print("end_mesh : ", id)
+
     var mesh i32 = id.mesh
     if mesh_is_empty(id) == false {
         var floatCount i32 = g_meshes[mesh].index
         g_meshes[mesh].floatCount = floatCount //len(g_vertices)
-        //printf("floatCount %d\n", (*mesh).floatCount)
+        //printf("floatCount %d\n", g_meshes[mesh].floatCount)
 
         g_meshes[mesh].dataSize = floatCount * g_sizeofFloat
-        //printf("dataSize %d\n", (*mesh).dataSize)
+        //printf("dataSize %d\n", g_meshes[mesh].dataSize)
 
         //printf("stride %d\n", (*mesh).stride)
         var stride i32 = g_meshes[mesh].stride
+        uti.assert_(stride > 0, "end_mesh : invalid stride")
         uti.assert_((floatCount % stride) == 0, "((*mesh).floatCount % (*mesh).stride)) == 0")
 
         g_meshes[mesh].vertexCount = floatCount / stride
-        //printf("vertexCount %d\n", (*mesh).vertexCount)
+        //printf("vertexCount %d\n", g_meshes[mesh].vertexCount)
 
-        //printf("(*mesh).vbo %d\n", (*mesh).vbo)
+        //printf("(*mesh).vbo %d\n", g_meshes[mesh].vbo)
         gl.BindBuffer(gl.ARRAY_BUFFER, g_meshes[mesh].vbo)
         uti.assert_(no_glerror(), "gl.BindBuffer")
 
@@ -474,6 +497,11 @@ func render_mesh(id mesh_id) {
 //-----------------------------------------------------------------------------
 func append_line(id mesh_id, line mat.v4, color mat.v4) () {
     uti.assert_(is_valid_mesh(id), "append_line : invalid id")
+    var mesh i32 = id.mesh
+
+    var index i32 = g_meshes[mesh].index
+    var size i32 = len(g_meshes[mesh].vertices)
+    uti.assert_((index + 9 * 2) < size, "append_line : overflow")
     //printf("primitive %d\n", (*mesh).primitive)
 //    uti.assert_((*mesh).primitive == gl.LINES, "(*mesh).primitive == gl.LINES")
 
@@ -487,9 +515,7 @@ func append_line(id mesh_id, line mat.v4, color mat.v4) () {
     var b f32 = color.z
     var a f32 = color.w
 
-    var mesh i32 = id.mesh
 
-    var index i32 = g_meshes[mesh].index
     g_meshes[mesh].vertices[index] = x0
     index = index + 1
     g_meshes[mesh].vertices[index] = y0
@@ -552,7 +578,11 @@ func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4) {
     uti.assert_(is_valid_mesh(id), "append_quad : invalid id")
 
     var mesh i32 = id.mesh
+    var index i32 = g_meshes[mesh].index
+    var size i32 = len(g_meshes[mesh].vertices)
+    uti.assert_((index + 9 * 6) < size, "append_quad : overflow")
     //printf("APPEND_QUAD %d, %d\n", mesh, g_meshes[mesh].index)
+    
     var primitive i32 = g_meshes[mesh].primitive
     uti.assert_(primitive == gl.TRIANGLES, "(*mesh).primitive == gl.TRIANGLES")
 
@@ -566,7 +596,6 @@ func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4) {
     var b f32 = color.z
     var a f32 = color.w
 
-    var index i32 = g_meshes[mesh].index
     var x1 f32 = x + w
     var y1 f32 = y + h
 

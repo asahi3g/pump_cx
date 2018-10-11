@@ -243,10 +243,10 @@ func main() {
         }
 
         {
-            var graph graph_id = gui.graph_create("panel")
+            var graph graph_id = gui.graph_create("graph")
             gui.control_add_child(g_mainScreen.base, graph.base)
             gui.control_set_padding(graph.base, mat.v4_(0.01, 0.01, 0.01, 0.01))
-            gui.control_set_skin(graph.base, gui.g_redControlSkin)
+            gui.control_set_skin(graph.base, gui.g_blackControlSkin)
             gui.control_set_dock(graph.base, gui.DOCK_FILL)
         }
     }
@@ -366,12 +366,14 @@ func main() {
         gui.screen_set_on_event(g_bootScreen, g_mainScreen)
     }
 
-    gui.g_nextScreen = g_bootScreen
+    //gui.g_nextScreen = g_bootScreen
     //gui.g_nextScreen = g_debugScreen
     //gui.g_nextScreen = g_skycoinScreen
     //gui.g_nextScreen = g_pumpcxScreen
-    gui.g_nextScreen = g_mainScreen
+    //gui.g_nextScreen = g_mainScreen
     //gui.g_nextScreen = g_gameScreen
+
+    gui.show_screen(g_mainScreen)
 
     // main loop
     var fps fps.fps_s = fps.init(targetFps)

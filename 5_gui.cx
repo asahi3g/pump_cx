@@ -148,8 +148,8 @@ func dummy_create(name str) (out dummy_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func graph_process_event(id graph_id, event *event_s) (out i32) {
-    uti.assert_(is_valid_graph(id), "graph_process_event : invalid id")
+func dummy_process_event(id dummy_id, event *event_s) (out i32) {
+    uti.assert_(is_valid_dummy(id), "dummy_process_event : invalid id")
     out = control_process_event(id.base, event)
 }
 
@@ -856,7 +856,7 @@ type focus_s struct {
 //-----------------------------------------------------------------------------
 func build_focus_list(focusedScreenIndex i32, parent control_id) {
     uti.assert_(is_valid_control(parent), "build_focus_list : invalid parent")
-    //control_print("build_focus_list : ", parent, false)
+    control_print("build_focus_list : ", parent, false)
     var index i32 = parent.control
 
     var unsortedList [64]focus_s
@@ -872,7 +872,7 @@ func build_focus_list(focusedScreenIndex i32, parent control_id) {
         if (focusIndex >= 0) {
             var focusable i32 = g_controls[childIndex].focusable
             if (focusable > 0) {
-                //control_print("FOCUSABLE : ", child, false)
+                control_print("FOCUSABLE : ", child, false)
                 unsortedList[unsortedCount].focusIndex = focusIndex
                 unsortedList[unsortedCount].control = child
                 unsortedCount = unsortedCount + 1
@@ -880,18 +880,18 @@ func build_focus_list(focusedScreenIndex i32, parent control_id) {
         }
     }
 
-    //printf("UNORDERED COUNT %d\n", unsortedCount)
+    printf("UNORDERED COUNT %d\n", unsortedCount)
     //sort
     var unsorted i32 = 0
     for unsorted = 0; unsorted < unsortedCount; unsorted = unsorted + 1 {
         var focusCount i32 = g_focused[focusedScreenIndex].focusCount
         var focusIndex i32 = unsortedList[unsorted].focusIndex
         var focusControl control_id = unsortedList[unsorted].control
-        //printf("UNSORTED INDEX %d, %d, FOCUS_COUNT %d\n", unsorted, focusIndex, focusCount)
-        //control_print("UNSORTED INDEX : ", focusControl, false)
+        printf("UNSORTED INDEX %d, %d, FOCUS_COUNT %d\n", unsorted, focusIndex, focusCount)
+        control_print("UNSORTED INDEX : ", focusControl, false)
     }
 
-    //printf("SORTING\n")
+    printf("SORTING\n")
     //sort
     i = 0
     var backUp i32 = 0
@@ -916,7 +916,7 @@ func build_focus_list(focusedScreenIndex i32, parent control_id) {
     var sorted i32 = 0;
     for sorted = 0; sorted < unsortedCount; sorted = sorted + 1 {
         var focusCount i32 = g_focused[focusedScreenIndex].focusCount
-        //printf("SORTED INDEX %d, %d, FOCUS_COUNT %d\n", sorted, unsortedList[sorted], focusCount)
+        printf("SORTED INDEX %d, %d, FOCUS_COUNT %d\n", sorted, unsortedList[sorted], focusCount)
         g_focused[focusedScreenIndex].focusList[focusCount] = unsortedList[sorted].control
         focusCount = focusCount + 1
         g_focused[focusedScreenIndex].focusCount = focusCount
@@ -934,7 +934,7 @@ func build_focus_list(focusedScreenIndex i32, parent control_id) {
 //-----------------------------------------------------------------------------
 func rebuild_focus(id screen_id) {
     uti.assert_(is_valid_screen(id), "rebuild_focus : invalid id")
-    //control_print("rebuild_focus : ", id.base, false)
+    control_print("rebuild_focus : ", id.base, false)
     var i i32 = 0
 
     var lookup screen_id = invalid_screen()
@@ -953,11 +953,11 @@ func rebuild_focus(id screen_id) {
     var oldFocusCount i32 = 0
     var oldFocus control_id = invalid_control()
     if (is_valid_screen(lookup)) {
-        //printf("VALID LOOKUP SCREEN\n")
+        printf("VALID LOOKUP SCREEN\n")
             oldFocusIndex = g_focused[lookupIndex].currentFocus
             oldFocusCount = g_focused[lookupIndex].focusCount
             oldFocus = invalid_control()
-            //printf("oldFocusIndex %d, oldFocusCount %d\n", oldFocusIndex, oldFocusCount)
+            printf("oldFocusIndex %d, oldFocusCount %d\n", oldFocusIndex, oldFocusCount)
             if (oldFocusIndex >= 0 && oldFocusIndex < oldFocusCount) {
                 oldFocus = g_focused[lookupIndex].focusList[oldFocusIndex]
             }
@@ -968,16 +968,16 @@ func rebuild_focus(id screen_id) {
         g_focusedCount = g_focusedCount + 1
     }
 
-    //printf("lookup %d, %d, id %d, %d\n", lookup.screen, lookup.base.control, id.screen, id.base.control)
+    printf("lookup %d, %d, id %d, %d\n", lookup.screen, lookup.base.control, id.screen, id.base.control)
     uti.assert_(lookup.base.control == id.base.control, "rebuild_focus : internal error")
 
-    //printf("HERE %d\n", lookupIndex)
+    printf("HERE %d\n", lookupIndex)
     g_focused[lookupIndex].currentFocus = -1
-    //printf("HERE %d\n", lookupIndex)
+    printf("HERE %d\n", lookupIndex)
     g_focused[lookupIndex].focusCount = 0
-    //printf("---------------------------> BEFORE BUILD_FOCUS_LIST %d, %d\n", lookupIndex, g_focused[lookupIndex].focusCount)
-    build_focus_list(lookupIndex, key.base)
-    //printf("---------------------------> AFTER BUILD_FOCUS_LIST %d, %d\n", lookupIndex, g_focused[lookupIndex].focusCount)
+    printf("---------------------------> BEFORE BUILD_FOCUS_LIST %d, %d\n", lookupIndex, g_focused[lookupIndex].focusCount)
+    build_focus_list(lookupIndex, lookup.base)
+    printf("---------------------------> AFTER BUILD_FOCUS_LIST %d, %d\n", lookupIndex, g_focused[lookupIndex].focusCount)
 
     var newFocusIndex i32 = -1
     var newFocus control_id = invalid_control()
@@ -985,22 +985,22 @@ func rebuild_focus(id screen_id) {
     if (is_valid_control(oldFocus)) {
         newFocusIndex = oldFocusIndex
         newFocus = oldFocus
-        //printf("RESTORING OLD FOCUS %d\n", oldFocusIndex)
-        //control_print("RESTORING OLD FOCUS : ", newFocus, false)
+        printf("RESTORING OLD FOCUS %d\n", oldFocusIndex)
+        control_print("RESTORING OLD FOCUS : ", newFocus, false)
     } else if (newFocusCount > 0) {
         newFocusIndex = 0
         newFocus = g_focused[lookupIndex].focusList[0]
-        //printf("NEW FOCUS %d\n", newFocusIndex)
-        //control_print("NEW FOCUS : ", newFocus, false)
+        printf("NEW FOCUS %d\n", newFocusIndex)
+        control_print("NEW FOCUS : ", newFocus, false)
     }
 
     set_current_focus(lookup, lookupIndex, newFocus, newFocusIndex)
     var focus i32 = 0
     var focusCount i32 = g_focused[lookupIndex].focusCount
-    //control_print("---- rebuild_focus : ", id.base, false)
+    control_print("---- rebuild_focus : ", id.base, false)
     for focus = 0; focus < focusCount; focus = focus + 1 {
         var focused control_id = g_focused[lookupIndex].focusList[focus]
-        //control_print("-------- rebuild_focus : ", focused, false)
+        control_print("-------- rebuild_focus : ", focused, false)
     }
 }
 
@@ -1008,7 +1008,7 @@ func rebuild_focus(id screen_id) {
 //-----------------------------------------------------------------------------
 func set_current_focus(key screen_id, screenIndex i32, value control_id, controlIndex i32) {
     uti.assert_(is_valid_screen(key), "set_current_focus : invalid key")
-    //control_print("set_current_focus : ", key.base, false)
+    control_print("set_current_focus : ", key.base, false)
 
     var currentFocus i32 = g_focused[screenIndex].currentFocus
     var focusCount i32 = g_focused[screenIndex].focusCount
@@ -1019,7 +1019,7 @@ func set_current_focus(key screen_id, screenIndex i32, value control_id, control
     }
 
     if (is_valid_control(value)) {
-        //control_print("set_current_focus : ", value, false)
+        control_print("set_current_focus : ", value, false)
         g_focused[screenIndex].key = key
         g_focused[screenIndex].value = value
         g_focused[screenIndex].currentFocus = controlIndex
@@ -1032,7 +1032,7 @@ func set_current_focus(key screen_id, screenIndex i32, value control_id, control
 func get_focus_pair(id screen_id) (out i32) {
     out = -1
     uti.assert_(is_valid_screen(id), "get_focus_pair: invalid id")
-    //control_print("get_focus_pair : ", id.base, false)
+    control_print("get_focus_pair : ", id.base, false)
     var i i32 = 0
     for i = 0; i < g_focusedCount; i = i + 1 {
         var key screen_id = g_focused[i].key
@@ -1047,7 +1047,7 @@ func get_focus_pair(id screen_id) (out i32) {
 //-----------------------------------------------------------------------------
 func set_next_focus(id screen_id) {
     uti.assert_(is_valid_screen(id), "screen_next_focus : invalid id")
-    //control_print("set_next_focus : ", id.base, false)
+    control_print("set_next_focus : ", id.base, false)
     var pair i32 = get_focus_pair(id)
     if (pair >= 0 && pair < g_focusedCount) {
         var current i32 = g_focused[pair].currentFocus
@@ -1066,7 +1066,7 @@ func set_next_focus(id screen_id) {
 //-----------------------------------------------------------------------------
 func set_previous_focus(id screen_id) {
     uti.assert_(is_valid_screen(id), "screen_previous_focus : invalid id")
-    //control_print("set_previous_focus : ", id.base, false)
+    control_print("set_previous_focus : ", id.base, false)
     var pair i32 = get_focus_pair(id)
     if (pair >= 0 && pair < g_focusedCount) {
         var current i32 = g_focused[pair].currentFocus
@@ -1571,7 +1571,7 @@ func render_border(id mesh_id, bounds mat.v4, left mat.v4, bottom mat.v4, right 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func control_render(id control_id) () {
-    //control_print("control_render : ", id)
+    //control_print("before control_render : ", id, false)
     uti.assert_(is_valid_control(id), "control_render : invalid control index")
 
     var index i32 = id.control
@@ -1640,6 +1640,7 @@ func control_render(id control_id) () {
             uti.assert_(false, "unknown gui type")
         }
     }
+    //control_print("after control_render : ", id, false)
 }
 
 //-----------------------------------------------------------------------------
@@ -2176,25 +2177,27 @@ func get_batch(texture texture_s, alpha bool) (out batch_id) {
 //-----------------------------------------------------------------------------
 func label_process_event(id label_id, event *event_s) (out i32) {
     uti.assert_(is_valid_label(id), "label_process_event : invalid label")
+    out = control_process_event(id.base, event)
 
-    var index i32 = id.base.control
-    var focused i32 = g_controls[index].focused
-    if (focused > 0) {
-        var key i32 = ((*event).keyboard).key
-        var action i32 = ((*event).keyboard).action
-        if (key == KEYCODE_ENTER || key == KEYCODE_SPACE) {
-            var function func_i32_i32_id = g_labels[id.label].on_state
-            var functionIndex i32 = function.index
-            if functionIndex >= 0 {
-                //printf("------------------------------------------------------------>>>>> ON_STATE %d\n", functionIndex)
-                call_i32_i32(function, index, action)
-                //printf("label_process_event\n")
+    if (out == EVENT_UNUSED) {
+        var index i32 = id.base.control
+        var focused i32 = g_controls[index].focused
+        var mods i32 = ((*event).keyboard).mods
+        if (focused > 0 && mods == MOD_NONE) {
+            var key i32 = ((*event).keyboard).key
+            var action i32 = ((*event).keyboard).action
+            if (key == KEYCODE_ENTER || key == KEYCODE_SPACE) {
+                var function func_i32_i32_id = g_labels[id.label].on_state
+                var functionIndex i32 = function.index
+                if functionIndex >= 0 {
+                    //printf("------------------------------------------------------------>>>>> ON_STATE %d\n", functionIndex)
+                    call_i32_i32(function, index, action)
+                    //printf("label_process_event\n")
+                    out = EVENT_CONSUMED
+                }
             }
         }
     }
-
-    out = control_process_event(id.base, event)
-
 }
 
 //-----------------------------------------------------------------------------
@@ -2765,6 +2768,11 @@ type graph_id struct {
 //-----------------------------------------------------------------------------
 type graph_s struct {
     id graph_id
+    unit mat.v2
+    scale mat.v2
+    offset mat.v2
+    expX i32
+    expY i32
 }
 
 //-----------------------------------------------------------------------------
@@ -2790,11 +2798,17 @@ var g_graphCount i32
 //-----------------------------------------------------------------------------
 func graph_create(name str) (out graph_id) {
     out.base = create_control_(name, GUI_GRAPH, out.graph)
+    control_set_focusable(out.base, 1)
+
     out.graph = g_graphCount
 
     var graph graph_s
     graph.id = out
-
+    graph.unit = mat.v2_(0.1, 0.1)
+    graph.scale = mat.v2_(1.0, 1.0)
+    graph.offset = mat.v2_(0.0, 0.0)
+    graph.expX = 0
+    graph.expY = 0
     g_graphs[out.graph] = graph
     g_graphCount = out.graph + 1
     uti.assert_(is_valid_graph(out), "graph_create : invalid id")
@@ -2804,7 +2818,80 @@ func graph_create(name str) (out graph_id) {
 //-----------------------------------------------------------------------------
 func graph_process_event(id graph_id, event *event_s) (out i32) {
     uti.assert_(is_valid_graph(id), "graph_process_event : invalid id")
+    control_print("graph_process_event : ", id.base, false)
+
     out = control_process_event(id.base, event)
+    if (out == EVENT_UNUSED) {
+        var controlIndex i32 = id.base.control
+        var focused i32 = g_controls[controlIndex].focused
+        if (focused > 0) {
+            var key i32 = ((*event).keyboard).key
+            var action i32 = ((*event).keyboard).action
+            var mods i32 = ((*event).keyboard).mods
+            var graphIndex i32 = id.graph
+            var unit mat.v2 = g_graphs[graphIndex].unit
+            var scale mat.v2 = g_graphs[graphIndex].scale
+            var offset mat.v2 = g_graphs[graphIndex].offset
+            if (mods == MOD_CTRL) {
+                if (action == KEY_PRESS ||
+                    action == KEY_REPEAT) {
+        
+
+                    if (key == KEYCODE_LEFT) {
+                        out = EVENT_CONSUMED
+                        scale.x = scale.x * 0.9
+                    } else if (key == KEYCODE_RIGHT) {
+                        out = EVENT_CONSUMED
+                        scale.x = scale.x * 1.1
+                    } else if (key == KEYCODE_DOWN) {
+                        out = EVENT_CONSUMED
+                        scale.y = scale.y * 0.9
+                    } else if (key == KEYCODE_UP) {
+                        out = EVENT_CONSUMED
+                        scale.y = scale.y * 1.1
+                    }
+                    
+                    if (scale.x > 1.0) {
+                        scale.x = 0.1
+                        g_graphs[graphIndex].expX = g_graphs[graphIndex].expX + 1
+                    } else if (scale.x < 0.1) {
+                        scale.x = 1.0
+                        g_graphs[graphIndex].expX = g_graphs[graphIndex].expX - 1
+                    }
+
+                    if (scale.y > 1.0) {
+                        scale.y = 0.1
+                        g_graphs[graphIndex].expY = g_graphs[graphIndex].expY + 1
+                    } else if (scale.y < 0.1) {
+                        scale.y = 1.0
+                        g_graphs[graphIndex].expY = g_graphs[graphIndex].expY - 1
+                    }
+                    g_graphs[graphIndex].scale = scale
+                    g_graphs[graphIndex].unit = unit
+                }
+            } else if (mods == MOD_NONE) {
+                if (action == KEY_PRESS ||
+                    action == KEY_REPEAT) {
+
+
+                    if (key == KEYCODE_LEFT) {
+                        out = EVENT_CONSUMED
+                        offset.x = offset.x - unit.x * 0.1 * scale.x
+                    } else if (key == KEYCODE_RIGHT) {
+                        out = EVENT_CONSUMED
+                        offset.x = offset.x + unit.x * 0.1 * scale.x
+                    } else if (key == KEYCODE_DOWN) {
+                        out = EVENT_CONSUMED
+                        offset.y = offset.y - unit.y * 0.1 * scale.y
+                    } else if (key == KEYCODE_UP) {
+                        out = EVENT_CONSUMED
+                        offset.y = offset.y + unit.y * 0.1 * scale.y
+                    }
+                    g_graphs[graphIndex].offset = offset
+                }
+            }
+        }
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -2819,6 +2906,120 @@ func graph_resize(id graph_id) () {
 func graph_render(id graph_id) () {
     uti.assert_(is_valid_graph(id), "graph_render : invalid id")
     control_render(id.base)
+
+    var graphIndex i32 = id.graph
+
+    var offset mat.v2 = g_graphs[graphIndex].offset
+    var unit mat.v2 = g_graphs[graphIndex].unit
+    var scale mat.v2 = g_graphs[graphIndex].scale
+
+    var controlIndex i32 = id.base.control
+
+    var width f32 = g_controls[controlIndex].size.x
+    var height f32 = g_controls[controlIndex].size.y
+
+    var size mat.v2 = g_controls[controlIndex].size
+    var position mat.v2 = g_controls[controlIndex].renderPosition
+
+/*    var countX f32 = offset.x / (10.0 * unit.x)
+    var countY f32 = offset.y / (10.0 * unit.y)
+    //printf("count %f, %f\n", countX, countY)
+    //printf("before position %f, %f\n", position.x, position.y)
+    var offsetX f32 = (countX - i32.f32(f32.i32(countX))) * (10.0 * unit.x)
+    var offsetY f32 = (countY - i32.f32(f32.i32(countY))) * (10.0 * unit.y)
+*/
+    var stepX f32 = unit.x * scale.x
+    var stepY f32 = unit.y * scale.y
+
+    var ix i32 = 0
+    var iy i32 = 0
+
+    var offsetX f32 = offset.x
+    if (offsetX > 0) {
+        for (offsetX > 0) {
+            offsetX = offsetX - stepX
+            ix = ix - 1
+        }
+    } else if (offsetX < 0) {
+        for ((offsetX + stepX) < 0) {
+            offsetX = offsetX + stepX
+            ix = ix + 1
+        }
+    }
+
+    var offsetY f32 = offset.y
+    if (offsetY > 0) {
+        for (offsetY > 0) {
+            offsetY = offsetY - stepY
+            iy = iy - 1
+        }
+    } else if (offsetY < 0) {
+        for ((offsetY + stepY) < 0) {
+            offsetY = offsetY + stepY
+            iy = iy + 1
+        }
+    }
+
+    //g_graphs[graphIndex].offset = mat.v2_(offsetX, offsetY)
+
+    //printf("offset %f, %f\n", offsetX, offsetY)
+    position.x = position.x + offsetX
+    position.y = position.y + offsetY
+    //printf("after position %f, %f\n", position.x, position.y)
+
+    var endX f32 = position.x + size.x - offsetX
+    var endY f32 = position.y + size.y - offsetY
+
+//    var timeX f32 = scale.x / 10.0
+    //var timeY f32 = scale.y / 10.0
+
+    //printf("unit %f, %f, scale %f, %f\n", unit.x, unit.y, scale.x, scale.y)
+    var x f32 = position.x
+    for (x < endX) {
+        var color mat.v4 = g_gray_2
+        if ((ix % 100) == 0) {
+            color = g_gray_3
+        } else if ((ix % 10) == 0) {
+            /*if (scale.x > 1.0) {
+                color = g_gray_3
+            } else if (scale.x <= 1.0) {*/
+                color = mat.v4_mix(g_gray_2, g_gray_3, scale.x)
+            //}
+        } else {
+            /*if (scale.x > 1.0) {
+                color = mat.v4_mix(g_gray_2, g_gray_3, scale.x / 10.0)
+            } else if (scale.x <= 1.0) {*/
+                color = mat.v4_mix(g_gray_0, g_gray_2, scale.x)
+            //}
+        }
+        gfx.append_line(g_opaqueVertexColoredLines, mat.v4_(x, position.y, x, endY), color)
+        x = x + stepX
+        ix = ix + 1
+    }
+
+    var y f32 = position.y
+    for (y < endY) {
+        var color mat.v4 = g_gray_2
+        if ((iy % 100) == 0) {
+            color = g_gray_3
+        } else if ((iy % 10) == 0) {
+            /*if (scale.y > 1.0) {
+                color = g_gray_3
+            } else if (scale.y <= 1.0) {*/
+                color = mat.v4_mix(g_gray_2, g_gray_3, scale.y)
+            //}
+        } else {
+            /*if (scale.y > 1.0) {
+                color = mat.v4_mix(g_gray_2, g_gray_3, scale.y / 10.0)
+            } else if (scale.y <= 1.0) {*/
+                color = mat.v4_mix(g_gray_0, g_gray_2, scale.y)
+            //}
+        }
+        gfx.append_line(g_opaqueVertexColoredLines, mat.v4_(position.x, y, endX, y), color)
+        y = y + unit.y * scale.y
+        iy = iy + 1
+    }
+    //printf("here 2\n")
 }
 
 //-----------------------------------------------------------------------------
@@ -2830,7 +3031,7 @@ func init() () {
     attributes = [3]i32{3, 4, 2} // can't use slice yet
     g_opaqueVertexColoredTriangles = gfx.create_mesh(gl.TRIANGLES, attributes, 10 * 2048 * 3)
     g_alphaVertexColoredTriangles = gfx.create_mesh(gl.TRIANGLES, attributes, 10 * 2048 * 3)
-    g_opaqueVertexColoredLines = gfx.create_mesh(gl.LINES, attributes, 10 * 2048 * 2)
+    g_opaqueVertexColoredLines = gfx.create_mesh(gl.LINES, attributes, 20 * 2048 * 2)
     g_fullscreenQuad = gfx.create_mesh(gl.TRIANGLES, attributes, 6 * 3)
 
     gfx.begin_mesh(g_fullscreenQuad)
@@ -2951,6 +3152,12 @@ var KEYCODE_DOWN      i32 = 264
 var KEYCODE_UP        i32 = 265
 var KEYCODE_LEFT_CTRL i32 = 341
 var KEYCODE_MENU      i32 = 343
+
+var MOD_NONE  i32 = 0
+var MOD_SHIFT i32 = 1
+var MOD_CTRL  i32 = 2
+var MOD_ALT   i32 = 4
+var MOD_MENU  i32 = 8
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -3102,7 +3309,7 @@ func process_keyboard(window str, key i32, scancode i32, action i32, mods i32) (
                     if (is_valid_screen(onEnter) == true) {
                         show_screen(onEnter)
                     }
-                } else if (key == KEYCODE_LEFT_CTRL && action == KEY_PRESS) {
+                } else if (key == KEYCODE_MENU && action == KEY_PRESS) {
                     g_screens[screen].paused = true
                     var onMenu screen_id = g_screens[screen].on_menu
                     if (is_valid_screen(onMenu) == true) {
@@ -3116,7 +3323,7 @@ func process_keyboard(window str, key i32, scancode i32, action i32, mods i32) (
     }
 
     if (is_valid_screen(currentScreen)) {
-        if (action == KEY_PRESS) {
+        if (action == KEY_PRESS && mods == MOD_NONE) {
             if (key == KEYCODE_LEFT ||
                 key == KEYCODE_UP) {
                 set_previous_focus(currentScreen)
