@@ -210,6 +210,7 @@ func is_valid_font(id font_id) (out bool) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func create_font(name str, path str, min i32, max i32, direction i32) (out font_id) {
+    uti.assert_(g_fontCount < len(g_fonts), "create_font : overflow") // ##1 use slice
     out.font = g_fontCount
 
     var font font_s
@@ -262,6 +263,9 @@ func font_get_texture_index(id font_id, size i32) (out i32) {
     var textureCount i32 = g_fonts[id.font].textureCount
 
     out = -1
+    if (textureCount > 0) {
+        out = 0
+    }
     var minSize i32 = size
 
     var i i32 = 0
@@ -380,6 +384,7 @@ func is_valid_layer_skin(id layer_skin_id) (out bool) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func create_layer_skin(name str, surface mat.v4, left mat.v4, bottom mat.v4, right mat.v4, top mat.v4) (out layer_skin_id) {
+    uti.assert_(g_layerSkinCount < len(g_layerSkins), "create_layer : overflow") // ##1 use slice
     out.layer = g_layerSkinCount
 
     var layer layer_skin_s
@@ -464,12 +469,15 @@ func invalid_control_skin() (out control_skin_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_control_skin(id control_skin_id) (out bool) {
-    out = id.skin >= 0 && id.skin < g_controlSkinCount
+    //printf("id.skin %d, %d\n", id.skin, g_controlSkinCount)
+    out = (id.skin >= 0) && (id.skin < g_controlSkinCount)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func create_control_skin(name str, back layer_skin_id, front layer_skin_id, hoverBack layer_skin_id, hoverFore layer_skin_id, disabledBack layer_skin_id, disabledFore layer_skin_id, focusedBack layer_skin_id, focusedFore layer_skin_id, selectedBack layer_skin_id, selectedFore layer_skin_id)  (out control_skin_id) {
+    printf("EVENT_UNUSED %d\n", EVENT_UNUSED)
+    uti.assert_(g_controlSkinCount < len(g_controlSkins), "create_control_skin : overflow") // ##1 use slice
     out.skin = g_controlSkinCount
 
     var skin control_skin_s
@@ -633,7 +641,7 @@ type control_s struct {
     padding mat.v4
 
     renderPosition mat.v2
-    children [8]control_id // can't make it work with slices
+    children [128]control_id // can't make it work with slices
     childCount i32
 }
 
@@ -665,6 +673,7 @@ func create_control(name str) (out control_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func create_control_(name str, gui_type i32, gui_index i32) (out control_id) {
+    uti.assert_(g_controlCount < len(g_controls), "create_control : overflow") // ##1 use slice
     out.control = g_controlCount
 
     var control control_s
@@ -798,6 +807,8 @@ func control_add_child(parent control_id, child control_id) {
     uti.assert_(is_valid_control(parent), "control_add_child : invalid parent")
     uti.assert_(is_valid_control(child), "control_add_child : invalid child")
     var count i32 = g_controls[parent.control].childCount
+    var size i32 = len(g_controls[parent.control].children)
+    uti.assert_(count < size, "control_add_child : overflow") // ##1 use slice
     g_controls[child.control].focusIndex = count
     g_controls[parent.control].children[count] = child
     g_controls[parent.control].childCount = count + 1
@@ -807,7 +818,8 @@ func control_add_child(parent control_id, child control_id) {
 //-----------------------------------------------------------------------------
 func control_clear_child(id control_id) {
     uti.assert_(is_valid_control(id), "control_clear_child : invalid id")
-    g_controls[id.control].childCount = 0
+    var controlIndex i32 = id.control
+    g_controls[controlIndex].childCount = 0
 }
 
 //-----------------------------------------------------------------------------
@@ -1241,7 +1253,8 @@ func control_resize_(id control_id, pixelBounds mat.v2, bounds mat.v2, autoBound
         } else if (guiType == GUI_GRAPH) {
             graph_resize(graph_id_(child, guiIndex))
         } else {
-            uti.assert_(false, "unknown gui type")
+            printf("GUI TYPE %d\n", guiType)
+            uti.assert_(false, "control_resize : unknown gui type")
         }
 
         var position mat.v2 = g_controls[child.control].renderPosition
@@ -1506,7 +1519,9 @@ func control_redock(id control_id, padding mat.v4) () {
         } else if (guiType == GUI_GRAPH) {
             control_redock(control_id_(childControl), parentPadding)
         } else {
-            uti.assert_(false, "unknown gui type")
+            control_print("control_redock parent : ", id, false)
+            control_print("control_redock child : ", child, false)
+            uti.assert_(false, "control_redock : unknown gui type")
         }
     }
 
@@ -1637,7 +1652,8 @@ func control_render(id control_id) () {
         } else if (guiType == GUI_GRAPH) {
             graph_render(graph_id_(child, guiIndex))
         } else {
-            uti.assert_(false, "unknown gui type")
+            printf("GUI TYPE %d\n", guiType)
+            uti.assert_(false, "control_render : unknown gui type")
         }
     }
     //control_print("after control_render : ", id, false)
@@ -1692,6 +1708,7 @@ func screen_id_(base control_id, screen i32) (out screen_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func create_screen(name str) (out screen_id) {
+    uti.assert_(g_screenCount < len(g_screens), "create_screen : overflow") // ##1 use slice
     out.screen = g_screenCount
     out.base = create_control_(name, GUI_SCREEN, out.screen)
 
@@ -1952,7 +1969,7 @@ func screen_render(id screen_id) () {
 //-----------------------------------------------------------------------------
 // LABEL
 //-----------------------------------------------------------------------------
-var g_labels [64]label_s
+var g_labels [256]label_s
 var g_labelCount i32
 
 //-----------------------------------------------------------------------------
@@ -2022,6 +2039,7 @@ func is_valid_label(id label_id) (out bool) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func create_label(name str) (out label_id) {
+    uti.assert_(g_labelCount < len(g_labels), "create_label : overflow") // ##1 use slice
     out.label = g_labelCount
     out.base = create_control_(name, GUI_LABEL, out.label)
 
@@ -2204,7 +2222,7 @@ func label_process_event(id label_id, event *event_s) (out i32) {
 //-----------------------------------------------------------------------------
 func label_resize(id label_id) () {
     uti.assert_(is_valid_label(id), "label_resize : invalid id")
-
+    //control_print("label_resize : ", id.base, false)
     var i32Width i32
     var i32Hheight i32
     var text str = g_labels[id.label].text
@@ -2214,8 +2232,10 @@ func label_resize(id label_id) () {
     uti.assert_(is_valid_font(fontId), "label_resize : invalid font")
 
     var fontSize i32 = g_labels[id.label].textSize
+    //printf("fontID %d, fontSize %d\n", fontId.font, fontSize)
     var textureIndex i32 = font_get_texture_index(fontId, fontSize)
 
+    //printf("fontIndex %d, textureIndex %d\n", fontIndex, textureIndex)
     var fontName str = g_fonts[fontIndex].names[textureIndex] // ##0 auto select best size
     i32Width, i32Height := gfx.measure_text(fontName, text)
 
@@ -2234,6 +2254,7 @@ func label_resize(id label_id) () {
 
     position.x, position.y = align_control(g_labels[id.label].textAlign, 0.0, 0.0, newSize.x, newSize.y, position.x, position.y, size.x, size.y, padding)
     g_labels[id.label].textPosition = position
+    printf("LABEL_TEXT_POSITION %f, %f\n", position.x, position.y)
     g_labels[id.label].batch = get_batch(g_fonts[fontIndex].textures[textureIndex], true)
     //control_print("label_resize :", id.base, false)
 }
@@ -2242,7 +2263,7 @@ func label_resize(id label_id) () {
 //-----------------------------------------------------------------------------
 func label_render(id label_id) () {
     uti.assert_(is_valid_label(id), "label_render : invalid id")
-    //control_print("RENDER_LABEL : ", id.base, false)
+    control_print("label_render : ", id.base, false)
     control_render(id.base)
 
     var fontId font_id = g_labels[id.label].font
@@ -2308,6 +2329,7 @@ func is_valid_picture(id picture_id) (out bool) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func create_picture(name str) (out picture_id) {
+    uti.assert_(g_pictureCount < len(g_pictures), "create_picture : overflow") // ##1 use slice
     out.picture = g_pictureCount
     out.base = create_control_(name, GUI_PICTURE, out.picture)
 
@@ -2481,6 +2503,7 @@ func window_set_containee(id window_id, containee control_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func create_window(name str) (out window_id) {
+    uti.assert_(g_windowCount < len(g_windows), "create_window : overflow") // ##1 use slice
     out.base = create_control_(name, GUI_WINDOW, out.window)
     out.window = g_windowCount
 
@@ -2619,6 +2642,7 @@ func is_valid_keyboard(id keyboard_id) (out bool) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func create_keyboard(name str) (out keyboard_id) {
+    uti.assert_(g_keyboardCount < len(g_keyboards), "create_keyboard : overflow") // ##1 use slice
     out.keyboard = g_keyboardCount
     out.base = create_control_(name, GUI_KEYBOARD, out.keyboard)
 
@@ -2724,6 +2748,7 @@ func is_valid_partition(id partition_id) (out bool) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func create_partition(name str) (out partition_id) {
+    uti.assert_(g_partitionCount < len(g_partitions), "create_partition : overflow") // ##1 use slice
     out.partition = g_partitionCount
     out.base = create_control_(name, GUI_PARTITION, out.partition)
 
@@ -2773,6 +2798,13 @@ type graph_s struct {
     offset mat.v2
     expX i32
     expY i32
+    coord mat.v2
+    labels [256] label_id
+    labelCount i32
+    horz [128] graph_line_s
+    horzCount i32
+    vert [128] graph_line_s
+    vertCount i32
 }
 
 //-----------------------------------------------------------------------------
@@ -2792,7 +2824,12 @@ func is_valid_graph(id graph_id) (out bool) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 var g_graphs[8] graph_s
-var g_graphCount i32
+var g_graphCount i32 = 0
+
+type graph_line_s struct {
+    color mat.v4
+    bounds mat.v4
+}
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -2802,15 +2839,24 @@ func graph_create(name str) (out graph_id) {
 
     out.graph = g_graphCount
 
-    var graph graph_s
-    graph.id = out
-    graph.unit = mat.v2_(0.1, 0.1)
-    graph.scale = mat.v2_(1.0, 1.0)
-    graph.offset = mat.v2_(0.0, 0.0)
-    graph.expX = 0
-    graph.expY = 0
-    g_graphs[out.graph] = graph
+    g_graphs[g_graphCount].id = out
+    g_graphs[g_graphCount].unit = mat.v2_(0.1, 0.1)
+    g_graphs[g_graphCount].scale = mat.v2_(1.0, 1.0)
+    g_graphs[g_graphCount].offset = mat.v2_(0.0, 0.0)
+    g_graphs[g_graphCount].expX = 0
+    g_graphs[g_graphCount].expY = 0
+    g_graphs[g_graphCount].vertCount = 0
+    g_graphs[g_graphCount].horzCount = 0
+    var labelCount i32 = 0
+    for (labelCount < 64) {
+        var label label_id = create_label(sprintf("graphLabel_%d", labelCount))
+        g_graphs[g_graphCount].labels[labelCount] = label
+        labelCount = labelCount + 1
+    }
+
+    g_graphs[g_graphCount].labelCount = labelCount
     g_graphCount = out.graph + 1
+
     uti.assert_(is_valid_graph(out), "graph_create : invalid id")
 }
 
@@ -2835,8 +2881,6 @@ func graph_process_event(id graph_id, event *event_s) (out i32) {
             if (mods == MOD_CTRL) {
                 if (action == KEY_PRESS ||
                     action == KEY_REPEAT) {
-        
-
                     if (key == KEYCODE_LEFT) {
                         out = EVENT_CONSUMED
                         scale.x = scale.x * 0.9
@@ -2850,7 +2894,6 @@ func graph_process_event(id graph_id, event *event_s) (out i32) {
                         out = EVENT_CONSUMED
                         scale.y = scale.y * 1.1
                     }
-                    
                     if (scale.x > 1.0) {
                         scale.x = 0.1
                         g_graphs[graphIndex].expX = g_graphs[graphIndex].expX + 1
@@ -2872,8 +2915,6 @@ func graph_process_event(id graph_id, event *event_s) (out i32) {
             } else if (mods == MOD_NONE) {
                 if (action == KEY_PRESS ||
                     action == KEY_REPEAT) {
-
-
                     if (key == KEYCODE_LEFT) {
                         out = EVENT_CONSUMED
                         offset.x = offset.x - unit.x * 0.1 * scale.x
@@ -2898,14 +2939,17 @@ func graph_process_event(id graph_id, event *event_s) (out i32) {
 //-----------------------------------------------------------------------------
 func graph_resize(id graph_id) () {
     uti.assert_(is_valid_graph(id), "graph_resize : invalid id")
+    control_clear_child(id.base)
     control_resize(id.base)
-}
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-func graph_render(id graph_id) () {
-    uti.assert_(is_valid_graph(id), "graph_render : invalid id")
-    control_render(id.base)
+    var graphIndex i32 = id.graph
+    g_graphs[graphIndex].coord = mat.v2_(0.1, 0.1)
+
+    var controlIndex i32 = id.base.control
+
+    g_graphs[graphIndex].horzCount = 0
+    g_graphs[graphIndex].vertCount = 0
+    g_graphs[graphIndex].labelCount = 0
 
     var graphIndex i32 = id.graph
 
@@ -2921,16 +2965,12 @@ func graph_render(id graph_id) () {
     var size mat.v2 = g_controls[controlIndex].size
     var position mat.v2 = g_controls[controlIndex].renderPosition
 
-/*    var countX f32 = offset.x / (10.0 * unit.x)
-    var countY f32 = offset.y / (10.0 * unit.y)
-    //printf("count %f, %f\n", countX, countY)
-    //printf("before position %f, %f\n", position.x, position.y)
-    var offsetX f32 = (countX - i32.f32(f32.i32(countX))) * (10.0 * unit.x)
-    var offsetY f32 = (countY - i32.f32(f32.i32(countY))) * (10.0 * unit.y)
-*/
+    var coord mat.v2 = g_graphs[graphIndex].coord
+
     var stepX f32 = unit.x * scale.x
     var stepY f32 = unit.y * scale.y
 
+    var i i32 = 0
     var ix i32 = 0
     var iy i32 = 0
 
@@ -2960,66 +3000,142 @@ func graph_render(id graph_id) () {
         }
     }
 
-    //g_graphs[graphIndex].offset = mat.v2_(offsetX, offsetY)
+    var graphPosition mat.v2
+    graphPosition.x = position.x + offsetX + coord.x
+    graphPosition.y = position.y + offsetY + coord.y
 
-    //printf("offset %f, %f\n", offsetX, offsetY)
-    position.x = position.x + offsetX
-    position.y = position.y + offsetY
-    //printf("after position %f, %f\n", position.x, position.y)
+    var endX f32 = graphPosition.x + size.x - offsetX - coord.x
+    var endY f32 = graphPosition.y + size.y - offsetY - coord.y
 
-    var endX f32 = position.x + size.x - offsetX
-    var endY f32 = position.y + size.y - offsetY
+    //gfx.push_scissor(mat.v4_(coord.x, coord.y, size.x - coord.x, size.y - coord.y))
 
-//    var timeX f32 = scale.x / 10.0
-    //var timeY f32 = scale.y / 10.0
-
-    //printf("unit %f, %f, scale %f, %f\n", unit.x, unit.y, scale.x, scale.y)
-    var x f32 = position.x
+    var horzMax i32 = len(g_graphs[graphIndex].horz)
+    i = 0
+    var labelX f32 = coord.x + offsetX - stepX / 2.0
+    var x f32 = graphPosition.x
     for (x < endX) {
         var color mat.v4 = g_gray_2
+        var font font_id
+
         if ((ix % 100) == 0) {
             color = g_gray_3
+            font = g_boldFont
+            //color = mat.v4_(1.0, 0.0, 0.0, 1.0)
         } else if ((ix % 10) == 0) {
-            /*if (scale.x > 1.0) {
-                color = g_gray_3
-            } else if (scale.x <= 1.0) {*/
-                color = mat.v4_mix(g_gray_2, g_gray_3, scale.x)
-            //}
+            color = mat.v4_mix(g_gray_2, g_gray_3, scale.x)
+            font = g_boldFont
+            //color = mat.v4_(0.0, 1.0, 0.0, 1.0)
         } else {
-            /*if (scale.x > 1.0) {
-                color = mat.v4_mix(g_gray_2, g_gray_3, scale.x / 10.0)
-            } else if (scale.x <= 1.0) {*/
-                color = mat.v4_mix(g_gray_0, g_gray_2, scale.x)
-            //}
+            color = mat.v4_mix(g_gray_0, g_gray_2, scale.x)
+            font = g_regularFont
+            //color = mat.v4_(0.0, 0.0, 1.0, 1.0)
         }
-        gfx.append_line(g_opaqueVertexColoredLines, mat.v4_(x, position.y, x, endY), color)
+
+        if (i < horzMax) {
+            var graphLine graph_line_s
+            graphLine.color = color
+            graphLine.bounds = mat.v4_(x, graphPosition.y, x, endY)
+            g_graphs[graphIndex].horz[i] = graphLine
+            g_graphs[graphIndex].horzCount = i + 1
+        }
+
+        var labelCount i32 = g_graphs[graphIndex].labelCount
+        if (labelCount < 64) {
+        var label label_id = g_graphs[graphIndex].labels[labelCount]
+        control_add_child(id.base, label.base)
+        var labelBounds mat.v4 = mat.v4_(labelX, 0.0, stepX, coord.y)//stepX, coord.y)
+        control_set_bounds(label.base, labelBounds)
+        control_set_autoscale(label.base, AUTOSCALE)
+        printf("labelBounds %f, %f, %f, %f\n", labelBounds.x, labelBounds.y, labelBounds.z, labelBounds.w)
+    
+        label_set_font(label, g_regularFont)
+        //label_set_color(label, mat.v4_(1.0, 0.0, 1.0, 1.0))
+        label_set_color(label, color)
+        /*if ((i % 2) == 0) {
+            control_set_skin(label.base, g_redControlSkin)
+        } else {
+            control_set_skin(label.base, g_greenControlSkin)
+        }*/
+        label_set_text(label, "0")
+        label_set_align(label, ALIGN_CENTER)
+        label_resize(label)
+        control_set_bounds(label.base, labelBounds)
+        //control_set_align(label.base, ALIGN_CENTER)
+        control_print("label_bounds : ", label.base, false)
+        g_graphs[graphIndex].labelCount = labelCount + 1
+        }
+        //label_resize(label)
+        //label_render(label)
+        labelX = labelX + stepX
         x = x + stepX
         ix = ix + 1
+        i = i + 1
     }
 
-    var y f32 = position.y
+    var vertMax i32 = len(g_graphs[graphIndex].vert)
+    i = 0
+    var y f32 = graphPosition.y
     for (y < endY) {
         var color mat.v4 = g_gray_2
         if ((iy % 100) == 0) {
             color = g_gray_3
         } else if ((iy % 10) == 0) {
-            /*if (scale.y > 1.0) {
-                color = g_gray_3
-            } else if (scale.y <= 1.0) {*/
-                color = mat.v4_mix(g_gray_2, g_gray_3, scale.y)
-            //}
+            color = mat.v4_mix(g_gray_2, g_gray_3, scale.y)
         } else {
-            /*if (scale.y > 1.0) {
-                color = mat.v4_mix(g_gray_2, g_gray_3, scale.y / 10.0)
-            } else if (scale.y <= 1.0) {*/
-                color = mat.v4_mix(g_gray_0, g_gray_2, scale.y)
-            //}
+            color = mat.v4_mix(g_gray_0, g_gray_2, scale.y)
         }
-        gfx.append_line(g_opaqueVertexColoredLines, mat.v4_(position.x, y, endX, y), color)
-        y = y + unit.y * scale.y
+
+        //color = mat.v4_(1.0, 0.0, 1.0, 1.0)
+
+        if (i < vertMax) {
+            var graphLine graph_line_s
+            graphLine.color = color
+            graphLine.bounds = mat.v4_(graphPosition.x, y, endX, y)
+//    printf("i %d, color %f, %f, %f, %f, bounds %f, %f, %f, %f\n",
+      //      i, color.x, color.y, color.z, color.w, graphLine.bounds.x, graphLine.bounds.y, graphLine.bounds.z, graphLine.bounds.w)
+            g_graphs[graphIndex].vert[i] = graphLine
+            g_graphs[graphIndex].vertCount = i + 1
+        //} else {
+       //     printf("I %d\n", i)
+        }
+        y = y + stepY
         iy = iy + 1
+        i = i + 1
     }
-    //printf("here 2\n")
+
+    //control_resize(id.base)
+    //gfx.pop_scissor()
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func graph_render(id graph_id) () {
+    uti.assert_(is_valid_graph(id), "graph_render : invalid id")
+    control_render(id.base)
+
+    var graphIndex i32 = id.graph
+
+    var i i32 = 0
+    var horzCount i32 = g_graphs[graphIndex].horzCount
+    for i = 0; i < horzCount; i = i + 1 {
+        var bounds mat.v4 = g_graphs[graphIndex].horz[i].bounds
+        var color mat.v4 = g_graphs[graphIndex].horz[i].color
+        gfx.append_line(g_opaqueVertexColoredLines, bounds, color)
+    }
+
+    var vertCount i32 = g_graphs[graphIndex].vertCount
+    for i = 0; i < vertCount; i = i + 1 {
+        var bounds mat.v4 = g_graphs[graphIndex].vert[i].bounds
+        var color mat.v4 = g_graphs[graphIndex].vert[i].color
+        /*if (i == 3) {
+            color = mat.v4_(0.0, 1.0, 0.0, 1.0)
+            bounds.y = bounds.y + 0.01
+            bounds.w = bounds.w + 0.01
+        }*/
+//        printf("II %d, COLOR %f, %f, %f, %f, BOUNDS %f, %f, %f, %f\n",
+  //          i, color.x, color.y, color.z, color.w, bounds.x, bounds.y, bounds.z, bounds.w)
+        gfx.append_line(g_opaqueVertexColoredLines, bounds, color)
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -3205,6 +3321,7 @@ type event_s struct {
 //-----------------------------------------------------------------------------
 func control_process_event(id control_id, event *event_s) (out i32) {
     uti.assert_(is_valid_control(id), "control_process_event : invalid id")
+//    control_print("control_process_event : ", id, false)
     out = EVENT_UNUSED
 
     var index i32 = id.control
@@ -3235,7 +3352,8 @@ func control_process_event(id control_id, event *event_s) (out i32) {
         } else if (guiType == GUI_GRAPH) {
             out = graph_process_event(graph_id_(child, guiIndex), event)
         } else {
-            uti.assert_(false, "unknown gui type")
+            printf("GUI TYPE %d\n", guiType)
+            uti.assert_(false, "control_process_event : unknown gui type")
         }
 
                if (out == EVENT_CONSUMED) {

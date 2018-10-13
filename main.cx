@@ -123,7 +123,8 @@ func main() {
     // exit app screen
     {
         g_exitAppScreen = gui.create_screen("exit_app")
-        gui.control_set_skin(g_exitAppScreen.base, gui.g_modalControlSkin)
+       gui.control_set_skin(g_exitAppScreen.base, gui.g_modalControlSkin)
+       printf("TATA\n")
         gui.control_set_bounds(g_exitAppScreen.base, screenBounds)
         gui.screen_set_duration(g_exitAppScreen, -2.0D)
         gui.screen_set_modal(g_exitAppScreen, true)
@@ -243,11 +244,27 @@ func main() {
         }
 
         {
-            var graph graph_id = gui.graph_create("graph")
-            gui.control_add_child(g_mainScreen.base, graph.base)
-            gui.control_set_padding(graph.base, mat.v4_(0.01, 0.01, 0.01, 0.01))
-            gui.control_set_skin(graph.base, gui.g_blackControlSkin)
-            gui.control_set_dock(graph.base, gui.DOCK_FILL)
+            var panel control_id = gui.create_control("panel")
+            gui.control_add_child(g_mainScreen.base, panel)
+            gui.control_set_padding(panel, mat.v4_(0.01, 0.01, 0.01, 0.01))
+            gui.control_set_size(panel, mat.v2_(0.0, 0.1))
+            gui.control_set_dock(panel, gui.DOCK_FILL)
+
+            {
+                var right control_id = gui.create_control("right")
+                gui.control_add_child(panel, right)
+                gui.control_set_skin(right, gui.g_greenControlSkin)
+                gui.control_set_padding(right, mat.v4_(0.01, 0.01, 0.01, 0.01))
+                gui.control_set_size(right, mat.v2_(0.3, 0.0))
+                gui.control_set_dock(right, gui.DOCK_RIGHT)
+            }
+            {
+                var graph graph_id = gui.graph_create("graph")
+                gui.control_add_child(panel, graph.base)
+                gui.control_set_padding(graph.base, mat.v4_(0.01, 0.01, 0.01, 0.01))
+                gui.control_set_skin(graph.base, gui.g_blackControlSkin)
+                gui.control_set_dock(graph.base, gui.DOCK_FILL)
+            }
         }
     }
 
@@ -378,6 +395,7 @@ func main() {
     // main loop
     var fps fps.fps_s = fps.init(targetFps)
     for app.running(application) {
+        //printf("DEBUG : EVENT_UNUSED %d\n", gui.EVENT_UNUSED)
         fps = fps.begin_update(fps)
         app.begin_update(application)
         gui.update(fps.delta_time(&fps))
