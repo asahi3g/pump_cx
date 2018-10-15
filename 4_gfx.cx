@@ -280,7 +280,7 @@ type mesh_id struct {
 //-----------------------------------------------------------------------------
 type mesh_s struct {
     id mesh_id
-    vertices [8192]f32
+    vertices [16384]f32
     attributes [3]i32
     primitive i32
     vao i32

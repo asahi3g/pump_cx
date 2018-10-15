@@ -246,22 +246,97 @@ func main() {
         {
             var panel control_id = gui.create_control("panel")
             gui.control_add_child(g_mainScreen.base, panel)
-            gui.control_set_padding(panel, mat.v4_(0.01, 0.01, 0.01, 0.01))
+            gui.control_set_padding(panel, mat.v4_(0.0, 0.0, 0.01, 0.0))
             gui.control_set_size(panel, mat.v2_(0.0, 0.1))
             gui.control_set_dock(panel, gui.DOCK_FILL)
 
             {
-                var right control_id = gui.create_control("right")
-                gui.control_add_child(panel, right)
-                gui.control_set_skin(right, gui.g_greenControlSkin)
-                gui.control_set_padding(right, mat.v4_(0.01, 0.01, 0.01, 0.01))
-                gui.control_set_size(right, mat.v2_(0.3, 0.0))
-                gui.control_set_dock(right, gui.DOCK_RIGHT)
+                var right splitter_id = gui.splitter_create("right")
+                gui.control_add_child(panel, right.base)
+                gui.control_set_size(right.base, mat.v2_(0.6, 0.0))
+                gui.control_set_dock(right.base, gui.DOCK_RIGHT)
+                gui.control_set_spacing(right.base, mat.v2_(0.0, 0.01))
+                gui.splitter_set_direction(right, gui.SPLIT_BOTTOM)
+
+                var rightBottom splitter_id = gui.splitter_create("rightBottom")
+                var rightTop splitter_id = gui.splitter_create("rightTop")
+                gui.splitter_set_controls(right, rightBottom.base, rightTop.base)
+
+                {
+                   //gui.control_add_child(right, rightBottom.base)
+                    gui.control_set_size(rightBottom.base, mat.v2_(0.0, 0.5))
+                    gui.control_set_dock(rightBottom.base, gui.DOCK_BOTTOM)
+                    gui.control_set_spacing(rightBottom.base, mat.v2_(0.0, 0.01))
+                    //gui.control_set_padding(rightBottom.base, mat.v4_(0.0, 0.01, 0.0, 0.0))
+                    gui.splitter_set_direction(rightBottom, gui.SPLIT_BOTTOM)
+
+                    {
+                        var rightBottomPlayControl control_id = gui.create_control("rightBottomPlayCtrl")
+                        //gui.control_add_child(rightBottom, rightBottomPlayControl)
+                        gui.control_set_dock(rightBottomPlayControl, gui.DOCK_BOTTOM)
+                        gui.control_set_skin(rightBottomPlayControl, gui.g_debugBlueControlSkin)
+                        gui.control_set_size(rightBottomPlayControl, mat.v2_(0.0, 0.2))
+
+                        var rightBottomSplitter splitter_id = gui.splitter_create("rightBottomSplitter")
+                        //gui.control_add_child(rightBottom, rightBottomSplitter.base)
+                        gui.control_set_dock(rightBottomSplitter.base, gui.DOCK_TOP)
+                        gui.control_set_spacing(rightBottomSplitter.base, mat.v2_(0.01, 0.0))
+                        gui.splitter_set_direction(rightBottomSplitter, gui.SPLIT_HORZ)
+
+                        var bottomLeft control_id = gui.create_control("bottomLeft")
+                        gui.control_set_dock(bottomLeft, gui.DOCK_LEFT)
+                        gui.control_set_skin(bottomLeft, gui.g_debugGreenControlSkin)
+
+                        var bottomRight control_id = gui.create_control("bottomRight")
+                        gui.control_set_dock(bottomRight, gui.DOCK_RIGHT)
+                        gui.control_set_skin(bottomRight, gui.g_debugRedControlSkin)
+
+                        gui.splitter_set_controls(rightBottomSplitter, bottomLeft, bottomRight)
+                    }
+
+                    gui.splitter_set_controls(rightBottom, rightBottomPlayControl, rightBottomSplitter.base)
+                }
+
+                {
+                    //gui.control_add_child(right, rightTop.base)
+                    gui.control_set_dock(rightTop.base, gui.DOCK_TOP)
+                    gui.control_set_spacing(rightTop.base, mat.v2_(0.01, 0.01))
+                    gui.control_set_padding(rightTop.base, mat.v4_(0.0, 0.0, 0.0, 0.0))
+                    gui.splitter_set_direction(rightTop, gui.SPLIT_HORZ)
+
+                    {
+                        var order splitter_id = gui.splitter_create("order")
+                        gui.control_set_spacing(order.base, mat.v2_(0.01, 0.01))
+                        gui.control_set_padding(order.base, mat.v4_(0.0, 0.0, 0.0, 0.0))
+                        gui.control_set_dock(order.base, gui.DOCK_LEFT)
+                        gui.splitter_set_direction(order, gui.SPLIT_VERT)
+
+                        {
+                            var buy control_id = gui.create_control("buy")
+                            gui.control_set_skin(buy, gui.g_debugGreenControlSkin)
+                            gui.control_set_dock(buy, gui.DOCK_BOTTOM)
+
+                            var sell control_id = gui.create_control("sell")
+                            gui.control_set_skin(sell, gui.g_debugRedControlSkin)
+                            gui.control_set_dock(sell, gui.DOCK_TOP)
+
+                            gui.splitter_set_controls(order, buy, sell)
+                        }
+
+                        var done control_id = gui.create_control("done")
+                        gui.control_set_padding(done, mat.v4_(0.0, 0.0, 0.0, 0.0))
+                        gui.control_set_dock(done, gui.DOCK_RIGHT)
+                        gui.control_set_skin(done, gui.g_debugBlueControlSkin)
+
+                        gui.splitter_set_controls(rightTop, order.base, done)
+                    }
+                }
             }
+
             {
                 var graph graph_id = gui.graph_create("graph")
                 gui.control_add_child(panel, graph.base)
-                gui.control_set_padding(graph.base, mat.v4_(0.01, 0.01, 0.01, 0.01))
+                gui.control_set_padding(graph.base, mat.v4_(0.0, 0.01, 0.0, 0.0))
                 gui.control_set_skin(graph.base, gui.g_blackControlSkin)
                 gui.control_set_dock(graph.base, gui.DOCK_FILL)
             }

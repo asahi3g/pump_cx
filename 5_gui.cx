@@ -35,6 +35,7 @@ var GUI_PARTITION   i32 = 5
 var GUI_KEYBOARD    i32 = 6
 var GUI_WINDOW      i32 = 7
 var GUI_GRAPH       i32 = 8
+var GUI_SPLITTER    i32 = 9
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -139,10 +140,9 @@ func dummy_create(name str) (out dummy_id) {
     out.dummy = g_dummyCount
 
     var dummy dummy_s
-    dummy.id = out
+    g_dummys[g_dummyCount].id = out
 
-    g_dummys[out.dummy] = dummy
-    g_dummyCount = out.dummy + 1
+    g_dummyCount = g_dummyCount + 1
     uti.assert_(is_valid_dummy(out), "create_dummy : invalid id")
 }
 
@@ -435,7 +435,7 @@ func layer_skin_print(message str, id layer_skin_id) {
 //-----------------------------------------------------------------------------
 // CONTROL_SKIN
 //-----------------------------------------------------------------------------
-var g_controlSkins [256]control_skin_s
+var g_controlSkins [512]control_skin_s
 var g_controlSkinCount i32 = 0
 
 //-----------------------------------------------------------------------------
@@ -561,6 +561,9 @@ var g_black_a50 mat.v4 = mat.v4_mul(g_black, mat.v4_(0.5, 0.5, 0.5, 0.8))
 var g_primary_blue_a50  mat.v4 = alpha(g_primary_blue, 0.5)
 
 var g_debugLayerSkin layer_skin_id
+var g_debugRedLayerSkin layer_skin_id
+var g_debugGreenLayerSkin layer_skin_id
+var g_debugBlueLayerSkin layer_skin_id
 var g_bootLayerSkin layer_skin_id
 var g_blackLayerSkin layer_skin_id
 var g_redLayerSkin layer_skin_id
@@ -574,6 +577,9 @@ var g_focusedLayerSkin layer_skin_id
 var g_stripLayerSkin layer_skin_id
 
 var g_debugControlSkin control_skin_id
+var g_debugRedControlSkin control_skin_id
+var g_debugGreenControlSkin control_skin_id
+var g_debugBlueControlSkin control_skin_id
 var g_bootControlSkin control_skin_id
 var g_blackControlSkin control_skin_id
 var g_redControlSkin control_skin_id
@@ -607,7 +613,7 @@ func alpha(color mat.v4, a f32) (out mat.v4) {
 //-----------------------------------------------------------------------------
 // CONTROL
 //-----------------------------------------------------------------------------
-var g_controls [256]control_s
+var g_controls [512]control_s
 var g_controlCount i32 = 0
 
 //-----------------------------------------------------------------------------
@@ -639,9 +645,10 @@ type control_s struct {
     size mat.v2
     scale mat.v2
     padding mat.v4
+    spacing mat.v2
 
     renderPosition mat.v2
-    children [128]control_id // can't make it work with slices
+    children [256]control_id // can't make it work with slices
     childCount i32
 }
 
@@ -696,6 +703,8 @@ func create_control_(name str, gui_type i32, gui_index i32) (out control_id) {
     control.position = mat.v2_zero
     control.size     = mat.v2_zero
     control.scale    = mat.v2_one
+    control.padding  = mat.v4_zero
+    control.spacing  = mat.v2_zero
 
     control.childCount = 0
     g_controls[out.control] = control
@@ -709,7 +718,8 @@ func create_control_(name str, gui_type i32, gui_index i32) (out control_id) {
 func control_print(message str, id control_id, printSkin bool) {
     uti.assert_(is_valid_control(id), "control_print : invalid control")
     var index i32 = id.control
-    printf("%s - %d - %s, Type %d, Index %d, Focusable %d, Focusindex %d, Focused %d, Skin %d, Dock %d, Align %d, Autosize %d, Autoscale %d, Position %f, %f, Size %f, %f, Scale %f, %f, Children %d\n",
+    if (index == 29 || index == 30) {
+    printf("%s - %d - %s, Type %d, Index %d, Focusable %d, Focusindex %d, Focused %d, Skin %d, Dock %d, Align %d, Autosize %d, Autoscale %d, Position %f, %f, RenderPosition %f, %f, Size %f, %f, Scale %f, %f, Children %d\n",
         message,
         g_controls[index].id.control,
         g_controls[index].name,
@@ -718,13 +728,15 @@ func control_print(message str, id control_id, printSkin bool) {
         g_controls[index].focusable,
         g_controls[index].focusIndex,
         g_controls[index].focused,
-        g_controls[index].skin,
+        g_controls[index].skin.skin,
         g_controls[index].dock,
         g_controls[index].align,
         g_controls[index].autosize,
         g_controls[index].autoscale,
         g_controls[index].position.x,
         g_controls[index].position.y,
+        g_controls[index].renderPosition.x,
+        g_controls[index].renderPosition.y,
         g_controls[index].size.x,
         g_controls[index].size.y,
         g_controls[index].scale.x,
@@ -733,6 +745,7 @@ func control_print(message str, id control_id, printSkin bool) {
 
     if (printSkin == true && is_valid_control_skin(g_controls[index].skin)) {
         control_skin_print("control_print : ", g_controls[index].skin)
+    }
     }
 }
 
@@ -827,6 +840,13 @@ func control_clear_child(id control_id) {
 func control_set_padding(id control_id, padding mat.v4) {
     uti.assert_(is_valid_control(id), "control_set_padding : invalid id")
     g_controls[id.control].padding = mat.v4_mul(padding, mat.v4_(1.0, gfx.gfx_ratio_y, 1.0, gfx.gfx_ratio_y)) // ##1 id viewport resize
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func control_set_spacing(id control_id, spacing mat.v2) {
+    uti.assert_(is_valid_control(id), "control_set_spacing : invalid id")
+    g_controls[id.control].spacing = mat.v2_mul(spacing, mat.v2_(1.0, gfx.gfx_ratio_y)) // ##1 id viewport resize
 }
 
 //-----------------------------------------------------------------------------
@@ -1188,6 +1208,10 @@ func control_resize(id control_id) () {
     control_resize_(id, pixelBounds, bounds, mat.v2_zero)
 }
 
+func bip(message str, index i32) {
+    var guiIndex i32 = g_controls[index].gui_index
+    uti.assert_(guiIndex == 1, message)
+}
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func control_resize_(id control_id, pixelBounds mat.v2, bounds mat.v2, autoBounds mat.v2) () {
@@ -1229,14 +1253,15 @@ func control_resize_(id control_id, pixelBounds mat.v2, bounds mat.v2, autoBound
     var count i32 = g_controls[index].childCount
     for i := 0; i < count; i = i + 1 {
         var child control_id = g_controls[index].children[i]
+        var childIndex i32 = child.control
         uti.assert_(is_valid_control(child), "control_resize : invalid child control")
-        var guiType i32 = g_controls[child.control].gui_type
-        var guiIndex i32 = g_controls[child.control].gui_index
+        var guiType i32 = g_controls[childIndex].gui_type
+        var guiIndex i32 = g_controls[childIndex].gui_index
 
         if (guiType == GUI_INVALID) {
            uti.assert_(false, "invalid gui type (GUI_INVALID)")
         } else if (guiType == GUI_CONTROL) {
-            uti.assert_(guiIndex == child.control, "unexpected error")
+            uti.assert_(guiIndex == childIndex, "unexpected error")
             control_resize(control_id_(guiIndex))
         } else if (guiType == GUI_SCREEN) {
             uti.assert_(false, "unidd recursive screen")
@@ -1252,6 +1277,11 @@ func control_resize_(id control_id, pixelBounds mat.v2, bounds mat.v2, autoBound
             window_resize(window_id_(child, guiIndex))
         } else if (guiType == GUI_GRAPH) {
             graph_resize(graph_id_(child, guiIndex))
+        } else if (guiType == GUI_SPLITTER) {
+            //control_print("control_resize child : ", child, false)
+            //printf("SPLITTER_ID : %d, %d\n", childIndex, guiIndex)
+            //control_print("control_resize parent : ", id, false)
+            splitter_resize(splitter_id_(child, guiIndex))
         } else {
             printf("GUI TYPE %d\n", guiType)
             uti.assert_(false, "control_resize : unknown gui type")
@@ -1442,6 +1472,9 @@ func control_redock(id control_id, padding mat.v4) () {
         w = g_dock.right - g_dock.left - paddingX
         h = size.y
         y = g_dock.top - h - paddingTop
+        if (index == 29 || index == 30) {
+            printf("DOCK_TOP %f, %f, %f, %f\n", g_dock.top, h, paddingTop, y)
+        }
         g_dock.top = y
         //uti.assert_((autosize & AUTOSIZE_X) == 0, "control_redock : DOCK_TOP is not compatible with AUTOSIZE_X")
         //control_print("DOCK_TOP : ", id, false)
@@ -1468,9 +1501,15 @@ func control_redock(id control_id, padding mat.v4) () {
     var contW f32 = g_offset.width//g_dock.right - g_dock.left//g_offset.width
     var contH f32 = g_offset.height//g_dock.top - g_dock.bottom//g_offset.height
 
-    //control_print("befor align : ", id, false)
+    control_print("befor align : ", id, false)
+    if (index == 29 || index == 30) {
+    printf("redock %f, %f\n", x, y)
+    }
     x, y = align_control(align, x, y, size.x, size.y, contX, contY, contW, contH, padding)
-    //control_print("after align : ", id, false)
+    control_print("after align : ", id, false)
+    if (index == 29 || index == 30) {
+    printf("redock %f, %f\n", x, y)
+    }
     push_scope()
 
     g_offset.x = g_offset.x + x
@@ -1518,6 +1557,8 @@ func control_redock(id control_id, padding mat.v4) () {
             control_redock(control_id_(childControl), parentPadding)
         } else if (guiType == GUI_GRAPH) {
             control_redock(control_id_(childControl), parentPadding)
+        } else if (guiType == GUI_SPLITTER) {
+            control_redock(control_id_(childControl), parentPadding)
         } else {
             control_print("control_redock parent : ", id, false)
             control_print("control_redock child : ", child, false)
@@ -1526,6 +1567,7 @@ func control_redock(id control_id, padding mat.v4) () {
     }
 
     g_controls[index].renderPosition = mat.v2_(g_offset.x, g_offset.y)
+    control_print("after control_redock : ", id, false)
     //g_controls[index].renderSize = mat.v2_(g_offset.width, g_offset.height)
     var newWidth f32 = g_offset.width
     var newHeight f32 = g_offset.height
@@ -1651,6 +1693,8 @@ func control_render(id control_id) () {
             window_render(window_id_(child, guiIndex))
         } else if (guiType == GUI_GRAPH) {
             graph_render(graph_id_(child, guiIndex))
+        } else if (guiType == GUI_SPLITTER) {
+            splitter_render(splitter_id_(child, guiIndex))
         } else {
             printf("GUI TYPE %d\n", guiType)
             uti.assert_(false, "control_render : unknown gui type")
@@ -1967,9 +2011,220 @@ func screen_render(id screen_id) () {
 }
 
 //-----------------------------------------------------------------------------
+// SPLITTER
+//-----------------------------------------------------------------------------
+type splitter_id struct {
+    base control_id
+    splitter i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type splitter_s struct {
+    id splitter_id
+    direction i32
+    master control_id
+    slave control_id
+
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var SPLIT_NONE i32 = 0
+var SPLIT_LEFT i32 = 1
+var SPLIT_RIGHT i32 = 2
+var SPLIT_TOP i32 = 3
+var SPLIT_BOTTOM i32 = 4
+var SPLIT_HORZ i32 = 5
+var SPLIT_VERT i32 = 6
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func splitter_id_(base control_id, splitter i32) (out splitter_id) {
+    out.base = base
+    out.splitter = splitter
+    uti.assert_(is_valid_splitter(out), "splitter_id_: invalid id")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_splitter(id splitter_id) (out bool) {
+    out = id.splitter >= 0 && id.splitter < g_splitterCount && is_valid_control(id.base)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func splitter_set_direction(id splitter_id, direction i32) {
+    uti.assert_(is_valid_splitter(id), "splitter_set_direction : invalid id")
+    g_splitters[id.splitter].direction = direction
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func splitter_set_controls(id splitter_id, master control_id, slave control_id) {
+    uti.assert_(is_valid_splitter(id), "splitter_set_master : invalid id")
+    control_clear_child(id.base)
+    g_splitters[id.splitter].master = master
+    control_add_child(id.base, master)
+
+    g_splitters[id.splitter].slave = slave
+    control_add_child(id.base, slave)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var g_splitters[8] splitter_s
+var g_splitterCount i32
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func splitter_create(name str) (out splitter_id) {
+    out.splitter = g_splitterCount
+    out.base = create_control_(name, GUI_SPLITTER, out.splitter)
+    printf("SPLITTER_CREATE %s, %d, %d\n", name, out.splitter, g_splitterCount)
+    
+    g_splitters[g_splitterCount].id = out
+    g_splitters[g_splitterCount].direction = SPLIT_NONE
+    g_splitters[g_splitterCount].master = invalid_control()
+    g_splitters[g_splitterCount].slave = invalid_control()
+
+    g_splitterCount = g_splitterCount + 1
+    uti.assert_(is_valid_splitter(out), "splitter_create : invalid id")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func splitter_process_event(id splitter_id, event *event_s) (out i32) {
+    uti.assert_(is_valid_splitter(id), "splitter_process_event : invalid id")
+    out = control_process_event(id.base, event)
+}
+
+func fuck(name str, id splitter_id) {
+    var splitterIndex i32 = id.splitter
+    var direction i32 = g_splitters[splitterIndex].direction
+    if (id.base.control == 28) {
+        printf("-----------------%d %d, %s - %d\n", id.splitter, id.base.control, name, direction)
+        uti.assert_(direction == SPLIT_HORZ, "fuck")
+    }
+
+    //uti.assert_(false, "fuck")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func splitter_resize(id splitter_id) () {
+    uti.assert_(is_valid_splitter(id), "resize_splitter : invalid id")
+    control_resize(id.base)
+    control_print("splitter_resize : ", id.base, false)
+    var splitterIndex i32 = id.splitter
+    var direction i32 = g_splitters[splitterIndex].direction
+    //printf("SPLIT %d, %d, %d\n", id.splitter, g_splitters[id.splitter].direction, direction)
+
+    /*if (id.base.control == 28) {
+        printf("28 %d, HORZ %d, VERT %d\n", split, SPLIT_HORZ, SPLIT_VERT)
+        uti.assert_(split == SPLIT_VERT, "fuck")
+    }*/
+    var master control_id = g_splitters[splitterIndex].master
+    var slave control_id = g_splitters[splitterIndex].slave
+
+    uti.assert_(is_valid_control(master), "splitter_resize : invalid master")
+    var masterIndex i32 = master.control
+
+    uti.assert_(is_valid_control(slave), "splitter_resize : invalid slave")
+    var slaveIndex i32 = slave.control
+
+    var controlIndex i32 = id.base.control
+    var splitterPosition mat.v2 = g_controls[controlIndex].renderPosition
+    var splitterSize mat.v2 = g_controls[controlIndex].size
+
+    var padding mat.v4 = g_controls[controlIndex].padding
+    var spacing mat.v2 = g_controls[controlIndex].spacing
+
+    if (direction == SPLIT_HORZ) {
+
+        var width f32 = (splitterSize.x - padding.x - padding.z - spacing.x) / 2.0
+        var height f32 = (splitterSize.y - padding.y - padding.w)
+
+        var masterPosition mat.v2 = mat.v2_(padding.x, padding.y)
+        var masterSize mat.v2 = mat.v2_(width, height)
+        g_controls[masterIndex].renderPosition = masterPosition
+        g_controls[masterIndex].size = masterSize
+
+        var slaveX f32 = padding.x + spacing.x + width
+        //printf("----------------->slaveX, %f\n", slaveX)
+        var slavePosition mat.v2 = mat.v2_(slaveX, padding.y)
+        var slaveSize mat.v2 = mat.v2_(width, height)
+        printf("----------------- SLAVE INDEX %d\n", slaveIndex)
+        g_controls[slaveIndex].renderPosition = slavePosition
+        printf("g_controls[slaveIndex].renderPosition %f, %f\n",
+        g_controls[slaveIndex].renderPosition.x,
+        g_controls[slaveIndex].renderPosition.y)
+        g_controls[slaveIndex].size = slaveSize
+        //control_print("splitter_resize : HORZ master, ", master, false)
+        //printf("HORZ MASTER : %f, %f, %f, %f\n", masterPosition.x, masterPosition.y, masterSize.x, masterSize.y)
+        control_print("splitter_resize : HORZ slave, ", slave, false)
+        printf("HORZ SLAVE : %f, %f, %f, %f\n", slavePosition.x, slavePosition.y, slaveSize.x, slaveSize.y)
+    } else if (direction == SPLIT_VERT) {
+        var width f32 = (splitterSize.x - padding.x - padding.z)
+        var height f32 = (splitterSize.y - padding.y - padding.w - spacing.y) / 2.0
+
+        var masterPosition mat.v2 = mat.v2_(padding.x, padding.y)
+        var masterSize mat.v2 = mat.v2_(width, height)
+        g_controls[masterIndex].renderPosition = masterPosition
+        g_controls[masterIndex].size = masterSize
+
+        var slaveY f32 = padding.y + spacing.y + height
+        var slavePosition mat.v2 = mat.v2_(padding.x, slaveY)
+        var slaveSize mat.v2 = mat.v2_(width, height)
+        g_controls[slaveIndex].renderPosition = slavePosition
+        g_controls[slaveIndex].size = slaveSize
+        control_print("splitter_resize : VERT master, ", master, false)
+        printf("VERT MASTER : %f, %f, %f, %f\n", masterPosition.x, masterPosition.y, masterSize.x, masterSize.y)
+        control_print("splitter_resize : VERT slave, ", slave, false)
+        printf("VERT SLAVE : %f, %f, %f, %f\n", slavePosition.x, slavePosition.y, slaveSize.x, slaveSize.y)
+    } else if (direction == SPLIT_BOTTOM) {
+
+        var oldMasterSize mat.v2 = g_controls[masterIndex].size
+
+        var width f32 = (splitterSize.x - padding.x - padding.z)
+        var height f32 = (splitterSize.y - padding.y - padding.w - spacing.y - oldMasterSize.y)
+
+        var masterPosition mat.v2 = mat.v2_(padding.x, padding.y)
+        var masterSize mat.v2 = mat.v2_(width, oldMasterSize.y)
+        g_controls[masterIndex].renderPosition = masterPosition
+        g_controls[masterIndex].size = masterSize
+
+        var slaveY f32 = padding.y + oldMasterSize.y + spacing.y
+        var slavePosition mat.v2 = mat.v2_(padding.x, slaveY)
+        var slaveSize mat.v2 = mat.v2_(width, height)
+        g_controls[slaveIndex].renderPosition = slavePosition
+        g_controls[slaveIndex].size = slaveSize
+        control_print("splitter_resize : VERT master, ", master, false)
+        printf("VERT MASTER : %f, %f, %f, %f\n", masterPosition.x, masterPosition.y, masterSize.x, masterSize.y)
+        control_print("splitter_resize : VERT slave, ", slave, false)
+        printf("VERT SLAVE : %f, %f, %f, %f\n", slavePosition.x, slavePosition.y, slaveSize.x, slaveSize.y)
+    } else {
+        uti.assert_(false, "splitter_resize : not implemented")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func splitter_render(id splitter_id) () {
+    uti.assert_(is_valid_splitter(id), "render_splitter : invalid id")
+    control_render(id.base)
+
+    control_print("splitter_render : ", id.base, false)
+    var master control_id = g_splitters[id.splitter].master
+    var slave control_id = g_splitters[id.splitter].slave
+    control_print("splitter_render : MASTER :", master, false)
+    control_print("splitter_render : SLAVE :", slave, false)
+}
+
+//-----------------------------------------------------------------------------
 // LABEL
 //-----------------------------------------------------------------------------
-var g_labels [256]label_s
+var g_labels [512]label_s
 var g_labelCount i32
 
 //-----------------------------------------------------------------------------
@@ -2254,7 +2509,7 @@ func label_resize(id label_id) () {
 
     position.x, position.y = align_control(g_labels[id.label].textAlign, 0.0, 0.0, newSize.x, newSize.y, position.x, position.y, size.x, size.y, padding)
     g_labels[id.label].textPosition = position
-    printf("LABEL_TEXT_POSITION %f, %f\n", position.x, position.y)
+    //printf("LABEL_TEXT_POSITION %f, %f\n", position.x, position.y)
     g_labels[id.label].batch = get_batch(g_fonts[fontIndex].textures[textureIndex], true)
     //control_print("label_resize :", id.base, false)
 }
@@ -2263,7 +2518,7 @@ func label_resize(id label_id) () {
 //-----------------------------------------------------------------------------
 func label_render(id label_id) () {
     uti.assert_(is_valid_label(id), "label_render : invalid id")
-    control_print("label_render : ", id.base, false)
+    //control_print("label_render : ", id.base, false)
     control_render(id.base)
 
     var fontId font_id = g_labels[id.label].font
@@ -2848,7 +3103,7 @@ func graph_create(name str) (out graph_id) {
     g_graphs[g_graphCount].vertCount = 0
     g_graphs[g_graphCount].horzCount = 0
     var labelCount i32 = 0
-    for (labelCount < 64) {
+    for (labelCount < 256) {
         var label label_id = create_label(sprintf("graphLabel_%d", labelCount))
         g_graphs[g_graphCount].labels[labelCount] = label
         labelCount = labelCount + 1
@@ -3011,24 +3266,28 @@ func graph_resize(id graph_id) () {
 
     var horzMax i32 = len(g_graphs[graphIndex].horz)
     i = 0
-    var labelX f32 = coord.x + offsetX - stepX / 2.0
+    var labelX f32 = coord.x + offsetX //- stepX / 2.0
     var x f32 = graphPosition.x
     for (x < endX) {
         var color mat.v4 = g_gray_2
         var font font_id
 
+        var labelBounds mat.v4 = mat.v4_(labelX, 0.0, stepX, coord.y)
+        var big f32 = labelX - 2.0 * stepX
+        var bigW f32 = stepX * 4.0
         if ((ix % 100) == 0) {
             color = g_gray_3
             font = g_boldFont
-            //color = mat.v4_(1.0, 0.0, 0.0, 1.0)
+            labelBounds = mat.v4_(big, 0.0, bigW, coord.y)
         } else if ((ix % 10) == 0) {
             color = mat.v4_mix(g_gray_2, g_gray_3, scale.x)
             font = g_boldFont
-            //color = mat.v4_(0.0, 1.0, 0.0, 1.0)
+            labelBounds = mat.v4_(big, 0.0, bigW, coord.y)
         } else {
             color = mat.v4_mix(g_gray_0, g_gray_2, scale.x)
             font = g_regularFont
-            //color = mat.v4_(0.0, 0.0, 1.0, 1.0)
+            var fTmp f32 = labelX - stepX / 2.0
+            labelBounds = mat.v4_(fTmp, 0.0, stepX, coord.y)
         }
 
         if (i < horzMax) {
@@ -3040,32 +3299,26 @@ func graph_resize(id graph_id) () {
         }
 
         var labelCount i32 = g_graphs[graphIndex].labelCount
-        if (labelCount < 64) {
-        var label label_id = g_graphs[graphIndex].labels[labelCount]
-        control_add_child(id.base, label.base)
-        var labelBounds mat.v4 = mat.v4_(labelX, 0.0, stepX, coord.y)//stepX, coord.y)
-        control_set_bounds(label.base, labelBounds)
-        control_set_autoscale(label.base, AUTOSCALE)
-        printf("labelBounds %f, %f, %f, %f\n", labelBounds.x, labelBounds.y, labelBounds.z, labelBounds.w)
-    
-        label_set_font(label, g_regularFont)
-        //label_set_color(label, mat.v4_(1.0, 0.0, 1.0, 1.0))
-        label_set_color(label, color)
-        /*if ((i % 2) == 0) {
-            control_set_skin(label.base, g_redControlSkin)
-        } else {
-            control_set_skin(label.base, g_greenControlSkin)
-        }*/
-        label_set_text(label, "0")
-        label_set_align(label, ALIGN_CENTER)
-        label_resize(label)
-        control_set_bounds(label.base, labelBounds)
-        //control_set_align(label.base, ALIGN_CENTER)
-        control_print("label_bounds : ", label.base, false)
-        g_graphs[graphIndex].labelCount = labelCount + 1
+        if (labelCount < 256) { // ##1 use slice
+            var label label_id = g_graphs[graphIndex].labels[labelCount]
+            control_add_child(id.base, label.base)
+            control_set_bounds(label.base, labelBounds)
+            control_set_autoscale(label.base, AUTOSCALE)
+            /*if ((ix % 2) == 0) {
+                control_set_skin(label.base, g_redControlSkin)
+            } else {
+                control_set_skin(label.base, g_greenControlSkin)
+            }*/
+           label_set_font(label, g_regularFont)
+            label_set_color(label, color)
+            label_set_text(label, "0")
+            label_set_align(label, ALIGN_CENTER)
+            label_set_size(label, 10)
+            label_resize(label)
+            control_set_bounds(label.base, labelBounds)
+            g_graphs[graphIndex].labelCount = labelCount + 1
         }
-        //label_resize(label)
-        //label_render(label)
+
         labelX = labelX + stepX
         x = x + stepX
         ix = ix + 1
@@ -3074,30 +3327,62 @@ func graph_resize(id graph_id) () {
 
     var vertMax i32 = len(g_graphs[graphIndex].vert)
     i = 0
+    var labelY f32 = coord.y + offsetY// - stepY / 2.0
     var y f32 = graphPosition.y
     for (y < endY) {
         var color mat.v4 = g_gray_2
+        var font font_id
+
+        var fTmp f32 = labelY - stepY / 2.0
+        var labelBounds mat.v4 = mat.v4_(0.0, fTmp, coord.x, coord.y)
+        //var big f32 = labelY - 2.0 * stepY
+        //var bigW f32 = stepY * 4.0
         if ((iy % 100) == 0) {
             color = g_gray_3
+            font = g_boldFont
+        var fTmp0 f32 = labelY - coord.y / 2.0
+            labelBounds = mat.v4_(0.0, fTmp0, coord.x, coord.y)
         } else if ((iy % 10) == 0) {
             color = mat.v4_mix(g_gray_2, g_gray_3, scale.y)
+            font = g_boldFont
+        var fTmp0 f32 = labelY - coord.y / 2.0
+            labelBounds = mat.v4_(0.0, fTmp0, coord.x, coord.y)
         } else {
             color = mat.v4_mix(g_gray_0, g_gray_2, scale.y)
+            font = g_regularFont
+            labelBounds = mat.v4_(0.0, fTmp, coord.x, stepY)
         }
-
-        //color = mat.v4_(1.0, 0.0, 1.0, 1.0)
 
         if (i < vertMax) {
             var graphLine graph_line_s
             graphLine.color = color
             graphLine.bounds = mat.v4_(graphPosition.x, y, endX, y)
-//    printf("i %d, color %f, %f, %f, %f, bounds %f, %f, %f, %f\n",
-      //      i, color.x, color.y, color.z, color.w, graphLine.bounds.x, graphLine.bounds.y, graphLine.bounds.z, graphLine.bounds.w)
             g_graphs[graphIndex].vert[i] = graphLine
             g_graphs[graphIndex].vertCount = i + 1
-        //} else {
-       //     printf("I %d\n", i)
         }
+
+        var labelCount i32 = g_graphs[graphIndex].labelCount
+        if (labelCount < 256) { // ##1 use slice
+            var label label_id = g_graphs[graphIndex].labels[labelCount]
+            control_add_child(id.base, label.base)
+            control_set_bounds(label.base, labelBounds)
+            control_set_autoscale(label.base, AUTOSCALE)
+            /*if ((iy % 2) == 0) {
+                control_set_skin(label.base, g_redControlSkin)
+            } else {
+                control_set_skin(label.base, g_greenControlSkin)
+            }*/
+             label_set_font(label, g_regularFont)
+            label_set_color(label, color)
+            label_set_text(label, "0")
+            label_set_align(label, ALIGN_CENTER)
+            label_set_size(label, 50)
+            label_resize(label)
+            control_set_bounds(label.base, labelBounds)
+            g_graphs[graphIndex].labelCount = labelCount + 1
+        }
+
+        labelY = labelY + stepY
         y = y + stepY
         iy = iy + 1
         i = i + 1
@@ -3172,6 +3457,9 @@ func init() () {
 
     // layers
     g_debugLayerSkin            = create_layer_skin("debug"         , g_red               , g_green     , g_green     , g_green     , g_green )
+    g_debugRedLayerSkin         = create_layer_skin("debugRed"      , g_red               , g_gold      , g_gold      , g_gold      , g_gold  )
+    g_debugGreenLayerSkin       = create_layer_skin("debugGreen"    , g_green             , g_gold      , g_gold      , g_gold      , g_gold  )
+    g_debugBlueLayerSkin        = create_layer_skin("debugBlue"     , g_primary_blue      , g_gold      , g_gold      , g_gold      , g_gold  )
     g_bootLayerSkin             = create_layer_skin("boot"          , g_black             , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
     g_blackLayerSkin            = create_layer_skin("black"         , g_black             , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
     g_redLayerSkin              = create_layer_skin("red"           , g_red               , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
@@ -3185,6 +3473,10 @@ func init() () {
     g_stripLayerSkin            = create_layer_skin("strip"         , g_gray_1            , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2)
     // controls
     g_debugControlSkin           = create_control_skin("debug"          , g_debugLayerSkin      , invalid_layer_skin()       , invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin())
+    g_debugRedControlSkin        = create_control_skin("debugRed"       , g_debugRedLayerSkin   , invalid_layer_skin()       , invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin())
+    g_debugGreenControlSkin      = create_control_skin("debugGreen"     , g_debugGreenLayerSkin , invalid_layer_skin()       , invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin())
+    g_debugBlueControlSkin       = create_control_skin("debugBlue"      , g_debugBlueLayerSkin  , invalid_layer_skin()       , invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin())
+    g_bootControlSkin            = create_control_skin("boot"           , g_bootLayerSkin       , invalid_layer_skin()       , invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin())
     g_bootControlSkin            = create_control_skin("boot"           , g_bootLayerSkin       , invalid_layer_skin()       , invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin())
     g_blackControlSkin           = create_control_skin("black"          , g_blackLayerSkin      , invalid_layer_skin()       , invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin())
     g_redControlSkin             = create_control_skin("red"            , g_redLayerSkin        , invalid_layer_skin()       , invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin(), invalid_layer_skin())
@@ -3351,6 +3643,8 @@ func control_process_event(id control_id, event *event_s) (out i32) {
             out = window_process_event(window_id_(child, guiIndex), event)
         } else if (guiType == GUI_GRAPH) {
             out = graph_process_event(graph_id_(child, guiIndex), event)
+        } else if (guiType == GUI_SPLITTER) {
+            out = splitter_process_event(splitter_id_(child, guiIndex), event)
         } else {
             printf("GUI TYPE %d\n", guiType)
             uti.assert_(false, "control_process_event : unknown gui type")
