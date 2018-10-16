@@ -123,14 +123,13 @@ func main() {
     // exit app screen
     {
         g_exitAppScreen = gui.create_screen("exit_app")
-       gui.control_set_skin(g_exitAppScreen.base, gui.g_modalControlSkin)
-       printf("TATA\n")
+        gui.control_set_skin(g_exitAppScreen.base, gui.g_modalControlSkin)
         gui.control_set_bounds(g_exitAppScreen.base, screenBounds)
         gui.screen_set_duration(g_exitAppScreen, -2.0D)
         gui.screen_set_modal(g_exitAppScreen, true)
 
         {
-            var window gui.window_id = gui.create_window("exit_app_window") // ##pending window vs window at main scope
+            var window gui.window_id = gui.window_create("exit_app_window") // ##pending window vs window at main scope
             gui.control_add_child(g_exitAppScreen.base, window.base)
             gui.control_set_skin(window.base, gui.g_windowControlSkin)
             //gui.control_set_padding(window.base, mat.v4_(0.1, 0.1, 0.1, 0.1))
@@ -141,7 +140,7 @@ func main() {
             gui.window_add_button(window, "yes", "Yes", "main", "on_exit_app_window_yes_state")
 
             {
-                var text gui.label_id = gui.create_label("exit_app_label")
+                var text gui.label_id = gui.label_create("exit_app_label")
                 gui.window_set_containee(window, text.base)
                 //gui.control_set_skin(text.base, gui.g_primaryBlueControlSkin)
                 gui.control_set_dock(text.base, gui.DOCK_FILL)
@@ -164,7 +163,7 @@ func main() {
         gui.screen_set_modal(g_exitGameScreen, true)
 
         {
-            var window gui.window_id = gui.create_window("exit_game_window")
+            var window gui.window_id = gui.window_create("exit_game_window")
             gui.control_add_child(g_exitGameScreen.base, window.base)
             gui.control_set_skin(g_exitGameScreen.base, gui.g_windowControlSkin)
             gui.control_set_bounds(window.base, mat.v4_(-0.5, -0.5, 1.0, 1.0))
@@ -183,7 +182,7 @@ func main() {
         gui.screen_set_modal(g_pauseScreen, true)
 
         {
-            var window gui.window_id = gui.create_window("pause")
+            var window gui.window_id = gui.window_create("pause")
             gui.control_add_child(g_pauseScreen.base, window.base)
             gui.control_set_skin(g_pauseScreen.base, gui.g_windowControlSkin)
             gui.control_set_bounds(window.base, mat.v4_(-0.5, -0.5, 1.0, 1.0))
@@ -235,7 +234,7 @@ func main() {
         gui.screen_set_on_menu(g_mainScreen, g_pauseScreen)
 
         {
-            var control control_id = gui.create_control("toolbar")
+            var control control_id = gui.control_create("toolbar")
             gui.control_add_child(g_mainScreen.base, control)
             gui.control_set_padding(control, mat.v4_(0.01, 0.01, 0.01, 0.01))
             gui.control_set_size(control, mat.v2_(0.0, 0.1))
@@ -244,7 +243,7 @@ func main() {
         }
 
         {
-            var panel control_id = gui.create_control("panel")
+            var panel control_id = gui.control_create("panel")
             gui.control_add_child(g_mainScreen.base, panel)
             gui.control_set_padding(panel, mat.v4_(0.0, 0.0, 0.01, 0.0))
             gui.control_set_size(panel, mat.v2_(0.0, 0.1))
@@ -253,7 +252,7 @@ func main() {
             {
                 var right splitter_id = gui.splitter_create("right")
                 gui.control_add_child(panel, right.base)
-                gui.control_set_size(right.base, mat.v2_(0.6, 0.0))
+                gui.control_set_size(right.base, mat.v2_(0.7, 0.0))
                 gui.control_set_dock(right.base, gui.DOCK_RIGHT)
                 gui.control_set_spacing(right.base, mat.v2_(0.0, 0.01))
                 gui.splitter_set_direction(right, gui.SPLIT_BOTTOM)
@@ -271,7 +270,7 @@ func main() {
                     gui.splitter_set_direction(rightBottom, gui.SPLIT_BOTTOM)
 
                     {
-                        var rightBottomPlayControl control_id = gui.create_control("rightBottomPlayCtrl")
+                        var rightBottomPlayControl control_id = gui.control_create("rightBottomPlayCtrl")
                         //gui.control_add_child(rightBottom, rightBottomPlayControl)
                         gui.control_set_dock(rightBottomPlayControl, gui.DOCK_BOTTOM)
                         gui.control_set_skin(rightBottomPlayControl, gui.g_debugBlueControlSkin)
@@ -283,11 +282,11 @@ func main() {
                         gui.control_set_spacing(rightBottomSplitter.base, mat.v2_(0.01, 0.0))
                         gui.splitter_set_direction(rightBottomSplitter, gui.SPLIT_HORZ)
 
-                        var bottomLeft control_id = gui.create_control("bottomLeft")
+                        var bottomLeft control_id = gui.control_create("bottomLeft")
                         gui.control_set_dock(bottomLeft, gui.DOCK_LEFT)
                         gui.control_set_skin(bottomLeft, gui.g_debugGreenControlSkin)
 
-                        var bottomRight control_id = gui.create_control("bottomRight")
+                        var bottomRight control_id = gui.control_create("bottomRight")
                         gui.control_set_dock(bottomRight, gui.DOCK_RIGHT)
                         gui.control_set_skin(bottomRight, gui.g_debugRedControlSkin)
 
@@ -305,25 +304,45 @@ func main() {
                     gui.splitter_set_direction(rightTop, gui.SPLIT_HORZ)
 
                     {
-                        var order splitter_id = gui.splitter_create("order")
+                        var order gui.splitter_id = gui.splitter_create("order")
                         gui.control_set_spacing(order.base, mat.v2_(0.01, 0.01))
                         gui.control_set_padding(order.base, mat.v4_(0.0, 0.0, 0.0, 0.0))
                         gui.control_set_dock(order.base, gui.DOCK_LEFT)
                         gui.splitter_set_direction(order, gui.SPLIT_VERT)
 
                         {
-                            var buy control_id = gui.create_control("buy")
-                            gui.control_set_skin(buy, gui.g_debugGreenControlSkin)
-                            gui.control_set_dock(buy, gui.DOCK_BOTTOM)
+                            var buy gui.list_id = gui.list_create("buy")
+                            //gui.control_set_skin(buy.base, gui.g_debugGreenControlSkin)
+                            gui.list_add_column(buy, "Price")
+                            gui.list_add_column(buy, "Amount")
+                            gui.list_add_column(buy, "Total")
+                            gui.control_set_dock(buy.base, gui.DOCK_BOTTOM)
 
-                            var sell control_id = gui.create_control("sell")
-                            gui.control_set_skin(sell, gui.g_debugRedControlSkin)
-                            gui.control_set_dock(sell, gui.DOCK_TOP)
+                            var item i32 = 0
+                            for item = 0; item < 5; item = item + 1 {
+                                var line gui.control_id = gui.list_add_line(buy)
+                                gui.list_line_add_label(line, "0.0000001", gui.ALIGN_RIGHT)
+                                gui.list_line_add_label(line, "0.002", gui.ALIGN_RIGHT)
+                                gui.list_line_add_label(line, "0.03", gui.ALIGN_RIGHT)
+                            }
 
-                            gui.splitter_set_controls(order, buy, sell)
+                            var sell gui.list_id = gui.list_create("sell")
+                            gui.control_set_dock(sell.base, gui.DOCK_TOP)
+                            gui.list_add_column(sell, "Price")
+                            gui.list_add_column(sell, "Amount")
+                            gui.list_add_column(sell, "Total")
+                            //gui.control_set_skin(sell, gui.g_debugRedControlSkin)
+                            for item = 0; item < 5; item = item + 1 {
+                                var line gui.control_id = gui.list_add_line(sell)
+                                gui.list_line_add_label(line, "0.04", gui.ALIGN_RIGHT)
+                                gui.list_line_add_label(line, "0.005", gui.ALIGN_RIGHT)
+                                gui.list_line_add_label(line, "0.0000006", gui.ALIGN_RIGHT)
+                            }
+
+                            gui.splitter_set_controls(order, buy.base, sell.base)
                         }
 
-                        var done control_id = gui.create_control("done")
+                        var done gui.control_id = gui.control_create("done")
                         gui.control_set_padding(done, mat.v4_(0.0, 0.0, 0.0, 0.0))
                         gui.control_set_dock(done, gui.DOCK_RIGHT)
                         gui.control_set_skin(done, gui.g_debugBlueControlSkin)
@@ -353,7 +372,7 @@ func main() {
         gui.screen_set_on_event(g_pumpcxScreen, g_mainScreen)
 
         {
-            var label label_id = gui.create_label("pumpcx")
+            var label label_id = gui.label_create("pumpcx")
             gui.control_add_child(g_pumpcxScreen.base, label.base)
             //gui.control_set_skin(label.base, gui.g_redControlSkin)
             gui.control_set_bounds(label.base, mat.v4_(0.0, 0.0, 1.16, 1.16))
@@ -397,7 +416,7 @@ func main() {
         gui.screen_set_on_event(g_debugScreen, g_mainScreen)
 
         {
-            var label label_id = gui.create_label("pumpcx_top_left")
+            var label label_id = gui.label_create("pumpcx_top_left")
             gui.control_add_child(g_debugScreen.base, label.base)
             gui.control_set_skin(label.base, gui.g_redControlSkin)
             gui.control_set_bounds(label.base, mat.v4_(0.0, 1.0, 1.0, 1.0))
@@ -410,7 +429,7 @@ func main() {
         }
 
         {
-            var label label_id = gui.create_label("pumpcx_bottom_right")
+            var label label_id = gui.label_create("pumpcx_bottom_right")
             gui.control_add_child(g_debugScreen.base, label.base)
             gui.control_set_skin(label.base, gui.g_greenControlSkin)
             gui.control_set_bounds(label.base, mat.v4_(1.0, 0.0, 1.0, 1.0))
@@ -441,7 +460,7 @@ func main() {
         }
 
         {
-            var control control_id = gui.create_control("alpha")
+            var control control_id = gui.control_create("alpha")
             gui.control_add_child(g_debugScreen.base, control)
             gui.control_set_skin(control, gui.g_primaryBlueAlphaControlSkin)
             gui.control_set_bounds(control, mat.v4_(0.5, 0.5, 1.0, 1.0))
