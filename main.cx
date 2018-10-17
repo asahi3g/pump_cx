@@ -252,7 +252,7 @@ func main() {
             {
                 var right splitter_id = gui.splitter_create("right")
                 gui.control_add_child(panel, right.base)
-                gui.control_set_size(right.base, mat.v2_(0.7, 0.0))
+                gui.control_set_size(right.base, mat.v2_(0.75, 0.0))
                 gui.control_set_dock(right.base, gui.DOCK_RIGHT)
                 gui.control_set_spacing(right.base, mat.v2_(0.0, 0.01))
                 gui.splitter_set_direction(right, gui.SPLIT_BOTTOM)
@@ -319,11 +319,11 @@ func main() {
                             gui.control_set_dock(buy.base, gui.DOCK_BOTTOM)
 
                             var item i32 = 0
-                            for item = 0; item < 5; item = item + 1 {
+                            for item = 0; item < 8; item = item + 1 {
                                 var line gui.control_id = gui.list_add_line(buy)
-                                gui.list_line_add_label(line, "0.0000001", gui.ALIGN_RIGHT)
-                                gui.list_line_add_label(line, "0.002", gui.ALIGN_RIGHT)
-                                gui.list_line_add_label(line, "0.03", gui.ALIGN_RIGHT)
+                                gui.list_line_add_label(line, "0.0", gui.ALIGN_RIGHT)
+                                gui.list_line_add_label(line, "0.1", gui.ALIGN_RIGHT)
+                                gui.list_line_add_label(line, "0.2", gui.ALIGN_RIGHT)
                             }
 
                             var sell gui.list_id = gui.list_create("sell")
@@ -332,11 +332,11 @@ func main() {
                             gui.list_add_column(sell, "Amount")
                             gui.list_add_column(sell, "Total")
                             //gui.control_set_skin(sell, gui.g_debugRedControlSkin)
-                            for item = 0; item < 5; item = item + 1 {
+                            for item = 0; item < 8; item = item + 1 {
                                 var line gui.control_id = gui.list_add_line(sell)
-                                gui.list_line_add_label(line, "0.04", gui.ALIGN_RIGHT)
-                                gui.list_line_add_label(line, "0.005", gui.ALIGN_RIGHT)
-                                gui.list_line_add_label(line, "0.0000006", gui.ALIGN_RIGHT)
+                                gui.list_line_add_label(line, "0.3", gui.ALIGN_RIGHT)
+                                gui.list_line_add_label(line, "0.4", gui.ALIGN_RIGHT)
+                                gui.list_line_add_label(line, "0.5", gui.ALIGN_RIGHT)
                             }
 
                             gui.splitter_set_controls(order, buy.base, sell.base)

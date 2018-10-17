@@ -164,9 +164,9 @@ func template_resize(id template_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func template_render(id template_id) () {
+func template_render(id template_id, clip mat.v4) () {
     uti.assert_(is_valid_template(id), "render_template : invalid id")
-    control_render(id.base)
+    control_render(id.base, clip)
 }*/
 
 
@@ -549,6 +549,7 @@ var g_blue      mat.v4 = mat.rgba_ui8(  0, 114, 255, 255)
 var g_light_blue        mat.v4 = mat.rgba_ui8(  0, 195, 255, 255)
 var g_green             mat.v4 = mat.rgba_ui8(  0, 223, 128, 255)
 var g_red               mat.v4 = mat.rgba_ui8(255,   0,  78, 255)
+var g_pink              mat.v4 = mat.rgba_ui8(255, 0,  0, 255)
 var g_gold              mat.v4 = mat.rgba_ui8(255, 193,  37, 255)
 var g_gray_0            mat.v4 = mat.rgba_ui8( 34,  38,  43, 255)
 var g_gray_1            mat.v4 = mat.rgba_ui8( 41,  45,  50, 255)
@@ -1654,40 +1655,40 @@ func control_redock(id control_id, padding mat.v4) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func render_surface(id mesh_id, bounds mat.v4, color mat.v4) () {
+func render_surface(id mesh_id, bounds mat.v4, color mat.v4, clip mat.v4) () {
     if (color.w > 0) {
-        gfx.append_quad(id, bounds, mat.v4_(0.0, 0.0, 1.0, 1.0), color)
+        gfx.append_quad(id, bounds, mat.v4_(0.0, 0.0, 1.0, 1.0), color, clip)
     }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func render_border(id mesh_id, bounds mat.v4, left mat.v4, bottom mat.v4, right mat.v4, top mat.v4) () {
+func render_border(id mesh_id, bounds mat.v4, left mat.v4, bottom mat.v4, right mat.v4, top mat.v4, clip mat.v4) () {
     var x0 f32 = bounds.x
     var y0 f32 = bounds.y
     var x1 f32 = x0 + bounds.z
     var y1 f32 = y0 + bounds.w
 
     if (left.w > 0) {
-        gfx.append_line(id, mat.v4_(x0, y0, x0, y1), left)
+        gfx.append_line(id, mat.v4_(x0, y0, x0, y1), left, clip)
     }
 
     if (bottom.w > 0) {
-        gfx.append_line(id, mat.v4_(x0, y0, x1, y0), bottom)
+        gfx.append_line(id, mat.v4_(x0, y0, x1, y0), bottom, clip)
     }
 
     if (right.w > 0) {
-        gfx.append_line(id, mat.v4_(x1, y0, x1, y1), right)
+        gfx.append_line(id, mat.v4_(x1, y0, x1, y1), right, clip)
     }
 
     if (top.w > 0) {
-        gfx.append_line(id, mat.v4_(x0, y1, x1, y1), top)
+        gfx.append_line(id, mat.v4_(x0, y1, x1, y1), top, clip)
     }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func control_render(id control_id) () {
+func control_render(id control_id, clip mat.v4) () {
     //control_print("before control_render : ", id, false)
     uti.assert_(is_valid_control(id), "control_render : invalid control index")
 
@@ -1697,6 +1698,10 @@ func control_render(id control_id) () {
     }*/
     //var renderBounds mat.v4 = mat.v4_v2v2(g_controls[index].renderPosition, g_controls[index].renderSize)
     var renderBounds mat.v4 = mat.v4_v2v2(g_controls[index].renderPosition, g_controls[index].size)
+    //control_print("control_render : renderBounds ", id, false)
+    //printf("renderBounds %f, %f, %f, %f\n", renderBounds.x, renderBounds.y, renderBounds.z, renderBounds.w)
+    var renderClips mat.v4 = gfx.push_scissor(g_controls[index].name, renderBounds)
+    //printf("renderClips %f, %f, %f, %f\n", renderClips.x, renderClips.y, renderClips.z, renderClips.w)
     var controlSkin control_skin_id = g_controls[index].skin
     uti.assert_(is_valid_control_skin(controlSkin) || controlSkin.skin == -1, "control_render : invalid control skin")
     if is_valid_control_skin(controlSkin) {
@@ -1710,17 +1715,17 @@ func control_render(id control_id) () {
         }
         uti.assert_(is_valid_layer_skin(backLayerSkin) || backLayerSkin.layer == -1, "control_render : invalid layer skin")
         if is_valid_layer_skin(backLayerSkin) {
-            render_surface(g_opaqueVertexColoredTriangles, renderBounds, g_layerSkins[backLayerSkin.layer].surface)
+            render_surface(g_opaqueVertexColoredTriangles, renderBounds, g_layerSkins[backLayerSkin.layer].surface, renderClips)
             render_border(g_opaqueVertexColoredLines, renderBounds,
                 g_layerSkins[backLayerSkin.layer].left,
                 g_layerSkins[backLayerSkin.layer].right,
                 g_layerSkins[backLayerSkin.layer].bottom,
-                g_layerSkins[backLayerSkin.layer].top)
+                g_layerSkins[backLayerSkin.layer].top, renderClips)
         }
         var frontLayerSkin layer_skin_id = g_controlSkins[controlSkin.skin].front
         uti.assert_(is_valid_layer_skin(frontLayerSkin) || frontLayerSkin.layer == -1, "control_render : invalid layer skin")
         if (is_valid_layer_skin(frontLayerSkin)) {
-            render_surface(g_alphaVertexColoredTriangles,renderBounds, g_layerSkins[frontLayerSkin.layer].surface)
+            render_surface(g_alphaVertexColoredTriangles,renderBounds, g_layerSkins[frontLayerSkin.layer].surface, renderClips)
             //gfx.append_rect(g_alphaVertexColoredLines, g_controls[index].renderBounds,
               //  g_layerSkins[backLayerSkin].left,
                // g_layerSkins[backLayerSkin].right,
@@ -1741,30 +1746,31 @@ func control_render(id control_id) () {
         } else if (guiType == GUI_CONTROL) {
             //control_print(guiIndex, "control_render_child GUI_CONTROL : ")
             uti.assert_(child.control == guiIndex, "unexpected error")
-            control_render(child)
+            control_render(child, renderBounds)
         } else if (guiType == GUI_SCREEN) {
             uti.assert_(false, "unidd recursive screen")
         } else if (guiType == GUI_PICTURE) {
-            picture_render(picture_id_(child, guiIndex))
+            picture_render(picture_id_(child, guiIndex), renderBounds)
         } else if (guiType == GUI_LABEL) {
-            label_render(label_id_(child, guiIndex))
+            label_render(label_id_(child, guiIndex), renderBounds)
         } else if (guiType == GUI_PARTITION) {
-            partition_render(partition_id_(child, guiIndex))
+            partition_render(partition_id_(child, guiIndex), renderBounds)
         } else if (guiType == GUI_KEYBOARD) {
-            keyboard_render(keyboard_id_(child, guiIndex))
+            keyboard_render(keyboard_id_(child, guiIndex), renderBounds)
         } else if (guiType == GUI_WINDOW) {
-            window_render(window_id_(child, guiIndex))
+            window_render(window_id_(child, guiIndex), renderBounds)
         } else if (guiType == GUI_GRAPH) {
-            graph_render(graph_id_(child, guiIndex))
+            graph_render(graph_id_(child, guiIndex), renderBounds)
         } else if (guiType == GUI_SPLITTER) {
-            splitter_render(splitter_id_(child, guiIndex))
+            splitter_render(splitter_id_(child, guiIndex), renderBounds)
         } else if (guiType == GUI_LIST) {
-            list_render(list_id_(child, guiIndex))
+            list_render(list_id_(child, guiIndex), renderBounds)
         } else {
             printf("GUI TYPE %d\n", guiType)
             uti.assert_(false, "control_render : unknown gui type")
         }
     }
+    gfx.pop_scissor()
     //control_print("after control_render : ", id, false)
 }
 
@@ -2036,15 +2042,19 @@ func render_batches(alpha bool) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func screen_render(id screen_id) () {
+func screen_render(id screen_id, clip mat.v4) () {
     uti.assert_(is_valid_screen(id), "screen_render : invalid screen")
     gfx.begin_mesh(g_opaqueVertexColoredTriangles)
     gfx.begin_mesh(g_opaqueVertexColoredLines)
     gfx.begin_mesh(g_alphaVertexColoredTriangles)
     begin_batches()
 
-    control_render(id.base)
+    clip = gfx.push_scissor(g_controls[id.base.control].name, mat.v4_(-1.0, -1.0, 2.0, 2.0))
+    //printf("SCREEN CLIP %f, %f, %f, %f\n", clip.x, clip.y, clip.z, clip.w)
+    control_render(id.base, clip)
 
+    gfx.pop_scissor()
+    uti.assert_(gfx.g_scissorCount == 0, "screen_render : invalid scissor stack")
     end_batches()
     gfx.end_mesh(g_alphaVertexColoredTriangles)
     gfx.end_mesh(g_opaqueVertexColoredLines)
@@ -2275,13 +2285,13 @@ func splitter_resize(id splitter_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func splitter_render(id splitter_id) () {
+func splitter_render(id splitter_id, clip mat.v4) () {
     uti.assert_(is_valid_splitter(id), "render_splitter : invalid id")
-    control_render(id.base)
+    control_render(id.base, clip)
 
     //control_print("splitter_render : ", id.base, false)
-    var master control_id = g_splitters[id.splitter].master
-    var slave control_id = g_splitters[id.splitter].slave
+    //var master control_id = g_splitters[id.splitter].master
+    //var slave control_id = g_splitters[id.splitter].slave
     //control_print("splitter_render : MASTER :", master, false)
     //control_print("splitter_render : SLAVE :", slave, false)
 }
@@ -2594,7 +2604,8 @@ func label_resize(id label_id) () {
 
     var pixelBounds mat.v2 = mat.v2_(i32.f32(i32Width), i32.f32(i32Height))
 
-    var padding mat.v4 = g_controls[id.base.control].padding
+    var controlIndex i32 = id.base.control
+    var padding mat.v4 = g_controls[controlIndex].padding
     var paddingX f32 = padding.x + padding.z
     var paddingY f32 = padding.y + padding.w
     var bounds mat.v2 = mat.v2_div(pixelBounds, gfx.gfx_viewport)
@@ -2604,11 +2615,11 @@ func label_resize(id label_id) () {
     }*/
     control_resize_(id.base, pixelBounds, bounds, autoBounds)
 
-    var position mat.v2 = g_controls[id.base].renderPosition
-    //var size mat.v2 = g_controls[id.base].renderSize
-    var size mat.v2 = g_controls[id.base].size
-    var scale mat.v2 = g_controls[id.base].scale
-    var padding mat.v4 = g_controls[id.base].padding
+    var position mat.v2 = g_controls[controlIndex].renderPosition
+    //var size mat.v2 = g_controls[controlIndex].renderSize
+    var size mat.v2 = g_controls[controlIndex].size
+    var scale mat.v2 = g_controls[controlIndex].scale
+    var padding mat.v4 = g_controls[controlIndex].padding
     //printf("LABEL_SCALE %f, %f, width %f, height %f, scale.x * width %f, scale.y * height %f\n", scale.x, scale.y, width, height, scale.x * width, scale.y * height)
 
     var newSize mat.v2 = mat.v2_mul(scale, bounds)
@@ -2622,10 +2633,10 @@ func label_resize(id label_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func label_render(id label_id) () {
+func label_render(id label_id, clip mat.v4) () {
     uti.assert_(is_valid_label(id), "label_render : invalid id")
     //control_print("label_render : ", id.base, false)
-    control_render(id.base)
+    control_render(id.base, clip)
 
     var fontId font_id = g_labels[id.label].font
     uti.assert_(is_valid_font(fontId), "label_render : invalid font")
@@ -2644,9 +2655,13 @@ func label_render(id label_id) () {
     uti.assert_(is_valid_batch(batch), "label_render : invalid batch")
     //gfx.append_text(&(gfx.g_meshes[g_batches[batch.batch].mesh.mesh]), fontTexture, fontName, // ##pending
     var meshId gfx.mesh_id = g_batches[batch.batch].mesh
+    var renderBounds mat.v4 =  mat.v4_v2v2(renderPosition, g_controls[control].size)
+    //control_print("label_render : renderBounds ", id.base, false)
+    var renderClips mat.v4 = gfx.push_scissor(g_controls[control].name, renderBounds)
     gfx.append_text(meshId, fontTexture, fontName,
         renderPosition, g_controls[control].scale,
-        mat.v4_(1.0, 1.0, 1.0, 1.0), g_labels[id.label].text, true, g_labels[id.label].color_0, g_labels[id.label].color_1)
+        mat.v4_(1.0, 1.0, 1.0, 1.0), g_labels[id.label].text, true, g_labels[id.label].color_0, g_labels[id.label].color_1, renderClips)
+    gfx.pop_scissor()
 }
 
 //-----------------------------------------------------------------------------
@@ -2740,12 +2755,12 @@ func picture_resize(id picture_id) () {
     var bounds mat.v2 = mat.v2_div(pixelBounds, gfx.gfx_viewport)
 
     control_resize_(id.base, pixelBounds, bounds, bounds)
-
-    var position mat.v2 = g_controls[id.base].renderPosition
-    //var size mat.v2 = g_controls[id.base].renderSize
-    var size mat.v2 = g_controls[id.base].size
-    var scale mat.v2 = g_controls[id.base].scale
-    var padding mat.v4 = g_controls[id.base].padding
+    var controlIndex i32 = id.base.control
+    var position mat.v2 = g_controls[controlIndex].renderPosition
+    //var size mat.v2 = g_controls[controlIndex].renderSize
+    var size mat.v2 = g_controls[controlIndex].size
+    var scale mat.v2 = g_controls[controlIndex].scale
+    var padding mat.v4 = g_controls[controlIndex].padding
     //printf("PICTURE_SCALE %f, %f, width %f, height %f, scale.x * width %f, scale.y * height %f\n", scale.x, scale.y, width, height, scale.x * width, scale.y * height)
 
     var newSize mat.v2 = mat.v2_mul(scale, bounds)
@@ -2759,15 +2774,15 @@ func picture_resize(id picture_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func picture_render(id picture_id) () {
+func picture_render(id picture_id, clip mat.v4) () {
     uti.assert_(is_valid_picture(id), "picture_render : invalid id")
 
-    control_render(id.base)
+    control_render(id.base, clip)
 
-    var control i32 = id.base.control
+    var controlIndex i32 = id.base.control
 
     var color mat.v4 = gfx.white
-    var controlSkin control_skin_id = g_controls[control].skin
+    var controlSkin control_skin_id = g_controls[controlIndex].skin
     uti.assert_(is_valid_control_skin(controlSkin) || controlSkin.skin == -1, "picture_render : invalid id")
     if is_valid_control_skin(controlSkin) {
         var backLayerSkin layer_skin_id = g_controlSkins[controlSkin.skin].back
@@ -2788,20 +2803,25 @@ func picture_render(id picture_id) () {
         var i32Width i32 = g_pictures[id.picture].texture.width
         var i32Height i32 = g_pictures[id.picture].texture.height
 
-        var scale mat.v2 = g_controls[id.base].scale
+        var scale mat.v2 = g_controls[controlIndex].scale
 
         //control_print("picture_render : ", id.base, false)
         var width f32 = scale.x * i32.f32(i32Width) / gfx.gfx_width
         var height f32 = scale.y * i32.f32(i32Height) / gfx.gfx_height
 
         var renderPosition mat.v2 = g_pictures[id.picture].picturePosition
-        //var renderPosition mat.v2 = g_controls[id.base].renderPosition
+        //var renderPosition mat.v2 = g_controls[controlIndex].renderPosition
 
         var batch batch_id = g_pictures[id.picture].batch
         uti.assert_(is_valid_batch(batch), "picture_render : invalid batch")
 
+        var renderBounds mat.v4 = mat.v4_v2v2(renderPosition, mat.v2_(width, height))
+        //control_print("picture_render : renderBounds ", id.base, false)
+        //printf("renderBounds %f, %f, %f, %f\n", renderBounds.x, renderBounds.y, renderBounds.z, renderBounds.w)
+        var renderClips mat.v4 = gfx.push_scissor(g_controls[controlIndex].name, renderBounds)
         var meshId gfx.mesh_id = g_batches[batch.batch].mesh
-        gfx.append_quad(meshId, mat.v4_v2v2(renderPosition, mat.v2_(width, height)), mat.v4_(0.0, 0.0, 1.0, 1.0), color)
+        gfx.append_quad(meshId, renderBounds, mat.v4_(0.0, 0.0, 1.0, 1.0), color, renderClips)
+        gfx.pop_scissor()
     }
 }
 
@@ -2962,9 +2982,9 @@ func window_resize(id window_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func window_render(id window_id) () {
+func window_render(id window_id, clip mat.v4) () {
     uti.assert_(is_valid_window(id), "window_render : invalid id")
-    control_render(id.base)
+    control_render(id.base, clip)
 }
 
 //-----------------------------------------------------------------------------
@@ -3068,9 +3088,9 @@ func keyboard_resize(id keyboard_id) () {
     }
 }*/
 
-func keyboard_render(id keyboard_id) () {
+func keyboard_render(id keyboard_id, clip mat.v4) () {
     uti.assert_(is_valid_keyboard(id), "keyboard_render : invalid id")
-    control_render(id.base)
+    control_render(id.base, clip)
 }
 
 //-----------------------------------------------------------------------------
@@ -3137,9 +3157,9 @@ func partition_resize(id partition_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func partition_render(id partition_id) () {
+func partition_render(id partition_id, clip mat.v4) () {
     uti.assert_(is_valid_partition(id), "partition_render : invalid id")
-    control_render(id.base)
+    control_render(id.base, clip)
 }
 
 //-----------------------------------------------------------------------------
@@ -3166,6 +3186,7 @@ type graph_s struct {
     horzCount i32
     vert [128] graph_line_s
     vertCount i32
+    graphClips mat.v4
 }
 
 //-----------------------------------------------------------------------------
@@ -3368,7 +3389,7 @@ func graph_resize(id graph_id) () {
     var endX f32 = graphPosition.x + size.x - offsetX - coord.x
     var endY f32 = graphPosition.y + size.y - offsetY - coord.y
 
-    //gfx.push_scissor(mat.v4_(coord.x, coord.y, size.x - coord.x, size.y - coord.y))
+    g_graphs[graphIndex].graphClips = mat.v4_(graphPosition.x, graphPosition.y, size.x - coord.x, size.y - coord.y)
 
     var horzMax i32 = len(g_graphs[graphIndex].horz)
     i = 0
@@ -3495,23 +3516,32 @@ func graph_resize(id graph_id) () {
     }
 
     //control_resize(id.base)
-    //gfx.pop_scissor()
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func graph_render(id graph_id) () {
+func graph_render(id graph_id, clip mat.v4) () {
     uti.assert_(is_valid_graph(id), "graph_render : invalid id")
-    control_render(id.base)
+    control_render(id.base, clip)
 
+    var controlIndex i32 = id.base.control
     var graphIndex i32 = id.graph
+
+    var renderBounds mat.v4 = mat.v4_v2v2(g_controls[controlIndex].renderPosition, g_controls[controlIndex].size)
+    //control_print("graph_render : renderBounds ", id.base, false)
+      //  printf("renderBounds %f, %f, %f, %f\n", renderBounds.x, renderBounds.y, renderBounds.z, renderBounds.w)
+    var renderClips mat.v4 = gfx.push_scissor(g_controls[controlIndex].name, renderBounds)
+    //control_print("graph_render : graphClips ", id.base, false)
+    var graphClips mat.v4 = g_graphs[graphIndex].graphClips
+      //  printf("graphClips %f, %f, %f, %f\n", graphClips.x, graphClips.y, graphClips.z, graphClips.w)
+    renderClips = gfx.push_scissor(g_controls[controlIndex].name, graphClips)
 
     var i i32 = 0
     var horzCount i32 = g_graphs[graphIndex].horzCount
     for i = 0; i < horzCount; i = i + 1 {
         var bounds mat.v4 = g_graphs[graphIndex].horz[i].bounds
         var color mat.v4 = g_graphs[graphIndex].horz[i].color
-        gfx.append_line(g_opaqueVertexColoredLines, bounds, color)
+        gfx.append_line(g_opaqueVertexColoredLines, bounds, color, renderClips)
     }
 
     var vertCount i32 = g_graphs[graphIndex].vertCount
@@ -3525,8 +3555,10 @@ func graph_render(id graph_id) () {
         }*/
 //        printf("II %d, COLOR %f, %f, %f, %f, BOUNDS %f, %f, %f, %f\n",
   //          i, color.x, color.y, color.z, color.w, bounds.x, bounds.y, bounds.z, bounds.w)
-        gfx.append_line(g_opaqueVertexColoredLines, bounds, color)
+        gfx.append_line(g_opaqueVertexColoredLines, bounds, color, renderClips)
     }
+    gfx.pop_scissor()
+    gfx.pop_scissor()
 }
 
 //-----------------------------------------------------------------------------
@@ -3744,9 +3776,9 @@ func list_resize(id list_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func list_render(id list_id) () {
+func list_render(id list_id, clip mat.v4) () {
     uti.assert_(is_valid_list(id), "render_list : invalid id")
-    control_render(id.base)
+    control_render(id.base, clip)
 }
 
 //-----------------------------------------------------------------------------
@@ -3762,7 +3794,7 @@ func init() () {
     g_fullscreenQuad = gfx.create_mesh(gl.TRIANGLES, attributes, 6 * 3)
 
     gfx.begin_mesh(g_fullscreenQuad)
-    gfx.append_quad(g_fullscreenQuad, mat.v4_(-1.0, 1.0, 2.0, -2.0), mat.v4_(0.0, 0.0, 1.0, 1.0), gfx.white)
+    gfx.append_quad(g_fullscreenQuad, mat.v4_(-1.0, 1.0, 2.0, -2.0), mat.v4_(0.0, 0.0, 1.0, 1.0), gfx.white, mat.v4_(-1.0, -1.0, 2.0, 2.0))
     gfx.end_mesh(g_fullscreenQuad)
 
     // fonts
@@ -4137,20 +4169,23 @@ func resize() () {
 //-----------------------------------------------------------------------------
 func render() () {
 
+    var clip mat.v4 = mat.v4_(-1.0, -1.0, 2.0, 2.0)
     //var clearColor mat.v4 = mat.v4_(1.0, 0.0, 1.0, 1.0)
     var clearColor mat.v4 = g_black
     var target_0 target_s = gfx.lock_target(app.app_width, app.app_height)
     gfx.bind_framebuffer(target_0.framebuffer)
     gfx.clear(gl.COLOR_BUFFER_BIT, clearColor)
     if (is_valid_screen(g_currentScreen)) {
-        screen_render(g_currentScreen)
+    //printf("----------------------------------------------------------------------------->\n")
+        screen_render(g_currentScreen, clip)
     }
 
     var target_1 target_s = gfx.lock_target(app.app_width, app.app_height)
     gfx.bind_framebuffer(target_1.framebuffer)
     gfx.clear(gl.COLOR_BUFFER_BIT, clearColor)
     if (is_valid_screen(g_nextScreen) && g_nextScreen.screen != g_currentScreen.screen) {
-        screen_render(g_nextScreen)
+    //printf("----------------------------------------------------------------------------->\n")
+        screen_render(g_nextScreen, clip)
     }
 
     var target_2 target_s = gfx.lock_target(app.app_width, app.app_height)
@@ -4173,7 +4208,8 @@ func render() () {
         gfx.clear(gl.COLOR_BUFFER_BIT, clearColor)
         if (is_valid_screen(g_modals[i])) {
             //control_print("modal : ", g_modals[i].base, false)
-            screen_render(g_modals[i])
+    //printf("----------------------------------------------------------------------------->\n")
+            screen_render(g_modals[i], clip)
         }
 
         var target_3 target_s = gfx.lock_target(app.app_width, app.app_height)
