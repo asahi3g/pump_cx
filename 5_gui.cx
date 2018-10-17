@@ -37,6 +37,8 @@ var GUI_WINDOW      i32 =  7
 var GUI_GRAPH       i32 =  8
 var GUI_SPLITTER    i32 =  9
 var GUI_LIST        i32 = 10
+var GUI_SCROLLER    i32 = 11
+var GUI_SCROLLBAR   i32 = 12
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -838,8 +840,8 @@ func control_add_child(parent control_id, child control_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func control_clear_child(id control_id) {
-    uti.assert_(is_valid_control(id), "control_clear_child : invalid id")
+func control_clear_children(id control_id) {
+    uti.assert_(is_valid_control(id), "control_clear_children : invalid id")
     var controlIndex i32 = id.control
     g_controls[controlIndex].childCount = 0
 }
@@ -1255,6 +1257,10 @@ func control_measure(id control_id) (width f32, height f32) {
         uti.assert_(false, "not implemented")
     } else if (guiType == GUI_LIST) {
         uti.assert_(false, "not implemented")
+    } else if (guiType == GUI_SCROLLER) {
+        uti.assert_(false, "not implemented")
+    } else if (guiType == GUI_SCROLLBAR) {
+        uti.assert_(false, "not implemented")
     } else {
         printf("GUI TYPE %d\n", guiType)
         uti.assert_(false, "control_resize : unknown gui type")
@@ -1333,6 +1339,10 @@ func control_resize_(id control_id, pixelBounds mat.v2, bounds mat.v2, autoBound
             splitter_resize(splitter_id_(child, guiIndex))
         } else if (guiType == GUI_LIST) {
             list_resize(list_id_(child, guiIndex))
+        } else if (guiType == GUI_SCROLLER) {
+            scroller_resize(scroller_id_(child, guiIndex))
+        } else if (guiType == GUI_SCROLLBAR) {
+            scrollbar_resize(scrollbar_id_(child, guiIndex))
         } else {
             printf("GUI TYPE %d\n", guiType)
             uti.assert_(false, "control_resize : unknown gui type")
@@ -1618,6 +1628,10 @@ func control_redock(id control_id, padding mat.v4) () {
             control_redock(control_id_(childControl), parentPadding)
         } else if (guiType == GUI_LIST) {
             control_redock(control_id_(childControl), parentPadding)
+        } else if (guiType == GUI_SCROLLER) {
+            control_redock(control_id_(childControl), parentPadding)
+        } else if (guiType == GUI_SCROLLBAR) {
+            control_redock(control_id_(childControl), parentPadding)
         } else {
             //control_print("control_redock parent : ", id, false)
             //control_print("control_redock child : ", child, false)
@@ -1765,6 +1779,10 @@ func control_render(id control_id, clip mat.v4) () {
             splitter_render(splitter_id_(child, guiIndex), renderBounds)
         } else if (guiType == GUI_LIST) {
             list_render(list_id_(child, guiIndex), renderBounds)
+        } else if (guiType == GUI_SCROLLER) {
+            scroller_render(scroller_id_(child, guiIndex), renderBounds)
+        } else if (guiType == GUI_SCROLLBAR) {
+            scrollbar_render(scrollbar_id_(child, guiIndex), renderBounds)
         } else {
             printf("GUI TYPE %d\n", guiType)
             uti.assert_(false, "control_render : unknown gui type")
@@ -2138,7 +2156,7 @@ func splitter_set_direction(id splitter_id, direction i32) {
 //-----------------------------------------------------------------------------
 func splitter_set_controls(id splitter_id, master control_id, slave control_id) {
     uti.assert_(is_valid_splitter(id), "splitter_set_master : invalid id")
-    control_clear_child(id.base)
+    control_clear_children(id.base)
     g_splitters[id.splitter].master = master
     control_add_child(id.base, master)
 
@@ -3321,7 +3339,7 @@ func graph_process_event(id graph_id, event *event_s) (out i32) {
 //-----------------------------------------------------------------------------
 func graph_resize(id graph_id) () {
     uti.assert_(is_valid_graph(id), "graph_resize : invalid id")
-    control_clear_child(id.base)
+    control_clear_children(id.base)
     control_resize(id.base)
 
     var graphIndex i32 = id.graph
@@ -3576,7 +3594,8 @@ type list_s struct {
 
     header control_id
     columnCount i32
-    panel control_id
+    scroller scroller_id
+    lines control_id
     lineCount i32
 }
 
@@ -3620,15 +3639,19 @@ func list_create(name str) (out list_id) {
     control_set_skin(header, g_blackControlSkin)
     g_lists[g_listCount].header = header
 
-    var panel control_id = control_create("panel")
-    control_add_child(out.base, panel)
-    control_set_dock(panel, DOCK_FILL)
-    control_set_skin(panel, g_blackControlSkin)
-    g_lists[g_listCount].panel = panel
+    var scroller scroller_id = scroller_create("scroller")
+    control_add_child(out.base, scroller.base)
+    control_set_dock(scroller.base, DOCK_FILL)
+
+    var lines control_id = control_create("lines")
+    scroller_set_containee(scroller, lines)
+    control_set_dock(lines, DOCK_FILL)
+    control_set_skin(lines, g_blackControlSkin)
+    g_lists[g_listCount].lines = lines
     g_lists[g_listCount].columnCount = 0
     g_lists[g_listCount].lineCount = 0
     g_listCount = g_listCount + 1
-    uti.assert_(is_valid_list(out), "create_list : invalid id")
+    uti.assert_(is_valid_list(out), "list_create : invalid id")
 }
 
 //-----------------------------------------------------------------------------
@@ -3662,8 +3685,8 @@ func list_add_column(id list_id, name str) {
 func list_clear_lines(id list_id) {
     uti.assert_(is_valid_list(id), "list_clear_lines : invalid id")
 
-    var panel control_id = g_lists[id.list].panel
-    control_clear_child(panel)
+    var lines control_id = g_lists[id.list].lines
+    control_clear_children(lines)
 }
 
 //-----------------------------------------------------------------------------
@@ -3674,10 +3697,10 @@ func list_add_line(id list_id) (out control_id) {
     var lineCount i32 = g_lists[listIndex].lineCount
     var line control_id = control_create(sprintf("line_%d", lineCount))
 
-    var panel control_id = g_lists[id.list].panel
+    var lines control_id = g_lists[id.list].lines
     control_set_dock(line, DOCK_TOP)
     control_set_size(line, mat.v2_(0.0, 0.1))
-    control_add_child(panel, line)
+    control_add_child(lines, line)
     g_lists[listIndex].lineCount = lineCount + 1
     out = line
 }
@@ -3720,12 +3743,12 @@ func list_resize(id list_id) () {
     var header control_id = g_lists[listIndex].header
     var headerIndex i32 = header.control
 
-    var panel control_id = g_lists[listIndex].panel
-    var panelIndex i32 = panel.control
+    var lines control_id = g_lists[listIndex].lines
+    var linesIndex i32 = lines.control
 
     var columnCount i32 = g_controls[headerIndex].childCount
-    //printf("columnCount %d, listIndex %d, headerIndex %d, panelIndex %d\n", columnCount, listIndex, headerIndex, panelIndex)
-    var lineCount i32 = g_controls[panelIndex].childCount
+    //printf("columnCount %d, listIndex %d, headerIndex %d, linesIndex %d\n", columnCount, listIndex, headerIndex, linesIndex)
+    var lineCount i32 = g_controls[linesIndex].childCount
     var i i32 = 0
     for i = 0; i < columnCount; i = i + 1 {
     var maxWidth f32 = 0.0
@@ -3740,7 +3763,7 @@ func list_resize(id list_id) () {
         maxWidth = mat.max(maxWidth, width)
         var k i32 = 0
         for k = 0; k < lineCount; k = k + 1 {
-            var line control_id = g_controls[panelIndex].children[k]
+            var line control_id = g_controls[linesIndex].children[k]
             var lineIndex i32 = line.control
             //control_print("list_resize : line ", line, false)
 
@@ -3757,7 +3780,7 @@ func list_resize(id list_id) () {
         g_controls[columnIndex].size.x = maxWidth
         //control_print("column : ", column, false)
         for k = 0; k < lineCount; k = k + 1 {
-            var line control_id = g_controls[panelIndex].children[k]
+            var line control_id = g_controls[linesIndex].children[k]
             var lineIndex i32 = line.control
 
             //control_print("line : ", line, false)
@@ -3780,6 +3803,182 @@ func list_render(id list_id, clip mat.v4) () {
     uti.assert_(is_valid_list(id), "render_list : invalid id")
     control_render(id.base, clip)
 }
+
+//-----------------------------------------------------------------------------
+// SCROLLBAR
+//-----------------------------------------------------------------------------
+type scrollbar_id struct {
+    base control_id
+    scrollbar i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type scrollbar_s struct {
+    id scrollbar_id
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func scrollbar_id_(base control_id, scrollbar i32) (out scrollbar_id) {
+    uti.assert_(g_scrollbarCount < len(g_scrollbars), "scrollbar_create : overflow") // ##1 use slice
+    out.base = base
+    out.scrollbar = scrollbar
+    uti.assert_(is_valid_scrollbar(out), "scrollbar_id_: invalid id")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_scrollbar(id scrollbar_id) (out bool) {
+    out = id.scrollbar >= 0 && id.scrollbar < g_scrollbarCount && is_valid_control(id.base)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var g_scrollbars[8] scrollbar_s
+var g_scrollbarCount i32
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func scrollbar_create(name str) (out scrollbar_id) {
+    out.scrollbar = g_scrollbarCount
+    out.base = control_create_(name, GUI_SCROLLBAR, g_scrollbarCount)
+
+    var scrollbar scrollbar_s
+    g_scrollbars[g_scrollbarCount].id = out
+
+    g_scrollbarCount = g_scrollbarCount + 1
+    uti.assert_(is_valid_scrollbar(out), "create_scrollbar : invalid id")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func scrollbar_process_event(id scrollbar_id, event *event_s) (out i32) {
+    uti.assert_(is_valid_scrollbar(id), "scrollbar_process_event : invalid id")
+    out = control_process_event(id.base, event)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func scrollbar_resize(id scrollbar_id) () {
+    uti.assert_(is_valid_scrollbar(id), "resize_scrollbar : invalid id")
+    control_resize(id.base)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func scrollbar_render(id scrollbar_id, clip mat.v4) () {
+    uti.assert_(is_valid_scrollbar(id), "render_scrollbar : invalid id")
+    control_render(id.base, clip)
+}
+
+//-----------------------------------------------------------------------------
+// SCROLLER
+//-----------------------------------------------------------------------------
+type scroller_id struct {
+    base control_id
+    scroller i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type scroller_s struct {
+    id scroller_id
+    panel control_id
+    container control_id
+    vscroll scrollbar_id
+    hscroll scrollbar_id
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func scroller_id_(base control_id, scroller i32) (out scroller_id) {
+    uti.assert_(g_scrollerCount < len(g_scrollers), "scroller_create : overflow") // ##1 use slice
+    out.base = base
+    out.scroller = scroller
+    uti.assert_(is_valid_scroller(out), "scroller_id_: invalid id")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_scroller(id scroller_id) (out bool) {
+    out = id.scroller >= 0 && id.scroller < g_scrollerCount && is_valid_control(id.base)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func scroller_set_containee(id scroller_id, containee control_id) {
+    uti.assert_(is_valid_scroller(id), "scroller_set_containee : invalid id")
+    uti.assert_(is_valid_control(containee), "scroller_set_containee : invalid control")
+    var container control_id = g_scrollers[id.scroller].container
+    control_clear_children(container)
+    control_add_child(container, containee)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var g_scrollers[8] scroller_s
+var g_scrollerCount i32
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func scroller_create(name str) (out scroller_id) {
+    out.scroller = g_scrollerCount
+    out.base = control_create_(name, GUI_SCROLLER, g_scrollerCount)
+
+    var scroller scroller_s
+    g_scrollers[g_scrollerCount].id = out
+
+    var vscroll scrollbar_id = scrollbar_create("vscroll")
+    control_add_child(out.base, vscroll.base)
+    control_set_size(vscroll.base, mat.v2_(0.1, 0.0))
+    control_set_dock(vscroll.base, DOCK_RIGHT)
+    control_set_skin(vscroll.base, g_redControlSkin)
+    g_scrollers[g_scrollerCount].vscroll = vscroll
+
+    var panel control_id = control_create("panel")
+    control_add_child(out.base, panel)
+    control_set_dock(panel, DOCK_FILL)
+    g_scrollers[g_scrollerCount].panel = panel
+
+    var hscroll scrollbar_id = scrollbar_create("hscroll")
+    control_add_child(panel, hscroll.base)
+    control_set_size(hscroll.base, mat.v2_(0.0, 0.1))
+    control_set_dock(hscroll.base, DOCK_BOTTOM)
+    control_set_skin(hscroll.base, g_greenControlSkin)
+    g_scrollers[g_scrollerCount].hscroll = hscroll
+
+    var container control_id = control_create("container")
+    control_add_child(out.base, container)
+    control_set_dock(container, DOCK_FILL)
+    control_set_skin(container, g_primaryBlueControlSkin)
+    g_scrollers[g_scrollerCount].container = container
+
+    g_scrollerCount = g_scrollerCount + 1
+    uti.assert_(is_valid_scroller(out), "create_scroller : invalid id")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func scroller_process_event(id scroller_id, event *event_s) (out i32) {
+    uti.assert_(is_valid_scroller(id), "scroller_process_event : invalid id")
+    out = control_process_event(id.base, event)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func scroller_resize(id scroller_id) () {
+    uti.assert_(is_valid_scroller(id), "resize_scroller : invalid id")
+    control_resize(id.base)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func scroller_render(id scroller_id, clip mat.v4) () {
+    uti.assert_(is_valid_scroller(id), "render_scroller : invalid id")
+    control_render(id.base, clip)
+}
+
 
 //-----------------------------------------------------------------------------
 // GUI
@@ -4007,6 +4206,10 @@ func control_process_event(id control_id, event *event_s) (out i32) {
             out = splitter_process_event(splitter_id_(child, guiIndex), event)
         } else if (guiType == GUI_LIST) {
             out = list_process_event(list_id_(child, guiIndex), event)
+        } else if (guiType == GUI_SCROLLER) {
+            out = scroller_process_event(scroller_id_(child, guiIndex), event)
+        } else if (guiType == GUI_SCROLLBAR) {
+            out = scrollbar_process_event(scrollbar_id_(child, guiIndex), event)
         } else {
             printf("GUI TYPE %d\n", guiType)
             uti.assert_(false, "control_process_event : unknown gui type")
