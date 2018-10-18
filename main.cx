@@ -11,6 +11,7 @@ import "gui"
 import "mat"
 import "uti"
 
+
 //-----------------------------------------------------------------------------
 // CX_BUGS
 //-----------------------------------------------------------------------------
@@ -123,7 +124,7 @@ func main() {
     // exit app screen
     {
         g_exitAppScreen = gui.create_screen("exit_app")
-        gui.control_set_skin(g_exitAppScreen.base, gui.g_modalControlSkin)
+        gui.control_set_skin(g_exitAppScreen.base, gui.g_modalSkin)
         gui.control_set_bounds(g_exitAppScreen.base, screenBounds)
         gui.screen_set_duration(g_exitAppScreen, -2.0D)
         gui.screen_set_modal(g_exitAppScreen, true)
@@ -131,7 +132,7 @@ func main() {
         {
             var window gui.window_id = gui.window_create("exit_app_window") // ##pending window vs window at main scope
             gui.control_add_child(g_exitAppScreen.base, window.base)
-            gui.control_set_skin(window.base, gui.g_windowControlSkin)
+            gui.control_set_skin(window.base, gui.g_windowSkin)
             //gui.control_set_padding(window.base, mat.v4_(0.1, 0.1, 0.1, 0.1))
             gui.control_set_autosize(window.base, gui.AUTOSIZE)
             gui.control_set_align(window.base, gui.ALIGN_CENTER)
@@ -142,7 +143,7 @@ func main() {
             {
                 var text gui.label_id = gui.label_create("exit_app_label")
                 gui.window_set_containee(window, text.base)
-                //gui.control_set_skin(text.base, gui.g_primaryBlueControlSkin)
+                //gui.control_set_skin(text.base, gui.g_primaryBlueSkin)
                 gui.control_set_dock(text.base, gui.DOCK_FILL)
                 gui.control_set_autosize(text.base, gui.AUTOSIZE)
                 gui.label_set_font(text, gui.g_regularFont)
@@ -157,7 +158,7 @@ func main() {
     // exit game screen
     {
         g_exitGameScreen = gui.create_screen("exit_game")
-        gui.control_set_skin(g_exitGameScreen.base, gui.g_modalControlSkin)
+        gui.control_set_skin(g_exitGameScreen.base, gui.g_modalSkin)
         gui.control_set_bounds(g_exitGameScreen.base, screenBounds)
         gui.screen_set_duration(g_exitGameScreen, -2.0D)
         gui.screen_set_modal(g_exitGameScreen, true)
@@ -165,7 +166,7 @@ func main() {
         {
             var window gui.window_id = gui.window_create("exit_game_window")
             gui.control_add_child(g_exitGameScreen.base, window.base)
-            gui.control_set_skin(g_exitGameScreen.base, gui.g_windowControlSkin)
+            gui.control_set_skin(g_exitGameScreen.base, gui.g_windowSkin)
             gui.control_set_bounds(window.base, mat.v4_(-0.5, -0.5, 1.0, 1.0))
             //gui.control_set_autosize(window.base, gui.AUTOSIZE)
             gui.control_set_align(window.base, gui.ALIGN_CENTER)
@@ -176,7 +177,7 @@ func main() {
     // pause screen
     {
         g_pauseScreen = gui.create_screen("pause")
-        gui.control_set_skin(g_pauseScreen.base, gui.g_modalControlSkin)
+        gui.control_set_skin(g_pauseScreen.base, gui.g_modalSkin)
         gui.control_set_bounds(g_pauseScreen.base, screenBounds)
         gui.screen_set_duration(g_pauseScreen, -2.0D)
         gui.screen_set_modal(g_pauseScreen, true)
@@ -184,7 +185,7 @@ func main() {
         {
             var window gui.window_id = gui.window_create("pause")
             gui.control_add_child(g_pauseScreen.base, window.base)
-            gui.control_set_skin(g_pauseScreen.base, gui.g_windowControlSkin)
+            gui.control_set_skin(g_pauseScreen.base, gui.g_windowSkin)
             gui.control_set_bounds(window.base, mat.v4_(-0.5, -0.5, 1.0, 1.0))
             gui.control_set_autosize(window.base, gui.AUTOSIZE)
             gui.control_set_align(window.base, gui.ALIGN_CENTER)
@@ -196,7 +197,7 @@ func main() {
     // game screen
     {
         g_gameScreen = gui.create_screen("game")
-        gui.control_set_skin(g_gameScreen.base, gui.g_blackControlSkin)
+        gui.control_set_skin(g_gameScreen.base, gui.g_blackSkin)
         gui.control_set_bounds(g_gameScreen.base, screenBounds)
         gui.control_set_padding(g_gameScreen.base, mat.v4_(0.08, 0.08, 0.08, 0.08))
         gui.screen_set_duration(g_gameScreen, -2.0D)
@@ -207,7 +208,7 @@ func main() {
         {
             var partition partition_id = gui.create_partition("partition")
             gui.control_add_child(g_gameScreen.base, partition.base)
-            gui.control_set_skin(partition.base, gui.g_blackControlSkin)
+            gui.control_set_skin(partition.base, gui.g_blackSkin)
             gui.control_set_size(partition.base, mat.v2_(0.0, 0.2))
             gui.control_set_dock(partition.base, gui.DOCK_TOP)
         }
@@ -215,7 +216,7 @@ func main() {
         {
             var keyboard keyboard_id = gui.create_keyboard("keyboard")
             gui.control_add_child(g_gameScreen.base, keyboard.base)
-            gui.control_set_skin(keyboard.base, gui.g_blackControlSkin)
+            gui.control_set_skin(keyboard.base, gui.g_blackSkin)
             gui.control_set_size(keyboard.base, mat.v2_(0.0, 0.3))
             gui.control_set_align(keyboard.base, gui.ALIGN_HORZ_BOTTOM)
         }
@@ -224,7 +225,7 @@ func main() {
     // main screen
     {
         g_mainScreen = gui.create_screen("main")
-        gui.control_set_skin(g_mainScreen.base, gui.g_blackControlSkin)
+        gui.control_set_skin(g_mainScreen.base, gui.g_blackSkin)
         gui.control_set_bounds(g_mainScreen.base, screenBounds)
         gui.control_set_padding(g_mainScreen.base, mat.v4_(0.01, 0.01, 0.01, 0.01))
         gui.screen_set_duration(g_mainScreen, -2.0D)
@@ -238,7 +239,7 @@ func main() {
             gui.control_add_child(g_mainScreen.base, control)
             gui.control_set_padding(control, mat.v4_(0.01, 0.01, 0.01, 0.01))
             gui.control_set_size(control, mat.v2_(0.0, 0.1))
-            gui.control_set_skin(control, gui.g_blackControlSkin)
+            gui.control_set_skin(control, gui.g_blackSkin)
             gui.control_set_dock(control, gui.DOCK_TOP)
         }
 
@@ -255,6 +256,7 @@ func main() {
                 gui.control_set_size(right.base, mat.v2_(0.75, 0.0))
                 gui.control_set_dock(right.base, gui.DOCK_RIGHT)
                 gui.control_set_spacing(right.base, mat.v2_(0.0, 0.01))
+                gui.control_set_focus_index(right.base, 1)
                 gui.splitter_set_direction(right, gui.SPLIT_BOTTOM)
 
                 var rightBottom splitter_id = gui.splitter_create("rightBottom")
@@ -273,7 +275,7 @@ func main() {
                         var rightBottomPlayControl control_id = gui.control_create("rightBottomPlayCtrl")
                         //gui.control_add_child(rightBottom, rightBottomPlayControl)
                         gui.control_set_dock(rightBottomPlayControl, gui.DOCK_BOTTOM)
-                        gui.control_set_skin(rightBottomPlayControl, gui.g_debugBlueControlSkin)
+                        gui.control_set_skin(rightBottomPlayControl, gui.g_debugBlueSkin)
                         gui.control_set_size(rightBottomPlayControl, mat.v2_(0.0, 0.2))
 
                         var rightBottomSplitter splitter_id = gui.splitter_create("rightBottomSplitter")
@@ -284,11 +286,11 @@ func main() {
 
                         var bottomLeft control_id = gui.control_create("bottomLeft")
                         gui.control_set_dock(bottomLeft, gui.DOCK_LEFT)
-                        gui.control_set_skin(bottomLeft, gui.g_debugGreenControlSkin)
+                        gui.control_set_skin(bottomLeft, gui.g_debugGreenSkin)
 
                         var bottomRight control_id = gui.control_create("bottomRight")
                         gui.control_set_dock(bottomRight, gui.DOCK_RIGHT)
-                        gui.control_set_skin(bottomRight, gui.g_debugRedControlSkin)
+                        gui.control_set_skin(bottomRight, gui.g_debugRedSkin)
 
                         gui.splitter_set_controls(rightBottomSplitter, bottomLeft, bottomRight)
                     }
@@ -311,27 +313,14 @@ func main() {
                         gui.splitter_set_direction(order, gui.SPLIT_VERT)
 
                         {
-                            var buy gui.list_id = gui.list_create("buy")
-                            //gui.control_set_skin(buy.base, gui.g_debugGreenControlSkin)
-                            gui.list_add_column(buy, "Price")
-                            gui.list_add_column(buy, "Amount")
-                            gui.list_add_column(buy, "Total")
-                            gui.control_set_dock(buy.base, gui.DOCK_BOTTOM)
-
                             var item i32 = 0
-                            for item = 0; item < 8; item = item + 1 {
-                                var line gui.control_id = gui.list_add_line(buy)
-                                gui.list_line_add_label(line, "0.0", gui.ALIGN_RIGHT)
-                                gui.list_line_add_label(line, "0.1", gui.ALIGN_RIGHT)
-                                gui.list_line_add_label(line, "0.2", gui.ALIGN_RIGHT)
-                            }
 
                             var sell gui.list_id = gui.list_create("sell")
+                            gui.control_set_skin(sell.base, gui.g_blackSkin)
                             gui.control_set_dock(sell.base, gui.DOCK_TOP)
-                            gui.list_add_column(sell, "Price")
+                            gui.list_add_column(sell, "Sell")
                             gui.list_add_column(sell, "Amount")
                             gui.list_add_column(sell, "Total")
-                            //gui.control_set_skin(sell, gui.g_debugRedControlSkin)
                             for item = 0; item < 8; item = item + 1 {
                                 var line gui.control_id = gui.list_add_line(sell)
                                 gui.list_line_add_label(line, "0.3", gui.ALIGN_RIGHT)
@@ -339,13 +328,27 @@ func main() {
                                 gui.list_line_add_label(line, "0.5", gui.ALIGN_RIGHT)
                             }
 
-                            gui.splitter_set_controls(order, buy.base, sell.base)
+                            var buy gui.list_id = gui.list_create("buy")
+                            gui.control_set_skin(buy.base, gui.g_blackSkin)
+                            gui.control_set_dock(buy.base, gui.DOCK_BOTTOM)
+                            gui.list_add_column(buy, "Buy")
+                            gui.list_add_column(buy, "Amount")
+                            gui.list_add_column(buy, "Total")
+
+                            for item = 0; item < 8; item = item + 1 {
+                                var line gui.control_id = gui.list_add_line(buy)
+                                gui.list_line_add_label(line, "0.0", gui.ALIGN_RIGHT)
+                                gui.list_line_add_label(line, "0.1", gui.ALIGN_RIGHT)
+                                gui.list_line_add_label(line, "0.2", gui.ALIGN_RIGHT)
+                            }
+
+                            gui.splitter_set_controls(order, sell.base, buy.base)
                         }
 
                         var done gui.control_id = gui.control_create("done")
                         gui.control_set_padding(done, mat.v4_(0.0, 0.0, 0.0, 0.0))
                         gui.control_set_dock(done, gui.DOCK_RIGHT)
-                        gui.control_set_skin(done, gui.g_debugBlueControlSkin)
+                        gui.control_set_skin(done, gui.g_debugBlueSkin)
 
                         gui.splitter_set_controls(rightTop, order.base, done)
                     }
@@ -356,8 +359,9 @@ func main() {
                 var graph graph_id = gui.graph_create("graph")
                 gui.control_add_child(panel, graph.base)
                 gui.control_set_padding(graph.base, mat.v4_(0.0, 0.01, 0.0, 0.0))
-                gui.control_set_skin(graph.base, gui.g_blackControlSkin)
+                gui.control_set_skin(graph.base, gui.g_blackSkin)
                 gui.control_set_dock(graph.base, gui.DOCK_FILL)
+                gui.control_set_focus_index(graph.base, 0)
             }
         }
     }
@@ -365,7 +369,7 @@ func main() {
     // pumpcx screen
     {
         g_pumpcxScreen = gui.create_screen("pumpcx")
-        gui.control_set_skin(g_pumpcxScreen.base, gui.g_blackControlSkin)
+        gui.control_set_skin(g_pumpcxScreen.base, gui.g_blackSkin)
         gui.control_set_bounds(g_pumpcxScreen.base, screenBounds)
         gui.screen_set_duration(g_pumpcxScreen, 2.0D)
         gui.screen_set_on_next(g_pumpcxScreen, g_mainScreen)
@@ -374,7 +378,7 @@ func main() {
         {
             var label label_id = gui.label_create("pumpcx")
             gui.control_add_child(g_pumpcxScreen.base, label.base)
-            //gui.control_set_skin(label.base, gui.g_redControlSkin)
+            //gui.control_set_skin(label.base, gui.g_redSkin)
             gui.control_set_bounds(label.base, mat.v4_(0.0, 0.0, 1.16, 1.16))
             gui.control_set_autoscale(label.base, gui.AUTOSCALE)
             gui.control_set_align(label.base, gui.ALIGN_CENTER)
@@ -388,7 +392,7 @@ func main() {
     // skycoin screen
     {
         g_skycoinScreen = gui.create_screen("skycoin")
-        gui.control_set_skin(g_skycoinScreen.base, gui.g_blackControlSkin)
+        gui.control_set_skin(g_skycoinScreen.base, gui.g_blackSkin)
         gui.control_set_bounds(g_skycoinScreen.base, screenBounds)
         gui.screen_set_duration(g_skycoinScreen, 2.0D)
         gui.screen_set_on_next(g_skycoinScreen, g_pumpcxScreen)
@@ -397,7 +401,7 @@ func main() {
         {
             var picture picture_id = gui.create_picture("skycoin")
             gui.control_add_child(g_skycoinScreen.base, picture.base)
-            //gui.control_set_skin(picture.base, g_blackControlSkin) // panic if no skin g_redControlSkin)
+            //gui.control_set_skin(picture.base, g_blackSkin) // panic if no skin g_redSkin)
             gui.control_set_bounds(picture.base, mat.v4_(0.0, 0.0, 1.16, 1.16))
             gui.control_set_align(picture.base, gui.ALIGN_CENTER)
             gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
@@ -409,7 +413,7 @@ func main() {
     // debug screen
     {
         g_debugScreen = gui.create_screen("debug")
-        gui.control_set_skin(g_debugScreen.base, gui.g_blackControlSkin)
+        gui.control_set_skin(g_debugScreen.base, gui.g_blackSkin)
         gui.control_set_bounds(g_debugScreen.base, screenBounds)
         gui.screen_set_duration(g_debugScreen, 2.0D)
         gui.screen_set_on_next(g_debugScreen, g_skycoinScreen)
@@ -418,7 +422,7 @@ func main() {
         {
             var label label_id = gui.label_create("pumpcx_top_left")
             gui.control_add_child(g_debugScreen.base, label.base)
-            gui.control_set_skin(label.base, gui.g_redControlSkin)
+            gui.control_set_skin(label.base, gui.g_redSkin)
             gui.control_set_bounds(label.base, mat.v4_(0.0, 1.0, 1.0, 1.0))
             gui.control_set_autoscale(label.base, gui.AUTOSCALE)
             gui.label_set_font(label, gui.g_boldFont)
@@ -431,7 +435,7 @@ func main() {
         {
             var label label_id = gui.label_create("pumpcx_bottom_right")
             gui.control_add_child(g_debugScreen.base, label.base)
-            gui.control_set_skin(label.base, gui.g_greenControlSkin)
+            gui.control_set_skin(label.base, gui.g_greenSkin)
             gui.control_set_bounds(label.base, mat.v4_(1.0, 0.0, 1.0, 1.0))
             gui.control_set_autoscale(label.base, gui.AUTOSCALE)
             gui.label_set_font(label, gui.g_boldFont)
@@ -462,7 +466,7 @@ func main() {
         {
             var control control_id = gui.control_create("alpha")
             gui.control_add_child(g_debugScreen.base, control)
-            gui.control_set_skin(control, gui.g_primaryBlueAlphaControlSkin)
+            gui.control_set_skin(control, gui.g_primaryBlueAlphaSkin)
             gui.control_set_bounds(control, mat.v4_(0.5, 0.5, 1.0, 1.0))
         }
     }
@@ -470,7 +474,7 @@ func main() {
     // boot screen
     {
         g_bootScreen = gui.create_screen("boot")
-        gui.control_set_skin(g_bootScreen.base, gui.g_blackControlSkin)
+        gui.control_set_skin(g_bootScreen.base, gui.g_blackSkin)
         gui.control_set_size(g_bootScreen.base, screenSize)
         gui.screen_set_duration(g_bootScreen, 2.0D)
         gui.screen_set_on_next(g_bootScreen, g_debugScreen)
