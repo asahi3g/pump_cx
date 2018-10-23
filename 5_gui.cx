@@ -128,6 +128,13 @@ func template_id_(base control_id, template i32) (out template_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+func invalid_template() () {
+    out.base = invalid_control()
+    out.template = -1
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func is_valid_template(id template_id) (out bool) {
     out = id.template >= 0 && id.template < g_templateCount && is_valid_control(id.base)
 }
@@ -154,21 +161,30 @@ func template_create(name str) (out template_id) {
 //-----------------------------------------------------------------------------
 func template_process_event(id template_id, event *event_s) (out i32) {
     uti.assert_(is_valid_template(id), "template_process_event : invalid id")
-    out = control_process_event(id.base, event)
+    var visible i32 = g_controls[id.base.control].visible
+    if (visible > 0) {
+        out = control_process_event(id.base, event)
+    }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func template_resize(id template_id) () {
     uti.assert_(is_valid_template(id), "resize_template : invalid id")
-    control_resize(id.base)
+    var visible i32 = g_controls[id.base.control].visible
+    if (visible > 0) {
+        control_resize(id.base)
+    }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func template_render(id template_id, clip mat.v4) () {
     uti.assert_(is_valid_template(id), "render_template : invalid id")
-    control_render(id.base, clip)
+    var visible i32 = g_controls[id.base.control].visible
+    if (visible > 0) {
+        control_render(id.base, clip)
+    }
 }*/
 
 
@@ -614,7 +630,7 @@ var g_fontSizeTitle i32 = 64
 var g_fontSizeHeader i32 = 55
 var g_fontSizeButton i32 = 38
 var g_fontSizeText i32 = 35
-
+var g_fontSizeSmall i32 = 30
 func alpha(color mat.v4, a f32) (out mat.v4) {
     //out = mat.v4_(color.x, color.y, color.z, (color.w * a)) // ##issue_57  out.w == 0
     out.x = color.x
@@ -646,6 +662,8 @@ type control_s struct {
     skin skin_id
     parent control_id
 
+    visible i32
+
     focusIndex i32
     focusable i32
     focused i32
@@ -666,6 +684,38 @@ type control_s struct {
     renderPosition mat.v2
     children [256]control_id // can't make it work with slices
     childCount i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func control_parent_visible(id control_id) (out bool) {
+    uti.assert_(is_valid_control(id), "control_parent_visible : invalid id")
+    var visible i32 = g_controls[id.control].visible
+    if (visible <= 0) {
+        out = false
+    } else {
+        out = true
+        var parent control_id = g_controls[id.control].parent
+        if (is_valid_control(parent)) {
+            out = control_parent_visible(parent)
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func control_focused(id control_id) (out i32) { // ##pending issue bool
+    out = 0
+    uti.assert_(is_valid_control(id), "control_focused : invalid id")
+    var focused i32 = g_controls[id.control].focused
+    if (focused > 0) {
+        out = focused
+    }
+
+    var childFocused i32 = g_controls[id.control].childFocused
+    if (childFocused > 0) {
+        out = childFocused
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -712,6 +762,8 @@ func control_create_(name str, gui_type i32, gui_index i32) (out control_id) {
     control.focusable = 0
     control.focused = 0
 
+    control.visible = 1
+
     control.dock      = DOCK_NONE
     control.align     = ALIGN_NONE
     control.autosize  = AUTOSIZE_NONE
@@ -736,7 +788,7 @@ func control_print(message str, id control_id, printSkin bool) {
     uti.assert_(is_valid_control(id), "control_print : invalid control")
     var index i32 = id.control
     //if (index == 29 || index == 30) {
-    printf("%s - %d - %s, Type %d, Index %d, Focusable %d, Focusindex %d, Focused %d, Skin %d, Dock %d, Align %d, Autosize %d, Autoscale %d, Padding %f, %f, %f, %f, Position %f, %f, RenderPosition %f, %f, Size %f, %f, Scale %f, %f, Children %d\n",
+    printf("%s - %d - %s, Type %d, Index %d, Focusable %d, Focusindex %d, Focused %d, ChildFocused %d, Selected %d, Visible %d, Skin %d, Dock %d, Align %d, Autosize %d, Autoscale %d, Padding %f, %f, %f, %f, Position %f, %f, RenderPosition %f, %f, Size %f, %f, Scale %f, %f, Children %d\n",
         message,
         g_controls[index].id.control,
         g_controls[index].name,
@@ -745,6 +797,9 @@ func control_print(message str, id control_id, printSkin bool) {
         g_controls[index].focusable,
         g_controls[index].focusIndex,
         g_controls[index].focused,
+        g_controls[index].childFocused,
+        g_controls[index].selected,
+        g_controls[index].visible,
         g_controls[index].skin.skin,
         g_controls[index].dock,
         g_controls[index].align,
@@ -888,15 +943,63 @@ func control_set_focusable(id control_id, value i32) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func control_set_parent_focus(id control_id, value i32) {
+func control_set_parent_focus(id control_id, child control_id, value i32) {
     //printf("set_parent_focus : %d\n", id.control)
     uti.assert_(is_valid_control(id), "control_set_parent_focus : invalid id")
     var parent control_id = g_controls[id.control].parent
     if (is_valid_control(parent)) {
         g_controls[parent.control].childFocused = value
-        control_set_parent_focus(parent, value)
+        control_set_parent_focus(parent, child, value)
+
+        var guiType i32 = g_controls[parent.control].gui_type
+        var guiIndex i32 = g_controls[parent.control].gui_index
+
+        if (guiType == GUI_INVALID) {
+            uti.assert_(false, "invalid gui type (GUI_INVALID)")
+        } else if (guiType == GUI_CONTROL) {
+            var dummy i32 = 0
+        } else if (guiType == GUI_SCREEN) {
+            var dummy i32 = 0
+        } else if (guiType == GUI_PICTURE) {
+            var dummy i32 = 0
+        } else if (guiType == GUI_LABEL) {
+            var dummy i32 = 0
+        } else if (guiType == GUI_PARTITION) {
+            var dummy i32 = 0
+        } else if (guiType == GUI_KEYBOARD) {
+            var dummy i32 = 0
+        } else if (guiType == GUI_WINDOW) {
+            var dummy i32 = 0
+        } else if (guiType == GUI_GRAPH) {
+            var dummy i32 = 0
+        } else if (guiType == GUI_SPLITTER) {
+            var dummy i32 = 0
+        } else if (guiType == GUI_LIST) {
+            list_child_focused(list_id_(parent, guiIndex), child, value)
+        } else if (guiType == GUI_SCROLLER) {
+            var dummy i32 = 0
+        } else if (guiType == GUI_LIFTER) {
+            var dummy i32 = 0
+        } else {
+            printf("GUI TYPE %d\n", guiType)
+            uti.assert_(false, "control_resize : unknown gui type")
+        }
+
+        //control_print("control_set_parent_focus : ", parent, false)
     }
 }
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+/*func control_set_parent_select(id control_id, value i32) {
+    //printf("set_parent_focus : %d\n", id.control)
+    uti.assert_(is_valid_control(id), "control_set_parent_focus : invalid id")
+    var parent control_id = g_controls[id.control].parent
+    if (is_valid_control(parent)) {
+        g_controls[parent.control].childSelected = value
+        control_set_parent_select(parent, value)
+    }
+}*/
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -1068,7 +1171,6 @@ func rebuild_focus(id screen_id) {
 //-----------------------------------------------------------------------------
 func set_current_focus(key screen_id, screenIndex i32, value control_id, controlIndex i32) {
     uti.assert_(is_valid_screen(key), "set_current_focus : invalid key")
-    control_print("set_current_focus : ", key.base, false)
 
     var currentFocus i32 = g_focused[screenIndex].currentFocus
     var focusCount i32 = g_focused[screenIndex].focusCount
@@ -1076,16 +1178,18 @@ func set_current_focus(key screen_id, screenIndex i32, value control_id, control
         var focusId control_id = g_focused[screenIndex].focusList[currentFocus]
         uti.assert_(is_valid_control(focusId), "set_current_focus : invalid current id")
         g_controls[focusId.control].focused = 0
-        control_set_parent_focus(focusId, 0)
+        control_set_parent_focus(focusId, focusId, 0)
     }
 
     if (is_valid_control(value)) {
+        var visible i32 = g_controls[value.control].visible
+        uti.assert_(visible > 0, "not implemented")
         control_print("set_current_focus : ", value, false)
         g_focused[screenIndex].key = key
         g_focused[screenIndex].value = value
         g_focused[screenIndex].currentFocus = controlIndex
         g_controls[value.control].focused = 1
-        control_set_parent_focus(value, 1)
+        control_set_parent_focus(value, value, 1)
     }
 }
 
@@ -1102,7 +1206,7 @@ func force_focus(id control_id) {
        //printf("FORCE_FOCUS_1\n")
             for i = 0; i < focusCount; i = i + 1 {
                 var focusedId control_id = g_focused[screenPair].focusList[i]
-         //       printf("test_focus %d, %d\n", focusedId.control, id.control)
+                //printf("test_focus %d, %d\n", focusedId.control, id.control)
                 if (focusedId.control == id.control) {
         //printf("FORCE_FOCUS_2\n")
                     set_current_focus(g_hotScreen, screenPair, id, i)
@@ -1138,12 +1242,19 @@ func set_next_focus(id screen_id) {
     if (pair >= 0 && pair < g_focusedCount) {
         var current i32 = g_focused[pair].currentFocus
         var count i32 = g_focused[pair].focusCount
-        var next i32 = -1
-        if (count > 0) {
-            next = (current + 1) % count
+        var next i32 = current
+        var nextId control_id = invalid_control()
+        var i i32 = 0
+        for i = 0; i < count; i = i + 1 {
+            next = (next + 1) % count
+            var controlId control_id = g_focused[pair].focusList[next]
+            var visible i32 = control_parent_visible(controlId)
+            if (visible > 0) {
+                i = count
+                nextId = controlId
+            }
             //printf("NEXT_FOCUS %d/%d\n", next, count)
         }
-        var nextId control_id = g_focused[pair].focusList[next]
         set_current_focus(id,  pair, nextId, next)
     }
 }
@@ -1157,16 +1268,23 @@ func set_previous_focus(id screen_id) {
     if (pair >= 0 && pair < g_focusedCount) {
         var current i32 = g_focused[pair].currentFocus
         var count i32 = g_focused[pair].focusCount
-        var previous i32 = -1
-        if (count > 0) {
-            previous = current - 1
+        var previous i32 = current
+        var previousId control_id = invalid_control()
+        var i i32 = 0
+        for i = 0; i < count; i = i + 1 {
+            previous = previous - 1
             if (previous < 0) {
                 previous = count - 1
                 //printf("PREVIOUS_FOCUS %d/%d\n", previous, count)
             }
+            var controlId control_id  = g_focused[pair].focusList[previous]
+            var visible i32 = control_parent_visible(controlId)
+            if (visible > 0) {
+                i = count
+                previousId = controlId
+            }
         }
 
-        var previousId control_id = g_focused[pair].focusList[previous]
         set_current_focus(id, pair, previousId, previous)
     }
 }
@@ -1257,15 +1375,14 @@ func get_current_focus(id control_id) (out control_id) {
 //-----------------------------------------------------------------------------
 func control_resize(id control_id) () {
     uti.assert_(is_valid_control(id), "control_resize : invalid id")
-    var bounds mat.v2 = g_controls[id.control].size
-    var pixelBounds mat.v2 = mat.v2_mul(bounds, gfx.gfx_viewport)
-    control_resize_(id, pixelBounds, bounds, mat.v2_zero)
+    var visible i32 = g_controls[id.control].visible
+    if (visible > 0) {
+        var bounds mat.v2 = g_controls[id.control].size
+        var pixelBounds mat.v2 = mat.v2_mul(bounds, gfx.gfx_viewport)
+        control_resize_(id, pixelBounds, bounds, mat.v2_zero)
+    }
 }
 
-func bip(message str, index i32) {
-    var guiIndex i32 = g_controls[index].gui_index
-    uti.assert_(guiIndex == 1, message)
-}
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func control_measure(id control_id) (width f32, height f32) {
@@ -1314,6 +1431,8 @@ func control_measure(id control_id) (width f32, height f32) {
 //-----------------------------------------------------------------------------
 func control_resize_(id control_id, pixelBounds mat.v2, bounds mat.v2, autoBounds mat.v2) () {
     uti.assert_(is_valid_control(id), "control_resize : invalid id")
+    var visible i32 = g_controls[id.control].visible
+    if (visible > 0) {
     //control_print("begin_control_resize : ", id, false)
     //printf("pixelBounds %f, %f, bounds %f, %f, autoBounds %f, %f\n", pixelBounds.x, pixelBounds.y, bounds.x, bounds.y, autoBounds.x, autoBounds.y)
 
@@ -1353,6 +1472,8 @@ func control_resize_(id control_id, pixelBounds mat.v2, bounds mat.v2, autoBound
         var child control_id = g_controls[index].children[i]
         var childIndex i32 = child.control
         uti.assert_(is_valid_control(child), "control_resize : invalid child control")
+        var childVisible i32 = g_controls[child.control].visible
+        if (childVisible > 0) {
         var guiType i32 = g_controls[childIndex].gui_type
         var guiIndex i32 = g_controls[childIndex].gui_index
 
@@ -1403,6 +1524,7 @@ func control_resize_(id control_id, pixelBounds mat.v2, bounds mat.v2, autoBound
         maxY = mat.max(maxY, position.y + size.y)
 
         //printf("%s, %d/%d : MAXWIDTH %f, MAXHEIGHT %f\n", g_controls[id.control].name, i + 1, count, maxWidth, maxHeight)
+        }
     }
 
 
@@ -1468,6 +1590,7 @@ func control_resize_(id control_id, pixelBounds mat.v2, bounds mat.v2, autoBound
     }
 
     //control_print("end_control_resize", id, false)
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1528,7 +1651,11 @@ func align_control(id control_id, align i32, posx f32, posy f32, width f32, heig
 //-----------------------------------------------------------------------------
 func control_redock(id control_id, padding mat.v4) () {
     uti.assert_(is_valid_control(id), "control_redock : invalid id")
-    //control_print("begin_control_redock : ", id, false)
+    var visible i32 = g_controls[id.control].visible
+    if (visible > 0) {
+    /*if (id.control == 85) {
+    control_print("begin_control_redock : ", id, false)
+    }*/
 
     var index i32 = id.control
     var w f32 = 0.0
@@ -1602,6 +1729,10 @@ func control_redock(id control_id, padding mat.v4) () {
         y = position.y
         w = size.x
         h = size.y
+        /*if (index == 50) {
+            control_print("control_redock : ", id, false)
+            printf("x %f, y %f, w %f, h %f\n", x, y, w, h)
+        }*/
     } else {
         uti.assert_(false, "invalid dock value")
     }
@@ -1612,12 +1743,12 @@ func control_redock(id control_id, padding mat.v4) () {
     var contH f32 = g_offset.height//g_dock.top - g_dock.bottom//g_offset.height
 
     //control_print("befor align : ", id, false)
-    /*if (index == 29 || index == 30) {
+    /*if (index == 50) {
     printf("redock %f, %f\n", x, y)
     }*/
     x, y = align_control(id, align, x, y, size.x, size.y, contX, contY, contW, contH, padding)
     //control_print("after align : ", id, false)
-    /*if (index == 29 || index == 30) {
+    /*if (index == 50) {
     printf("redock %f, %f\n", x, y)
     }*/
     push_scope()
@@ -1637,7 +1768,8 @@ func control_redock(id control_id, padding mat.v4) () {
     for i := 0; i < count; i = i + 1 {
         var child control_id = g_controls[index].children[i]
         uti.assert_(is_valid_control(child), "control_redock : invalid child control")
-
+        var childVisible i32 = g_controls[child.control].visible
+        if (childVisible > 0) {
         ///printf("REDOCK_CHILD %d/%d\n", i + 1, count)
         var childControl i32 = child.control
         var guiType i32 = g_controls[childControl].gui_type
@@ -1647,7 +1779,10 @@ func control_redock(id control_id, padding mat.v4) () {
             uti.assert_(false, "invalid gui type (GUI_INVALID)")
         } else if (guiType == GUI_CONTROL) {
             uti.assert_(guiIndex == childControl, "unexpected error")
-            control_redock(control_id_(childControl), parentPadding)
+            /*if (index == 85) {
+                control_print("REDOCK :", child, false)
+            }*/
+        control_redock(control_id_(childControl), parentPadding)
         } else if (guiType == GUI_SCREEN) {
             uti.assert_(false, "unidd recursive screen")
         } else if (guiType == GUI_PICTURE) {
@@ -1680,6 +1815,7 @@ func control_redock(id control_id, padding mat.v4) () {
             //control_print("control_redock child : ", child, false)
             uti.assert_(false, "control_redock : unknown gui type")
         }
+        }
     }
 
     g_controls[index].renderPosition = mat.v2_(g_offset.x, g_offset.y)
@@ -1706,8 +1842,11 @@ func control_redock(id control_id, padding mat.v4) () {
     }
     g_controls[index].size = mat.v2_(newWidth, newHeight)
 
-    //control_print("end_control_redock", id, false)
+    /*if (id.control == 50) {
+    control_print("end_control_redock", id, false)
+    }*/
     pop_scope()
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1750,6 +1889,8 @@ func control_render(id control_id, clip mat.v4) () {
     uti.assert_(is_valid_control(id), "control_render : invalid control index")
 
     var index i32 = id.control
+    var visible i32 = g_controls[index].visible
+    if (visible > 0) {
     /*if (index == 43) {
         control_print("control_render : ", id, false)
     }*/
@@ -1766,17 +1907,19 @@ func control_render(id control_id, clip mat.v4) () {
         var focused i32 = g_controls[index].focused
         var childFocused i32 = g_controls[index].childFocused
         var selected i32 = g_controls[index].selected
+        /*if (index == 82) {
+            control_print("childFocus : ", id, false)
+        }*/
         if (focused > 0 || childFocused > 0) {
             var backFocusedLayer layer_id = g_skins[skin.skin].focused_back
             if (is_valid_layer(backFocusedLayer)) {
                 backLayer = backFocusedLayer
             }
-        }
-        if (selected > 0) {
-            control_print("control_render : SELECTED", id, false)
+        } else if (selected > 0) {
+            //control_print("control_render : SELECTED", id, true)
             var backSelectedLayer layer_id = g_skins[skin.skin].selected_back
             if (is_valid_layer(backSelectedLayer)) {
-            printf("----------------------------------------> SELECTED\n")
+            //printf("----------------------------------------> SELECTED\n")
                 backLayer = backSelectedLayer
             }
         }
@@ -1805,6 +1948,8 @@ func control_render(id control_id, clip mat.v4) () {
     for i := 0; i < count; i = i + 1 {
         var child control_id = g_controls[index].children[i]
         uti.assert_(is_valid_control(child), "control_render : invalid child control")
+        var childVisible i32 = g_controls[child.control].visible
+        if (childVisible > 0) {
         var guiType i32 = g_controls[child].gui_type
         var guiIndex i32 = g_controls[child].gui_index
 
@@ -1840,9 +1985,11 @@ func control_render(id control_id, clip mat.v4) () {
             printf("GUI TYPE %d\n", guiType)
             uti.assert_(false, "control_render : unknown gui type")
         }
+        }
     }
     gfx.pop_scissor()
     //control_print("after control_render : ", id, false)
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -2243,17 +2390,6 @@ func splitter_create(name str) (out splitter_id) {
 func splitter_process_event(id splitter_id, event *event_s) (out i32) {
     uti.assert_(is_valid_splitter(id), "splitter_process_event : invalid id")
     out = control_process_event(id.base, event)
-}
-
-func fuck(name str, id splitter_id) {
-    var splitterIndex i32 = id.splitter
-    var direction i32 = g_splitters[splitterIndex].direction
-    if (id.base.control == 28) {
-        printf("-----------------%d %d, %s - %d\n", id.splitter, id.base.control, name, direction)
-        uti.assert_(direction == SPLIT_HORZ, "fuck")
-    }
-
-    //uti.assert_(false, "fuck")
 }
 
 //-----------------------------------------------------------------------------
@@ -3693,7 +3829,7 @@ func list_create(name str) (out list_id) {
     var header control_id = control_create("header")
     control_add_child(out.base, header)
     control_set_dock(header, DOCK_TOP)
-    control_set_size(header, mat.v2_(0.0, 0.1))
+    control_set_size(header, mat.v2_(0.0, 0.08))
     //control_set_autosize(header, AUTOSIZE_Y)
     control_set_skin(header, g_blackSkin)
     g_lists[g_listCount].header = header
@@ -3725,28 +3861,29 @@ func list_create(name str) (out list_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func list_add_column(id list_id, name str) {
+func list_add_column(id list_id, name str, color mat.v4, size i32) {
     uti.assert_(is_valid_list(id), "list_add_column : invalid id")
 
     var listIndex i32 = id.list
     var columnCount i32 = g_lists[listIndex].columnCount
     var column label_id = label_create(sprintf("column_%d", columnCount))
     control_set_dock(column.base, DOCK_LEFT)
-    control_set_size(column.base, mat.v2_(0.1, 0.0))
+    control_set_size(column.base, mat.v2_(0.08, 0.0))
     control_set_skin(column.base, g_buttonSkin)
     control_set_focusable(column.base, 1)
     //control_set_autosize(column.base, AUTOSIZE_X)
     control_set_padding(column.base, mat.v4_(0.01, 0.0, 0.01, 0.0))
     label_set_font(column, g_boldFont)
     label_set_text(column, name)
-    label_set_size(column, g_fontSizeButton)
-    label_set_color(column, g_white)
+    label_set_size(column, size)
+    label_set_color(column, color)
     label_set_align(column, ALIGN_CENTER)
 
     control_print("list_add_column : ", column.base, false)
     g_lists[listIndex].columnCount = columnCount + 1
     var header control_id = g_lists[listIndex].header
     control_add_child(header, column.base)
+    printf("childCount %d\n", g_controls[header.control].childCount)
     //uti.assert_(false, "fuck")
 }
 
@@ -3769,7 +3906,7 @@ func list_add_line(id list_id) (out control_id) {
 
     var lines control_id = g_lists[id.list].lines
     control_set_dock(line, DOCK_TOP)
-    control_set_size(line, mat.v2_(0.0, 0.1))
+    control_set_size(line, mat.v2_(0.0, 0.08))
     control_add_child(lines, line)
     control_set_skin(line, g_blackFocusedSkin)
     //control_set_focusable(line, 1)
@@ -3779,7 +3916,7 @@ func list_add_line(id list_id) (out control_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func list_line_add_label(id control_id, text str, align i32) {
+func list_line_add_label(id control_id, text str, align i32, color mat.v4, size i32) {
     uti.assert_(is_valid_control(id), "list_line_add_label : invalid id")
 
     var lineName str = g_controls[id.control].name
@@ -3795,9 +3932,70 @@ func list_line_add_label(id control_id, text str, align i32) {
     //control_set_autosize(label.base, AUTOSIZE_X)
     label_set_font(label, g_regularFont)
     label_set_text(label, text)
-    label_set_size(label, g_fontSizeText)
-    label_set_color(label, g_white)
+    label_set_size(label, size)
+    label_set_color(label, color)
     label_set_align(label, align)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func list_child_focused(id list_id, child control_id, value i32) {
+    uti.assert_(is_valid_list(id), "list_child_focus : invalid id")
+
+    if (value > 0) {
+
+    var selectedLine i32 = g_lists[id.list].selectedLine
+    var selectedItem i32 = g_lists[id.list].selectedItem
+
+    var header control_id = g_lists[id.list].header
+    var panel control_id = g_lists[id.list].lines
+
+    var headerFocused i32 = g_controls[header.control].focused
+    var headerChildFocused i32 = g_controls[header.control].childFocused
+
+    var panelFocused  i32 = g_controls[panel.control].focused
+    var panelChildFocused i32 = g_controls[panel.control].childFocused
+
+    if (panelFocused > 0 || panelChildFocused > 0 || headerFocused > 0 || headerChildFocused > 0) {
+    control_print("list_child_focused panel : ", panel, false)
+    var columnCount i32 = g_controls[header.control].childCount
+    var lineCount i32 = g_controls[panel.control].childCount
+
+    if (columnCount > 0) {
+
+        if (selectedLine < 0) {
+            selectedLine = 0
+        }
+
+        if (selectedItem < 0) {
+            selectedItem = 0
+        }
+
+        var selectedLineId control_id
+        if (selectedLine > 0) {
+            var currentLine i32 = selectedLine - 1
+            selectedLineId = g_controls[panel.control].children[currentLine]
+        } else {
+            selectedLineId = header
+        }
+        var previousSelectedLine i32 = g_lists[id.list].previousSelectedLine
+        var previousSelectedItem i32 = g_lists[id.list].previousSelectedItem
+        var selectedItemId control_id = g_controls[selectedLineId.control].children[selectedItem]
+        g_lists[id.list].previousSelectedLine = g_lists[id.list].selectedLine
+        g_lists[id.list].previousSelectedItem = g_lists[id.list].selectedItem
+        g_lists[id.list].selectedLine = selectedLine
+        g_lists[id.list].selectedItem = selectedItem
+
+        g_controls[selectedLineId.control].selected = 1
+        g_controls[selectedItemId.control].selected = 1
+        if (selectedItemId.control != child.control) {
+            control_print("list_child_focused : force_focus SELECTED : ", selectedItemId, false)
+            control_print("list_child_focused : force_focus CHILD : ", child, false)
+            force_focus(selectedItemId)
+        }
+    }
+    }
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -3811,6 +4009,7 @@ func list_process_event(id list_id, event *event_s) (out i32) {
         var index i32 = id.base.control
         var columns control_id = g_lists[id.list].header
         var columnsIndex i32 = columns.control
+        var headerFocused i32 = g_controls[columnsIndex].childFocused
         var lines control_id = g_lists[id.list].lines
         var linesIndex i32 = lines.control
         var focused i32 = g_controls[linesIndex].childFocused
@@ -3819,11 +4018,13 @@ func list_process_event(id list_id, event *event_s) (out i32) {
         var lineCount i32 = g_controls[linesIndex].childCount
         var itemCount i32 = g_controls[columnsIndex].childCount
         if (lineCount > 0) {
-            if (focused > 0 && action == KEY_PRESS) {
+            if ((headerFocused > 0 || focused > 0) && action == KEY_PRESS) {
                 var key i32 = ((*event).keyboard).key
                 var action i32 = ((*event).keyboard).action
                 var selectedLine i32 = g_lists[id.list].selectedLine
                 var selectedItem i32 = g_lists[id.list].selectedItem
+     
+     
                 if (key == KEYCODE_LEFT) {
                     selectedItem = selectedItem - 1
                     if (selectedItem < 0) {
@@ -3832,9 +4033,9 @@ func list_process_event(id list_id, event *event_s) (out i32) {
                     out = EVENT_CONSUMED
                 } else if (key == KEYCODE_DOWN) {
                     selectedLine = selectedLine + 1
-                    if (selectedLine >= lineCount) {
+                    if (selectedLine > lineCount) {
                         if (mods == MOD_CTRL) {
-                            selectedLine = lineCount - 1
+                            selectedLine = lineCount
                             out = EVENT_UNUSED
                             //printf("EVENT_UNUSED\n")
                         }else {
@@ -3856,8 +4057,36 @@ func list_process_event(id list_id, event *event_s) (out i32) {
                             out = EVENT_UNUSED
                             //printf("EVENT_UNUSED\n")
                         } else {
-                            selectedLine = lineCount - 1
+                            selectedLine = lineCount
                             out = EVENT_CONSUMED
+                        }
+                    }
+                } else if (key == KEYCODE_TAB) {
+                    if (mods == MOD_SHIFT) {
+                        if (selectedItem > 0) {
+                            selectedItem = selectedItem - 1
+                            out = EVENT_CONSUMED
+                        } else {
+                            if (selectedLine > 0) {
+                                selectedLine = selectedLine - 1
+                                selectedItem = itemCount - 1
+                                out = EVENT_CONSUMED
+                            } else {
+                                out = EVENT_UNUSED
+                            }
+                        }
+                    } else {
+                        if ((selectedItem + 1) < itemCount) {
+                            selectedItem = selectedItem + 1
+                            out = EVENT_CONSUMED
+                        } else {
+                            if ((selectedLine + 1) <= lineCount) {
+                                selectedLine = selectedLine + 1
+                                selectedItem = 0
+                                out = EVENT_CONSUMED
+                            } else {
+                                out = EVENT_UNUSED
+                            }
                         }
                     }
                 }
@@ -3885,7 +4114,8 @@ func list_resize(id list_id) () {
 
     var lines control_id = g_lists[listIndex].lines
     var linesIndex i32 = lines.control
-
+    //control_print("list_resize : ", id.base, false)
+    //control_print("list_resize : LINES ", lines, false)
 //printf("--------------------------------> list_resize\n")
     var columnCount i32 = g_controls[headerIndex].childCount
     //printf("columnCount %d, listIndex %d, headerIndex %d, linesIndex %d\n", columnCount, listIndex, headerIndex, linesIndex)
@@ -3897,6 +4127,7 @@ func list_resize(id list_id) () {
         var column control_id = g_controls[headerIndex].children[i]
         //control_print("list_resize : column ", column, false)
         var columnIndex i32 = column.control
+        g_controls[column.control].selected = 0
 
         var width f32
         var height f32
@@ -3937,6 +4168,12 @@ func list_resize(id list_id) () {
             g_controls[itemIndex].size.x = maxWidth
             g_controls[itemIndex].selected = 0
             g_controls[lineIndex].selected = 0
+
+            /*var focusedItem i32 = g_controls[itemIndex].focused
+            if (focusedItem > 0) {
+                g_lists[listIndex].selectedLine = k
+                g_lists[listIndex].selectedItem = i
+            }*/
             //control_print("item : ", item, false)
         }
     }
@@ -3953,7 +4190,13 @@ func list_resize(id list_id) () {
             selectedItem = 0
         }
 
-        var selectedLineId control_id = g_controls[linesIndex].children[selectedLine]
+        var selectedLineId control_id
+        if (selectedLine > 0) {
+            var currentLine i32 = selectedLine - 1
+            selectedLineId = g_controls[linesIndex].children[currentLine]
+        } else {
+            selectedLineId = header
+        }
         var selectedItemId control_id = g_controls[selectedLineId.control].children[selectedItem]
 
         var previousSelectedLine i32 = g_lists[listIndex].previousSelectedLine
@@ -3968,8 +4211,8 @@ func list_resize(id list_id) () {
         g_lists[listIndex].selectedLine = selectedLine
         g_lists[listIndex].selectedItem = selectedItem
 
-        g_controls[selectedLineId.control].selected = 1
-        g_controls[selectedItemId.control].selected = 1
+        //g_controls[selectedLineId.control].selected = 1
+        //g_controls[selectedItemId.control].selected = 1
     }
     control_resize(id.base)
 
@@ -3985,10 +4228,10 @@ func list_resize(id list_id) () {
     }
 
 
-    if (is_valid_control(focusedLine)) {
+    /*if (is_valid_control(focusedLine)) {
        g_controls[linesIndex].position.x = g_lists[listIndex].offset.x
        g_controls[linesIndex].position.y = g_lists[listIndex].offset.y
-    }
+    }*/
 
     //printf("columnCount %d\n", g_controls[headerIndex].childCount)
 }
@@ -4020,8 +4263,6 @@ type lifter_s struct {
     carret control_id
     bottom control_id
     direction i32
-    maxAmount f32
-    amount f32
     offset f32
 }
 
@@ -4038,6 +4279,13 @@ func lifter_id_(base control_id, lifter i32) (out lifter_id) {
 //-----------------------------------------------------------------------------
 func is_valid_lifter(id lifter_id) (out bool) {
     out = id.lifter >= 0 && id.lifter < g_lifterCount && is_valid_control(id.base)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func invalid_lifter() (out lifter_id) {
+    out.base = invalid_control()
+    out.lifter = -1
 }
 
 //-----------------------------------------------------------------------------
@@ -4083,7 +4331,7 @@ func lifter_create(name str) (out lifter_id) {
     var carret control_id = control_create("carret")
     g_lifters[g_lifterCount].carret = carret
     control_add_child(center, carret)
-    control_set_dock(carret, DOCK_TOP)
+    //control_set_dock(carret, DOCK_TOP)
     control_set_size(carret, mat.v2_(0.038, 0.038 * gfx.gfx_ratio_y))
     control_set_skin(carret, g_buttonSkin)
     control_set_focusable(carret, 1)
@@ -4101,12 +4349,12 @@ func lifter_set_direction(id lifter_id, direction i32) {
         control_set_dock(g_lifters[id.lifter].top, DOCK_TOP)
         control_set_dock(g_lifters[id.lifter].bottom, DOCK_BOTTOM)
         control_set_dock(g_lifters[id.lifter].center, DOCK_FILL)
-        control_set_dock(g_lifters[id.lifter].carret, DOCK_TOP)
+        //control_set_dock(g_lifters[id.lifter].carret, DOCK_TOP)
     } else if (direction == LIFT_HORZ) {
         control_set_dock(g_lifters[id.lifter].top, DOCK_LEFT)
         control_set_dock(g_lifters[id.lifter].bottom, DOCK_RIGHT)
         control_set_dock(g_lifters[id.lifter].center, DOCK_FILL)
-        control_set_dock(g_lifters[id.lifter].carret, DOCK_LEFT)
+        //control_set_dock(g_lifters[id.lifter].carret, DOCK_LEFT)
     } else {
         uti.assert_(false, "lifter_set_direction : unknown direction")
     }
@@ -4116,6 +4364,146 @@ func lifter_set_direction(id lifter_id, direction i32) {
 func lifter_process_event(id lifter_id, event *event_s) (out i32) {
     uti.assert_(is_valid_lifter(id), "lifter_process_event : invalid id")
     out = control_process_event(id.base, event)
+
+    if (out == EVENT_UNUSED) {
+        var focused i32 = g_controls[id.base.control].childFocused
+        if (focused > 0) {
+            var mods i32 = ((*event).keyboard).mods
+            if (mods == MOD_NONE) {
+                var action i32 = ((*event).keyboard).action
+                if (action == KEY_PRESS) {
+                    var key i32 = ((*event).keyboard).key
+                    var direction i32 = g_lifters[id.lifter].direction
+                    var carret control_id = g_lifters[id.lifter].carret
+                    var offset f32 = lifter_get_offset(id)
+                    if (key == KEYCODE_LEFT ||
+                        key == KEYCODE_UP) {
+                        if (direction == LIFT_HORZ ||
+                            direction == LIFT_VERT) {
+                            offset = offset - 0.01
+                            out = EVENT_CONSUMED
+                            force_focus(carret)
+                        } else {
+                            uti.assert_(false, "lifter_process_event : unknown direction")
+                        }
+                    } else if (key == KEYCODE_RIGHT ||
+                               key == KEYCODE_DOWN) {
+                        if (direction == LIFT_HORZ ||
+                            direction == LIFT_VERT) {
+                            offset = offset + 0.01
+                            out = EVENT_CONSUMED
+                            force_focus(carret)
+                        } else {
+                            uti.assert_(false, "lifter_process_event : unknown direction")
+                        }
+                    }
+                    lifter_set_offset(id, offset)
+                    g_controls[carret.control].size = mat.v2_(0.038, 0.038 * gfx.gfx_ratio_y)
+                }
+            }
+        }
+    }
+    //printf("list_process_event : OUT %d\n", out)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func lifter_get_amount(id lifter_id) (out f32) {
+    uti.assert_(is_valid_lifter(id), "lifter_get_amount : invalid id")
+    var direction i32 = g_lifters[id.lifter].direction
+    var carret control_id = g_lifters[id.lifter].carret
+    if (direction == LIFT_HORZ) {
+        out = g_controls[carret.control].size.x
+    } else if (direction == LIFT_VERT) {
+        out = g_controls[carret.control].size.y
+    } else {
+        uti.assert_(false, "invalid direction")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func lifter_set_amount(id lifter_id, value f32) {
+    uti.assert_(is_valid_lifter(id), "lifter_set_amount : invalid id")
+    var direction i32 = g_lifters[id.lifter].direction
+    var carret control_id = g_lifters[id.lifter].carret
+    if (direction == LIFT_HORZ) {
+        g_controls[carret.control].size.x = value
+    } else if (direction == LIFT_VERT) {
+        g_controls[carret.control].size.y = value
+    } else {
+        uti.assert_(false, "invalid direction")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func lifter_get_max_amount(id lifter_id) (out f32) {
+    uti.assert_(is_valid_lifter(id), "lifter_get_amount : invalid id")
+    var direction i32 = g_lifters[id.lifter].direction
+    var center control_id = g_lifters[id.lifter].center
+    if (direction == LIFT_HORZ) {
+        out = g_controls[center.control].size.x
+    } else if (direction == LIFT_VERT) {
+        out = g_controls[center.control].size.y
+    } else {
+        uti.assert_(false, "invalid direction")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func lifter_set_max_amount(id lifter_id, value f32) {
+    uti.assert_(is_valid_lifter(id), "lifter_set_amount : invalid id")
+    var direction i32 = g_lifters[id.lifter].direction
+    var center control_id = g_lifters[id.lifter].center
+    if (direction == LIFT_HORZ) {
+        g_controls[center.control].size.x = value
+    } else if (direction == LIFT_VERT) {
+        g_controls[center.control].size.y = value
+    } else {
+        uti.assert_(false, "invalid direction")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func lifter_get_offset(id lifter_id) (out f32) {
+    uti.assert_(is_valid_lifter(id), "lifter_get_amount : invalid id")
+    out = g_lifters[id.lifter].offset
+    /*var direction i32 = g_lifters[id.lifter].direction
+    var carret control_id = g_lifters[id.lifter].carret
+    if (direction == LIFT_HORZ) {
+        out = g_controls[carret.control].position.x
+    } else if (direction == LIFT_VERT) {
+        out = g_controls[carret.control].position.y
+    } else {
+        uti.assert_(false, "invalid direction")
+    }*/
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func lifter_set_offset(id lifter_id, value f32) {
+    uti.assert_(is_valid_lifter(id), "lifter_set_amount : invalid id")
+    g_lifters[id.lifter].offset = value
+    /*var direction i32 = g_lifters[id.lifter].direction
+    if (direction == LIFT_HORZ) {
+        g_controls[carret.control].position.x = value
+    } else if (direction == LIFT_VERT) {
+        g_controls[carret.control].position.y = value
+    } else {
+        uti.assert_(false, "invalid direction")
+    }*/
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func lifter_get_max_offset(id lifter_id) (out f32) {
+    uti.assert_(is_valid_lifter(id), "lifter_get_max_offset : invalid id")
+    var maxAmount f32 = lifter_get_max_amount(id)
+    var amount f32 = lifter_get_amount(id)
+    out = maxAmount - amount
 }
 
 //-----------------------------------------------------------------------------
@@ -4133,15 +4521,31 @@ func lifter_resize(id lifter_id) () {
     var carret control_id = g_lifters[lifterIndex].carret
     var carretIndex i32 = carret.control
 
+    var offset f32 = lifter_get_offset(id)
+    var maxAmount f32 = lifter_get_max_amount(id)
+    var amount f32 = lifter_get_amount(id)
+
+    if (offset + amount > maxAmount) {
+        offset = maxAmount - amount
+    }
+    if (offset < 0.0) {
+        offset = 0.0
+    }
+
     if (direction == LIFT_HORZ) {
-        g_lifters[lifterIndex].maxAmount = g_controls[centerIndex].size.x
-        g_controls[carretIndex].size.x = g_lifters[lifterIndex].amount
+        g_controls[carret.control].position.x = offset
     } else if (direction == LIFT_VERT) {
-        g_lifters[lifterIndex].maxAmount = g_controls[centerIndex].size.y
-        g_controls[carretIndex].size.y = g_lifters[lifterIndex].amount
+        var centerH f32 = g_controls[center.control].size.y
+        var carretH f32 = g_controls[carret.control].size.y
+
+        var offsetY f32 = centerH - carretH - offset
+        //printf("REOFFSET %f, %f, %f, %f\n", offset, carretH, centerH, offsetY)
+        g_controls[carret.control].position.y = offsetY
     } else {
         uti.assert_(false, "lifter_resize : unknown direction")
     }
+
+    lifter_set_offset(id, offset)
 }
 
 //-----------------------------------------------------------------------------
@@ -4165,6 +4569,7 @@ type scroller_s struct {
     id scroller_id
     panel control_id
     container control_id
+    containee control_id
     vlift lifter_id
     hlift lifter_id
 }
@@ -4192,7 +4597,7 @@ func scroller_set_containee(id scroller_id, containee control_id) {
     var container control_id = g_scrollers[id.scroller].container
     control_clear_children(container)
     control_add_child(container, containee)
-    
+    g_scrollers[id.scroller].containee = containee
 }
 
 //-----------------------------------------------------------------------------
@@ -4248,6 +4653,41 @@ func scroller_create(name str) (out scroller_id) {
 //-----------------------------------------------------------------------------
 func scroller_process_event(id scroller_id, event *event_s) (out i32) {
     uti.assert_(is_valid_scroller(id), "scroller_process_event : invalid id")
+
+    out = EVENT_UNUSED
+    var vlift lifter_id = g_scrollers[id.scroller].vlift
+    var vliftFocused i32 = control_focused(vlift.base)
+
+    var hlift lifter_id = g_scrollers[id.scroller].hlift
+    var hliftFocused i32 = control_focused(hlift.base)
+
+    if (vliftFocused > 0 || hliftFocused > 0) {
+        var action i32 = ((*event).keyboard).action
+        if (action == KEY_PRESS) {
+            var key i32 = ((*event).keyboard).key
+            var lift lifter_id = invalid_lifter()
+            if (/*hliftFocused > 0 &&*/
+                (key == KEYCODE_LEFT ||
+                 key == KEYCODE_RIGHT)) {
+                lift = hlift
+                control_print("HLIFT ", hlift.base, false)
+            } else if (/*vliftFocused > 0 &&*/
+                      (key == KEYCODE_UP ||
+                       key == KEYCODE_DOWN)) {
+                lift = vlift
+                control_print("VLIFT ", vlift.base, false)
+            }
+
+            if (is_valid_lifter(lift)) {
+                var visible i32 = g_controls[lift.base.control].visible
+                if (visible > 0) {
+                    var carret control_id = g_lifters[lift.lifter].carret
+                    force_focus(carret)
+                }
+            }
+        }
+    }
+
     out = control_process_event(id.base, event)
 }
 
@@ -4256,15 +4696,82 @@ func scroller_process_event(id scroller_id, event *event_s) (out i32) {
 func scroller_resize(id scroller_id) () {
     uti.assert_(is_valid_scroller(id), "resize_scroller : invalid id")
 
-    var vlift lifter_id = g_scrollers[id.scroller].vlift
-    var vliftIndex i32 = vlift.lifter
-    g_lifters[vliftIndex].amount = 0.2
+    //control_print("scroller_resize : ", id.base, false)
+    var container control_id = g_scrollers[id.scroller].container
+    var maxSize mat.v2 = g_controls[container.control].size
+    //printf("MAXSIZE %f, %f\n", maxSize.x, maxSize.y)
+
+    var containee control_id = g_scrollers[id.scroller].containee
+    var curSize mat.v2 = g_controls[containee.control].size
+    //printf("CURSIZE %f, %f\n", curSize.x, curSize.y)
 
     var hlift lifter_id = g_scrollers[id.scroller].hlift
-    var hliftIndex i32 = hlift.lifter
-    g_lifters[hliftIndex].amount = 0.2
+    var vlift lifter_id = g_scrollers[id.scroller].vlift
+
+    var percent mat.v2 = mat.v2_zero
+    var offset mat.v2 = mat.v2_(lifter_get_offset(hlift), lifter_get_offset(vlift))
+    //printf("OFFSET %f, %f\n", offset.x, offset.y)
+
+    var maxOffset mat.v2 = mat.v2_(lifter_get_max_offset(hlift), lifter_get_max_offset(vlift))
+    //printf("MAXOFFSET %f, %f\n", maxOffset.x, maxOffset.y)
+
+    if (curSize.y > 0) {
+        var vliftIndex i32 = vlift.lifter
+        var vliftMax f32 = lifter_get_max_amount(vlift)
+        var vamount f32 = maxSize.y * vliftMax / curSize.y
+        //printf("VAMOUNT %f\n", vamount)
+        lifter_set_amount(vlift, vamount)
+        if (curSize.y <= maxSize.y) {
+            g_controls[vlift.base.control].visible = 0
+        } else {
+            g_controls[vlift.base.control].visible = 1
+            percent.y = offset.y * 100.0 / maxOffset.y
+        }
+    } else {
+        g_controls[vlift.base.control].visible = 0
+    }
+
+    if (curSize.x > 0) {
+        var hliftIndex i32 = hlift.lifter
+        var hliftMax f32 = lifter_get_max_amount(hlift)
+        var hamount f32 = maxSize.x * hliftMax / curSize.x
+        lifter_set_amount(hlift, hamount)
+        var maxOffsetX f32 = lifter_get_max_offset(hlift)
+        if (curSize.x <= maxSize.x) {
+            g_controls[hlift.base.control].visible = 0
+        } else {
+            g_controls[hlift.base.control].visible = 1
+            percent.x = offset.x * 100.0 / maxOffset.x
+        }
+    } else {
+        g_controls[hlift.base.control].visible = 0
+    }
+
+    //printf("percent %f, %f\n", percent.x, percent.y)
+
+/*    var hvisible i32 = g_controls[hlift.base.control].visible
+    var vvisible i32 = g_controls[vlift.base.control].visible
+
+    if (hvisible > 0 && vvisible > 0) {
+    } else if (hvisible > 0) {
+    } else if (vvisible > 0) {
+    }
+*/
+
+    var widthOffset f32 = maxSize.x - curSize.x
+    var heightOffset f32 = maxSize.y - curSize.y
+    //printf("heightOffset %f\n", heightOffset)
+
+    //printf("position.x %f, position.y : heightOffset + percent.y * maxSize.y / 100.0 %f\n", 0.0 - percent.x * maxSize.x / 100.0, heightOffset + percent.y * maxSize.y / 100.0)
+    g_controls[containee.control].position = mat.v2_(0.0 + percent.x * widthOffset / 100.0, heightOffset - percent.y * heightOffset / 100.0)
+    var after mat.v2 = g_controls[containee.control].position
+    //printf("AFTER %f, %f\n", after.x, after.y)
 
     control_resize(id.base)
+    /*if (containee.control == 50) {
+    printf("offset %f, %f\n", offsetX, offsetY)
+    control_print("scroller_resize : after ", containee, false)
+    }*/
 }
 
 //-----------------------------------------------------------------------------
@@ -4293,12 +4800,14 @@ func init() () {
 
     // fonts
     g_regularFont = create_font("skycoinRegular", "fonts/Skycoin-Regular.ttf", 32, 127, gltext.LeftToRight)
+    font_add_size(g_regularFont, g_fontSizeSmall)
     font_add_size(g_regularFont, g_fontSizeText)
     font_add_size(g_regularFont, g_fontSizeButton)
     font_add_size(g_regularFont, g_fontSizeHeader)
     font_add_size(g_regularFont, g_fontSizeTitle)
 
     g_boldFont = create_font("skycoinBold", "fonts/Skycoin-Bold.ttf", 32, 127, gltext.LeftToRight)
+    font_add_size(g_boldFont, g_fontSizeSmall)
     font_add_size(g_boldFont, g_fontSizeText)
     font_add_size(g_boldFont, g_fontSizeButton)
     font_add_size(g_boldFont, g_fontSizeHeader)
@@ -4324,30 +4833,30 @@ func init() () {
     g_windowLayer           = layer_create("window"        , g_black     , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
     g_headerLayer           = layer_create("header"        , g_gray_2    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
     g_focusedLayer          = layer_create("focused"       , g_blue      , g_light_blue, g_light_blue, g_light_blue, g_light_blue)
-    g_selectedLayer         = layer_create("selected"      , g_darkBlue  , g_darkBlue  , g_darkBlue  , g_darkBlue  , g_darkBlue)
+    g_selectedLayer         = layer_create("selected"      , g_darkBlue  , g_blue      , g_blue      , g_blue      , g_blue)
     g_borderFocusedLayer    = layer_create("borderFocused" , gfx.zero    , g_blue      , g_blue      , g_blue      , g_blue)
     g_stripLayer            = layer_create("strip"         , g_gray_1    , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2)
 
     // controls
-    g_debugSkin           = skin_create("debug"          , g_debugLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer())
-    g_debugRedSkin        = skin_create("debugRed"       , g_debugRedLayer   , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer())
-    g_debugGreenSkin      = skin_create("debugGreen"     , g_debugGreenLayer , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer())
-    g_debugBlueSkin       = skin_create("debugBlue"      , g_debugBlueLayer  , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer())
-    g_debugGoldSkin       = skin_create("debugGold"      , g_debugGoldLayer  , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer())
-    g_bootSkin            = skin_create("boot"           , g_bootLayer       , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer())
-    g_bootSkin            = skin_create("boot"           , g_bootLayer       , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer())
+    g_debugSkin           = skin_create("debug"          , g_debugLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
+    g_debugRedSkin        = skin_create("debugRed"       , g_debugRedLayer   , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
+    g_debugGreenSkin      = skin_create("debugGreen"     , g_debugGreenLayer , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
+    g_debugBlueSkin       = skin_create("debugBlue"      , g_debugBlueLayer  , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
+    g_debugGoldSkin       = skin_create("debugGold"      , g_debugGoldLayer  , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
+    g_bootSkin            = skin_create("boot"           , g_bootLayer       , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
+    g_bootSkin            = skin_create("boot"           , g_bootLayer       , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
     g_blackSkin           = skin_create("black"          , g_blackLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_borderFocusedLayer, invalid_layer(), g_selectedLayer, invalid_layer())
-    g_blackBorderSkin     = skin_create("blackFocused"   , g_blackBorderLayer , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer, invalid_layer(), invalid_layer(), invalid_layer())
-    g_blackFocusedSkin    = skin_create("blackFocused"   , g_blackLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer, invalid_layer(), invalid_layer(), invalid_layer())
-    g_redSkin             = skin_create("red"            , g_redLayer        , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer())
-    g_greenSkin           = skin_create("green"          , g_greenLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer())
-    g_primaryBlueSkin     = skin_create("primaryBlue"    , g_primaryBlueLayer, invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer())
-    g_primaryBlueAlphaSkin= skin_create("primaryBlueA50" , invalid_layer()  , g_primaryBlueAlphaLayer, invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer())
-    g_modalSkin           = skin_create("modal"          , g_modalLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer())
-    g_windowSkin          = skin_create("window"         , g_windowLayer     , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer())
-    g_headerSkin          = skin_create("header"         , g_headerLayer     , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer())
-    g_buttonSkin          = skin_create("button"         , g_headerLayer     , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer  , invalid_layer(), invalid_layer(), invalid_layer())
-    g_stripSkin           = skin_create("strip"          , g_stripLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer())
+    g_blackBorderSkin     = skin_create("blackFocused"   , g_blackBorderLayer , invalid_layer()      , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer      , invalid_layer(), g_selectedLayer, invalid_layer())
+    g_blackFocusedSkin    = skin_create("blackFocused"   , g_blackLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer      , invalid_layer(), g_selectedLayer, invalid_layer())
+    g_redSkin             = skin_create("red"            , g_redLayer        , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
+    g_greenSkin           = skin_create("green"          , g_greenLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
+    g_primaryBlueSkin     = skin_create("primaryBlue"    , g_primaryBlueLayer, invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
+    g_primaryBlueAlphaSkin= skin_create("primaryBlueA50" , invalid_layer()  , g_primaryBlueAlphaLayer, invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
+    g_modalSkin           = skin_create("modal"          , g_modalLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
+    g_windowSkin          = skin_create("window"         , g_windowLayer     , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
+    g_headerSkin          = skin_create("header"         , g_headerLayer     , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), g_selectedLayer, invalid_layer())
+    g_buttonSkin          = skin_create("button"         , g_headerLayer     , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer      , invalid_layer(), g_selectedLayer, invalid_layer())
+    g_stripSkin           = skin_create("strip"          , g_stripLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
 
     printf("C5\n")
 }
@@ -4473,6 +4982,8 @@ type event_s struct {
 //-----------------------------------------------------------------------------
 func control_process_event(id control_id, event *event_s) (out i32) {
     uti.assert_(is_valid_control(id), "control_process_event : invalid id")
+    var visible i32 = g_controls[id.control].visible
+    if (visible > 0) {
 //    control_print("control_process_event : ", id, false)
     out = EVENT_UNUSED
 
@@ -4481,6 +4992,8 @@ func control_process_event(id control_id, event *event_s) (out i32) {
     for i := 0; i < count; i = i + 1 {
         var child control_id = g_controls[index].children[i]
         uti.assert_(is_valid_control(child), "control_process_event : invalid child control")
+        var childVisible i32 = g_controls[child.control].visible
+        if (childVisible > 0) {
         var guiType i32 = g_controls[child.control].gui_type
         var guiIndex i32 = g_controls[child.control].gui_index
 
@@ -4515,7 +5028,7 @@ func control_process_event(id control_id, event *event_s) (out i32) {
             printf("GUI TYPE %d\n", guiType)
             uti.assert_(false, "control_process_event : unknown gui type")
         }
-
+        }
                if (out == EVENT_CONSUMED) {
             i = count // ##pending issue brue
         } else if (out == EVENT_ERROR) {
@@ -4526,6 +5039,7 @@ func control_process_event(id control_id, event *event_s) (out i32) {
     }
     //control_print("control_process_event : ", id, false)
     //printf("control_process_event : OUT %d\n", out)
+    }
 }
 
 //-----------------------------------------------------------------------------

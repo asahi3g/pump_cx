@@ -253,7 +253,7 @@ func main() {
             {
                 var right splitter_id = gui.splitter_create("right")
                 gui.control_add_child(panel, right.base)
-                gui.control_set_size(right.base, mat.v2_(0.75, 0.0))
+                gui.control_set_size(right.base, mat.v2_(0.88, 0.0))
                 gui.control_set_dock(right.base, gui.DOCK_RIGHT)
                 gui.control_set_spacing(right.base, mat.v2_(0.0, 0.01))
                 gui.control_set_focus_index(right.base, 1)
@@ -299,6 +299,7 @@ func main() {
                 }
 
                 {
+                    var textColor mat.v4 = gui.g_gray_4
                     //gui.control_add_child(right, rightTop.base)
                     gui.control_set_dock(rightTop.base, gui.DOCK_TOP)
                     gui.control_set_spacing(rightTop.base, mat.v2_(0.01, 0.01))
@@ -315,42 +316,60 @@ func main() {
                         {
                             var item i32 = 0
 
+                            var columnSize i32 = gui.g_fontSizeSmall
+                            var itemSize i32 = gui.g_fontSizeSmall
+
                             var sell gui.list_id = gui.list_create("sell")
                             gui.control_set_skin(sell.base, gui.g_blackSkin)
                             gui.control_set_dock(sell.base, gui.DOCK_TOP)
-                            gui.list_add_column(sell, "Sell")
-                            gui.list_add_column(sell, "Amount")
-                            gui.list_add_column(sell, "Total")
+                            gui.list_add_column(sell, "Price", gui.g_white, columnSize)
+                            gui.list_add_column(sell, "Amount", gui.g_white, columnSize)
+                            gui.list_add_column(sell, "Total", gui.g_white, columnSize)
                             for item = 0; item < 8; item = item + 1 {
                                 var line gui.control_id = gui.list_add_line(sell)
-                                gui.list_line_add_label(line, "0.3", gui.ALIGN_RIGHT)
-                                gui.list_line_add_label(line, "0.4", gui.ALIGN_RIGHT)
-                                gui.list_line_add_label(line, "0.5", gui.ALIGN_RIGHT)
+                                gui.list_line_add_label(line, "0.3", gui.ALIGN_RIGHT, gui.g_red, itemSize)
+                                gui.list_line_add_label(line, "0.4", gui.ALIGN_RIGHT, textColor, itemSize)
+                                gui.list_line_add_label(line, "0.5", gui.ALIGN_RIGHT, textColor, itemSize)
                             }
 
                             var buy gui.list_id = gui.list_create("buy")
                             gui.control_set_skin(buy.base, gui.g_blackSkin)
                             gui.control_set_dock(buy.base, gui.DOCK_BOTTOM)
-                            gui.list_add_column(buy, "Buy")
-                            gui.list_add_column(buy, "Amount")
-                            gui.list_add_column(buy, "Total")
+                            gui.list_add_column(buy, "Price", gui.g_white, columnSize)
+                            gui.list_add_column(buy, "Amount", gui.g_white, columnSize)
+                            gui.list_add_column(buy, "Total", gui.g_white, columnSize)
 
                             for item = 0; item < 8; item = item + 1 {
                                 var line gui.control_id = gui.list_add_line(buy)
-                                gui.list_line_add_label(line, "0.0", gui.ALIGN_RIGHT)
-                                gui.list_line_add_label(line, "0.1", gui.ALIGN_RIGHT)
-                                gui.list_line_add_label(line, "0.2", gui.ALIGN_RIGHT)
+                                gui.list_line_add_label(line, "0.0", gui.ALIGN_RIGHT, gui.g_green, itemSize)
+                                gui.list_line_add_label(line, "0.1", gui.ALIGN_RIGHT, textColor, itemSize)
+                                gui.list_line_add_label(line, "0.2", gui.ALIGN_RIGHT, textColor, itemSize)
                             }
 
                             gui.splitter_set_controls(order, sell.base, buy.base)
                         }
 
-                        var done gui.control_id = gui.control_create("done")
-                        gui.control_set_padding(done, mat.v4_(0.0, 0.0, 0.0, 0.0))
-                        gui.control_set_dock(done, gui.DOCK_RIGHT)
-                        gui.control_set_skin(done, gui.g_debugBlueSkin)
+                        var done gui.list_id = gui.list_create("done")
+                        {
+                            gui.control_set_skin(done.base, gui.g_blackSkin)
+                            gui.control_set_dock(done.base, gui.DOCK_RIGHT)
+                            gui.list_add_column(done, "Price", gui.g_white, columnSize)
+                            gui.list_add_column(done, "Amount", gui.g_white, columnSize)
+                            gui.list_add_column(done, "Total", gui.g_white, columnSize)
 
-                        gui.splitter_set_controls(rightTop, order.base, done)
+                            for item = 0; item < 20; item = item + 1 {
+                                var line gui.control_id = gui.list_add_line(done)
+
+                                var color mat.v4 = gui.g_green
+                                if ((item % 3) == 0 || (item % 5) == 0) {
+                                    color = gui.g_red
+                                }
+                                gui.list_line_add_label(line, "0.0", gui.ALIGN_RIGHT, color, itemSize)
+                                gui.list_line_add_label(line, "0.1", gui.ALIGN_RIGHT, textColor, itemSize)
+                                gui.list_line_add_label(line, "0.2", gui.ALIGN_RIGHT, textColor, itemSize)
+                            }
+                        }
+                        gui.splitter_set_controls(rightTop, order.base, done.base)
                     }
                 }
             }

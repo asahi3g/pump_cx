@@ -280,7 +280,7 @@ type mesh_id struct {
 //-----------------------------------------------------------------------------
 type mesh_s struct {
     id mesh_id
-    vertices [16384]f32
+    vertices [32768]f32
     attributes [3]i32
     primitive i32
     vao i32
@@ -687,18 +687,24 @@ func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4, clip mat.v4) 
     var cTop bool = y > clipTop && y1 > clipTop
 
     if (cLeft == false && cBottom == false && cRight == false && cTop == false) {
-
+//{
     var r f32 = color.x
     var g f32 = color.y
     var b f32 = color.z
     var a f32 = color.w
 
 
-    //printf("old bounds : %f, %f, %f, %f, %f, %f\n", x, y, w, h, x1, y1)
     var u0 f32 = uv.x
     var v0 f32 = uv.y
     var u1 f32 = uv.z
     var v1 f32 = uv.w
+    //printf("old bounds : %f, %f, %f, %f, %f, %f, uv %f, %f, %f, %f\n", x, y, w, h, x1, y1, u0, v0, u1, v1)
+
+    var deltaLeft f32 = mat.max(0.0, clipLeft - x)
+    var deltaRight f32 = mat.min(0.0, clipRight - x1)
+
+    var deltaBottom f32 = mat.max(0.0, clipBottom - y)
+    var deltaTop f32 = mat.min(0.0, clipTop - y1)
 
     x = mat.max(x, clipLeft)
     y = mat.max(y, clipBottom)
@@ -710,13 +716,20 @@ func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4, clip mat.v4) 
     var nh f32 = y1 - y
 
     var du f32 = u1 - u0
-    var dv f32 = v1 - v0
+    var dv f32 = v0 - v1
 
-    u1 = u0 + du * nw / w
-    v1 = v0 + dv * nh / h
+    u0 = u0 + du * deltaLeft / w
+    u1 = u1 + du * deltaRight / w
+    v1 = v1 + dv * deltaBottom / h
+    v0 = v0 + dv * deltaTop /h
+//printf("DELTA TOP %f, DELTA BOTTOM %f\n", deltaTop, deltaBottom)
+    /*var vv1 f32 = v1
+    var vv0 f32 = v0
+*/
+ //   v1 = vv0 + dv * nh / h
+  //  v0 = vv1 - dv * nh / h
 
-
-//    printf("new bounds : %f, %f, %f, %f, %f, %f\n", x, y, nw, nh, x1, y1)
+  //  printf("new bounds : %f, %f, %f, %f, %f, %f, uv %f, %f, %f, %f\n", x, y, nw, nh, x1, y1, u0, v0, u1, v1)
 
     g_meshes[mesh].vertices[index] = x
     index = index + 1
