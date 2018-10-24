@@ -287,11 +287,11 @@ func main() {
 
                             var bottomLeft control_id = gui.control_create("bottomLeft")
                             gui.control_set_dock(bottomLeft, gui.DOCK_LEFT)
-                            gui.control_set_skin(bottomLeft, gui.g_debugGreenSkin)
+                            //gui.control_set_skin(bottomLeft, gui.g_debugGreenSkin)
 
                             var bottomRight control_id = gui.control_create("bottomRight")
                             gui.control_set_dock(bottomRight, gui.DOCK_RIGHT)
-                            gui.control_set_skin(bottomRight, gui.g_debugRedSkin)
+                            //gui.control_set_skin(bottomRight, gui.g_debugRedSkin)
 
                             gui.splitter_set_controls(limitOrder, bottomLeft, bottomRight)
     
@@ -306,11 +306,11 @@ func main() {
 
                             var bottomLeft control_id = gui.control_create("bottomLeft")
                             gui.control_set_dock(bottomLeft, gui.DOCK_LEFT)
-                            gui.control_set_skin(bottomLeft, gui.g_debugBlueSkin)
+                            //gui.control_set_skin(bottomLeft, gui.g_debugBlueSkin)
 
                             var bottomRight control_id = gui.control_create("bottomRight")
                             gui.control_set_dock(bottomRight, gui.DOCK_RIGHT)
-                            gui.control_set_skin(bottomRight, gui.g_debugBlueSkin)
+                            //gui.control_set_skin(bottomRight, gui.g_debugBlueSkin)
 
                             gui.splitter_set_controls(marketOrder, bottomLeft, bottomRight)
     
@@ -325,11 +325,11 @@ func main() {
 
                             var bottomLeft control_id = gui.control_create("bottomLeft")
                             gui.control_set_dock(bottomLeft, gui.DOCK_LEFT)
-                            gui.control_set_skin(bottomLeft, gui.g_debugGoldSkin)
+                            //gui.control_set_skin(bottomLeft, gui.g_debugGoldSkin)
 
                             var bottomRight control_id = gui.control_create("bottomRight")
                             gui.control_set_dock(bottomRight, gui.DOCK_RIGHT)
-                            gui.control_set_skin(bottomRight, gui.g_debugGoldSkin)
+                            //gui.control_set_skin(bottomRight, gui.g_debugGoldSkin)
 
                             gui.splitter_set_controls(stopLimitOrder, bottomLeft, bottomRight)
     
@@ -342,7 +342,6 @@ func main() {
 
                 {
                     var textColor mat.v4 = gui.g_gray_4
-                    //gui.control_add_child(right, rightTop.base)
                     gui.control_set_dock(rightTop.base, gui.DOCK_TOP)
                     gui.control_set_spacing(rightTop.base, mat.v2_(0.01, 0.01))
                     gui.control_set_padding(rightTop.base, mat.v4_(0.0, 0.0, 0.0, 0.0))

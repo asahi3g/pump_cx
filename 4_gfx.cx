@@ -37,9 +37,12 @@ var g_blend bool = false
 var g_srcBlend i32 = 0
 var g_dstBlend i32 = 0
 
-var g_depth bool = false
+var g_depthTest bool = false
+var g_depthFunc i32 = gl.LESS
+var g_depthMask bool = true
 
 var g_clearColor mat.v4
+var g_clearDepth f64
 
 var gfx_width f32 = 0.0
 var gfx_height f32 = 0.0
@@ -511,7 +514,7 @@ func render_mesh(id mesh_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func append_line(id mesh_id, line mat.v4, color mat.v4, clip mat.v4) () {
+func append_line(id mesh_id, line mat.v4, color mat.v4, clip mat.v4, depth f32) () {
     if (clip.z > 0.0 && clip.w > 0.0) {
     uti.assert_(is_valid_mesh(id), "append_line : invalid id")
     var mesh i32 = id.mesh
@@ -542,8 +545,6 @@ func append_line(id mesh_id, line mat.v4, color mat.v4, clip mat.v4) () {
     var g f32 = color.y
     var b f32 = color.z
     var a f32 = color.w
-
-    var z f32 = 0.1
 
     if (x0 < clipLeft) {
         x0 = clipLeft
@@ -590,7 +591,7 @@ func append_line(id mesh_id, line mat.v4, color mat.v4, clip mat.v4) () {
     index = index + 1
     g_meshes[mesh].vertices[index] = y0
     index = index + 1
-    g_meshes[mesh].vertices[index] = z
+    g_meshes[mesh].vertices[index] = depth
     index = index + 1
     g_meshes[mesh].vertices[index] = r
     index = index + 1
@@ -609,7 +610,7 @@ func append_line(id mesh_id, line mat.v4, color mat.v4, clip mat.v4) () {
     index = index + 1
     g_meshes[mesh].vertices[index] = y1
     index = index + 1
-    g_meshes[mesh].vertices[index] = z
+    g_meshes[mesh].vertices[index] = depth
     index = index + 1
     g_meshes[mesh].vertices[index] = r
     index = index + 1
@@ -631,22 +632,22 @@ func append_line(id mesh_id, line mat.v4, color mat.v4, clip mat.v4) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func append_rect(id mesh_id, rect mat.v4, left mat.v4, right mat.v4, bottom mat.v4, top mat.v4, clip mat.v4) () {
+func append_rect(id mesh_id, rect mat.v4, left mat.v4, right mat.v4, bottom mat.v4, top mat.v4, clip mat.v4, depth f32) () {
     uti.assert_(is_valid_mesh(id), "append_rect : invalid id")
     var x0 f32 = rect.x
     var y0 f32 = rect.y
     var x1 f32 = x0 + rect.z
     var y1 f32 = y0 + rect.w
 
-    append_line(id, mat.v4_(x0, y0, x0, y1), left, clip)
-    append_line(id, mat.v4_(x1, y0, x1, y1), right, clip)
-    append_line(id, mat.v4_(x0, y0, x1, y0), bottom, clip)
-    append_line(id, mat.v4_(x0, y1, x1, y1), top, clip)
+    append_line(id, mat.v4_(x0, y0, x0, y1), left, clip, depth)
+    append_line(id, mat.v4_(x1, y0, x1, y1), right, clip, depth)
+    append_line(id, mat.v4_(x0, y0, x1, y0), bottom, clip, depth)
+    append_line(id, mat.v4_(x0, y1, x1, y1), top, clip, depth)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4, clip mat.v4) {
+func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4, clip mat.v4, depth f32) {
     if (clip.z > 0.0 && clip.w > 0.0) {
     uti.assert_(is_valid_mesh(id), "append_quad : invalid id")
 
@@ -735,7 +736,7 @@ func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4, clip mat.v4) 
     index = index + 1
     g_meshes[mesh].vertices[index] = y
     index = index + 1
-    g_meshes[mesh].vertices[index] = 0.0
+    g_meshes[mesh].vertices[index] = depth
     index = index + 1
     g_meshes[mesh].vertices[index] = r
     index = index + 1
@@ -754,7 +755,7 @@ func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4, clip mat.v4) 
     index = index + 1
     g_meshes[mesh].vertices[index] = y
     index = index + 1
-    g_meshes[mesh].vertices[index] = 0.0
+    g_meshes[mesh].vertices[index] = depth
     index = index + 1
     g_meshes[mesh].vertices[index] = r
     index = index + 1
@@ -773,7 +774,7 @@ func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4, clip mat.v4) 
     index = index + 1
     g_meshes[mesh].vertices[index] = y1
     index = index + 1
-    g_meshes[mesh].vertices[index] = 0.0
+    g_meshes[mesh].vertices[index] = depth
     index = index + 1
     g_meshes[mesh].vertices[index] = r
     index = index + 1
@@ -792,7 +793,7 @@ func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4, clip mat.v4) 
     index = index + 1
     g_meshes[mesh].vertices[index] = y1
     index = index + 1
-    g_meshes[mesh].vertices[index] = 0.0
+    g_meshes[mesh].vertices[index] = depth
     index = index + 1
     g_meshes[mesh].vertices[index] = r
     index = index + 1
@@ -811,7 +812,7 @@ func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4, clip mat.v4) 
     index = index + 1
     g_meshes[mesh].vertices[index] = y
     index = index + 1
-    g_meshes[mesh].vertices[index] = 0.0
+    g_meshes[mesh].vertices[index] = depth
     index = index + 1
     g_meshes[mesh].vertices[index] = r
     index = index + 1
@@ -830,7 +831,7 @@ func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4, clip mat.v4) 
     index = index + 1
     g_meshes[mesh].vertices[index] = y1
     index = index + 1
-    g_meshes[mesh].vertices[index] = 0.0
+    g_meshes[mesh].vertices[index] = depth
     index = index + 1
     g_meshes[mesh].vertices[index] = r
     index = index + 1
@@ -844,73 +845,6 @@ func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4, clip mat.v4) 
     index = index + 1
     g_meshes[mesh].vertices[index] = v0
     index = index + 1
-
-
-  /*g_meshes[mesh].vertices[index + 0] = x
-    g_meshes[mesh].vertices[index + 1] = y
-    g_meshes[mesh].vertices[index + 2] = 0.0
-    g_meshes[mesh].vertices[index + 3] = r
-    g_meshes[mesh].vertices[index + 4] = g
-    g_meshes[mesh].vertices[index + 5] = b
-    g_meshes[mesh].vertices[index + 6] = a
-    g_meshes[mesh].vertices[index + 7] = 0.0
-    g_meshes[mesh].vertices[index + 8] = 1.0
-    index = index + 9
-
-    g_meshes[mesh].vertices[index + 0] = x1
-    g_meshes[mesh].vertices[index + 1] = y
-    g_meshes[mesh].vertices[index + 2] = 0.0
-    g_meshes[mesh].vertices[index + 3] = r
-    g_meshes[mesh].vertices[index + 4] = g
-    g_meshes[mesh].vertices[index + 5] = b
-    g_meshes[mesh].vertices[index + 6] = a
-    g_meshes[mesh].vertices[index + 7] = 1.0
-    g_meshes[mesh].vertices[index + 8] = 1.0
-    index = index + 9
-
-    g_meshes[mesh].vertices[index + 0] = x
-    g_meshes[mesh].vertices[index + 1] = y1
-    g_meshes[mesh].vertices[index + 2] = 0.0
-    g_meshes[mesh].vertices[index + 3] = r
-    g_meshes[mesh].vertices[index + 4] = g
-    g_meshes[mesh].vertices[index + 5] = b
-    g_meshes[mesh].vertices[index + 6] = a
-    g_meshes[mesh].vertices[index + 7] = 0.0
-    g_meshes[mesh].vertices[index + 8] = 0.0
-    index = index + 9
-
-    g_meshes[mesh].vertices[index + 0] = x
-    g_meshes[mesh].vertices[index + 1] = y1
-    g_meshes[mesh].vertices[index + 2] = 0.0
-    g_meshes[mesh].vertices[index + 3] = r
-    g_meshes[mesh].vertices[index + 4] = g
-    g_meshes[mesh].vertices[index + 5] = b
-    g_meshes[mesh].vertices[index + 6] = a
-    g_meshes[mesh].vertices[index + 7] = 0.0
-    g_meshes[mesh].vertices[index + 8] = 0.0
-    index = index + 9
-
-    g_meshes[mesh].vertices[index + 0] = x1
-    g_meshes[mesh].vertices[index + 1] = y
-    g_meshes[mesh].vertices[index + 2] = 0.0
-    g_meshes[mesh].vertices[index + 3] = r
-    g_meshes[mesh].vertices[index + 4] = g
-    g_meshes[mesh].vertices[index + 5] = b
-    g_meshes[mesh].vertices[index + 6] = a
-    g_meshes[mesh].vertices[index + 7] = 1.0
-    g_meshes[mesh].vertices[index + 8] = 1.0
-    index = index + 9
-
-    g_meshes[mesh].vertices[index + 0] = x1
-    g_meshes[mesh].vertices[index + 1] = y1
-    g_meshes[mesh].vertices[index + 2] = 0.0
-    g_meshes[mesh].vertices[index + 3] = r
-    g_meshes[mesh].vertices[index + 4] = g
-    g_meshes[mesh].vertices[index + 5] = b
-    g_meshes[mesh].vertices[index + 6] = a
-    g_meshes[mesh].vertices[index + 7] = 1.0
-    g_meshes[mesh].vertices[index + 8] = 0.0
-    index = index + 9*/
 
     g_meshes[mesh].index = index
     }
@@ -1024,27 +958,57 @@ func disable_blending() () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+func depth_test(value bool) {
+    if (value) {
+        enable_depth()
+    } else {
+        disable_depth()
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func depth_func(value i32) {
+    if (g_depthFunc != value) {
+        g_depthFunc = value
+        gl.DepthFunc(value)
+        uti.assert_(no_glerror(), "gl.DepthFunc")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func depth_write(value bool) {
+    if (g_depthMask != value) {
+        g_depthMask = value
+        gl.DepthMask(value)
+        uti.assert_(no_glerror(), "gl.DepthWrite")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func enable_depth() () {
-    if (g_depth == false) {
+    if (g_depthTest == false) {
         gl.Enable(gl.DEPTH_TEST)
         uti.assert_(no_glerror(), "gl.Enable(gl.DEPTH_TEST)")
-        g_depth = true
+        g_depthTest = true
     }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func disable_depth() () {
-    if (g_depth == true) {
+    if (g_depthTest == true) {
         gl.Disable(gl.DEPTH_TEST)
         uti.assert_(no_glerror(), "gl.Disable(gl.DEPTH_TEST)")
-        g_depth = false
+        g_depthTest = false
     }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func clear(buffers i32, color mat.v4) () {
+func clear(buffers i32, color mat.v4, depth f64) () {
     if ((g_clearColor.x != color.x) ||
         (g_clearColor.y != color.y) ||
         (g_clearColor.z != color.z) ||
@@ -1052,6 +1016,10 @@ func clear(buffers i32, color mat.v4) () {
         g_clearColor = color
         gl.ClearColor(g_clearColor.x, g_clearColor.y, g_clearColor.z, g_clearColor.w)
         uti.assert_(no_glerror(), "gl.ClearColor")
+    }
+    if (g_clearDepth != depth) {
+        g_clearDepth = depth
+        gl.ClearDepth(0.0D)
     }
     gl.Clear(buffers)
     uti.assert_(no_glerror(), "gl.Clear")
@@ -1509,12 +1477,11 @@ func create_target(w i32, h i32) (target target_s) {
 
     framebuffer = gl.GenFramebuffers(1, framebuffer)
     uti.assert_(no_glerror(), "gl.GenFramebuffers")
-    printf("FRAMEBUFFER_0 : %d\n", framebuffer)
+
     g_framebuffers = append(g_framebuffers, framebuffer)
     g_framebufferCount = g_framebufferCount + 1 // pre increment not working
 
-    gl.BindFramebuffer(gl.FRAMEBUFFER, framebuffer)
-    uti.assert_(no_glerror(), "gl.BindFramebuffer")
+    bind_framebuffer(framebuffer)
     target.texture = create_texture("", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, w, h)
 
     gl.FramebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, target.texture.name, 0)
@@ -1527,6 +1494,34 @@ func create_target(w i32, h i32) (target target_s) {
     uti.assert_(no_glstatus(), "gl.CheckFramebufferStatus")
 
     target.framebuffer = framebuffer
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_depth_buffer(w i32, h i32) (out i32) {
+    var renderbuffer i32 = -1
+
+    renderbuffer = gl.GenRenderbuffers(1, renderbuffer)
+    uti.assert_(no_glerror(), "gl.GenRenderbuffers")
+
+    gl.BindRenderbuffer(gl.RENDERBUFFER, renderbuffer)
+    uti.assert_(no_glerror(), "gl.BindRenderbuffer")
+
+    gl.RenderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT, w, h)
+    uti.assert_(no_glerror(), "gl.RenderbufferStorage")
+
+    out = renderbuffer
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func bind_depthbuffer(depthbuffer i32, test bool, compare i32, write bool) {
+    gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthbuffer)
+    uti.assert_(no_glerror(), "gl.FramebufferRenderbuffer")
+
+    depth_test(test)
+    depth_func(gl.GEQUAL)
+    depth_write(write)
 }
 
 //-----------------------------------------------------------------------------
@@ -1668,7 +1663,7 @@ os.Open(path)
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func append_text(id mesh_id, texture texture_s, name str, position mat.v2, scale mat.v2, color mat.v4, text str, debug bool, color0 mat.v4, color1 mat.v4, clip mat.v4) {
+func append_text(id mesh_id, texture texture_s, name str, position mat.v2, scale mat.v2, color mat.v4, text str, debug bool, color0 mat.v4, color1 mat.v4, clip mat.v4, depth f32) {
     uti.assert_(is_valid_mesh(id), "append_text : invalid id")
     var index i32 = 0
     var size i32 = 0
@@ -1723,7 +1718,7 @@ func append_text(id mesh_id, texture texture_s, name str, position mat.v2, scale
                     color = color1
                 }
             }
-            append_quad(id, mat.v4_(quadX, quadY, quadAdvance, quadHeight), mat.v4_(qu0, qv0, qu1, qv1),  color, clip)
+            append_quad(id, mat.v4_(quadX, quadY, quadAdvance, quadHeight), mat.v4_(qu0, qv0, qu1, qv1),  color, clip, depth)
             index = index + size
             quadX = quadX + quadAdvance
             dummyIndex = dummyIndex + 1

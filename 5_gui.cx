@@ -23,6 +23,8 @@ var g_fullscreenQuad                gfx.mesh_id
 
 var g_skycoinTexture gfx.texture_s
 
+var g_depthBuffer i32 = -1
+
 //-----------------------------------------------------------------------------
 // GUI
 //-----------------------------------------------------------------------------
@@ -180,11 +182,11 @@ func template_resize(id template_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func template_render(id template_id, clip mat.v4) () {
+func template_render(id template_id, clip mat.v4, stack i32) () {
     uti.assert_(is_valid_template(id), "render_template : invalid id")
     var visible i32 = g_controls[id.base.control].visible
     if (visible > 0) {
-        control_render(id.base, clip)
+        control_render(id.base, clip, stack)
     }
 }*/
 
@@ -602,8 +604,10 @@ var g_focusedLayer layer_id
 var g_selectedLayer layer_id
 var g_borderFocusedLayer layer_id
 var g_stripLayer layer_id
-var g_pageFocusedLayer layer_id
+var g_pageFocusedBack layer_id
+var g_pageFocusedFront layer_id
 var g_binderPageLayer layer_id
+var g_binderLayer layer_id
 
 var g_debugSkin skin_id
 var g_debugRedSkin skin_id
@@ -624,6 +628,7 @@ var g_headerSkin skin_id
 var g_buttonSkin skin_id
 var g_stripSkin skin_id
 var g_binderPageSkin skin_id
+var g_binderSkin skin_id
 
 var textureLogo str = "textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png"
 
@@ -1870,40 +1875,46 @@ func control_redock(id control_id, padding mat.v4) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func render_surface(id mesh_id, bounds mat.v4, color mat.v4, clip mat.v4) () {
+func render_surface(id mesh_id, bounds mat.v4, color mat.v4, clip mat.v4, depth f32) () {
     if (color.w > 0) {
-        gfx.append_quad(id, bounds, mat.v4_(0.0, 0.0, 1.0, 1.0), color, clip)
+        gfx.append_quad(id, bounds, mat.v4_(0.0, 0.0, 1.0, 1.0), color, clip, depth)
     }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func render_border(id mesh_id, bounds mat.v4, left mat.v4, bottom mat.v4, right mat.v4, top mat.v4, clip mat.v4) () {
+func render_border(id mesh_id, bounds mat.v4, left mat.v4, bottom mat.v4, right mat.v4, top mat.v4, clip mat.v4, depth f32) () {
     var x0 f32 = bounds.x
     var y0 f32 = bounds.y
     var x1 f32 = x0 + bounds.z
     var y1 f32 = y0 + bounds.w
 
     if (left.w > 0) {
-        gfx.append_line(id, mat.v4_(x0, y0, x0, y1), left, clip)
+        gfx.append_line(id, mat.v4_(x0, y0, x0, y1), left, clip, depth)
     }
 
     if (bottom.w > 0) {
-        gfx.append_line(id, mat.v4_(x0, y0, x1, y0), bottom, clip)
+        gfx.append_line(id, mat.v4_(x0, y0, x1, y0), bottom, clip, depth)
     }
 
     if (right.w > 0) {
-        gfx.append_line(id, mat.v4_(x1, y0, x1, y1), right, clip)
+        gfx.append_line(id, mat.v4_(x1, y0, x1, y1), right, clip, depth)
     }
 
     if (top.w > 0) {
-        gfx.append_line(id, mat.v4_(x0, y1, x1, y1), top, clip)
+        gfx.append_line(id, mat.v4_(x0, y1, x1, y1), top, clip, depth)
     }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func control_render(id control_id, clip mat.v4) () {
+func compute_depth(stack i32) (out f32) {
+    out = i32.f32(stack) / 100.0
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func control_render(id control_id, clip mat.v4, stack i32) () {
     //control_print("before control_render : ", id, false)
     uti.assert_(is_valid_control(id), "control_render : invalid control index")
 
@@ -1922,46 +1933,65 @@ func control_render(id control_id, clip mat.v4) () {
     var skin skin_id = g_controls[index].skin
     uti.assert_(is_valid_skin(skin) || skin.skin == -1, "control_render : invalid control skin")
     if is_valid_skin(skin) {
-        var backLayer layer_id = g_skins[skin.skin].back
+        var depth f32 = compute_depth(stack)
         var focused i32 = g_controls[index].focused
         var childFocused i32 = g_controls[index].childFocused
         var selected i32 = g_controls[index].selected
         /*if (index == 82) {
             control_print("childFocus : ", id, false)
         }*/
+
+        var backLayer layer_id = g_skins[skin.skin].back
+        var frontLayer layer_id = g_skins[skin.skin].front
         if (focused > 0 || childFocused > 0) {
             var backFocusedLayer layer_id = g_skins[skin.skin].focused_back
             if (is_valid_layer(backFocusedLayer)) {
                 backLayer = backFocusedLayer
             }
+            var frontFocusedLayer layer_id = g_skins[skin.skin].focused_front
+            if (is_valid_layer(frontFocusedLayer)) {
+                frontLayer = frontFocusedLayer
+            }
         } else if (selected > 0) {
-            //control_print("control_render : SELECTED", id, true)
             var backSelectedLayer layer_id = g_skins[skin.skin].selected_back
             if (is_valid_layer(backSelectedLayer)) {
-            //printf("----------------------------------------> SELECTED\n")
                 backLayer = backSelectedLayer
             }
+            var frontSelectedLayer layer_id = g_skins[skin.skin].selected_front
+            if (is_valid_layer(frontSelectedLayer)) {
+                frontLayer = frontSelectedLayer
+            }
         }
+
         uti.assert_(is_valid_layer(backLayer) || backLayer.layer == -1, "control_render : invalid layer skin")
         if is_valid_layer(backLayer) {
-            render_surface(g_opaqueVertexColoredTriangles, renderBounds, g_layers[backLayer.layer].surface, renderClips)
+            render_surface(g_opaqueVertexColoredTriangles, renderBounds, g_layers[backLayer.layer].surface, renderClips, depth)
+            if (id.control == 41) {
+                printf("DEPTH 41 %f\n", depth + 0.01)
+            }
             render_border(g_opaqueVertexColoredLines, renderBounds,
                 g_layers[backLayer.layer].left,
-                g_layers[backLayer.layer].right,
                 g_layers[backLayer.layer].bottom,
-                g_layers[backLayer.layer].top, renderClips)
+                g_layers[backLayer.layer].right,
+                g_layers[backLayer.layer].top,
+                renderClips, depth + 0.01)
         }
-        var frontLayer layer_id = g_skins[skin.skin].front
+
         uti.assert_(is_valid_layer(frontLayer) || frontLayer.layer == -1, "control_render : invalid layer skin")
         if (is_valid_layer(frontLayer)) {
-            render_surface(g_alphaVertexColoredTriangles,renderBounds, g_layers[frontLayer.layer].surface, renderClips)
-            //gfx.append_rect(g_alphaVertexColoredLines, g_controls[index].renderBounds,
-              //  g_layers[backLayer].left,
-               // g_layers[backLayer].right,
-                //g_layers[backLayer].bottom,
-                ///g_layers[backLayer].top)
+            control_print("front layer ", id, false)
+            printf("DEPTH %f\n", depth + 0.11)
+            render_surface(g_opaqueVertexColoredTriangles,renderBounds, g_layers[frontLayer.layer].surface, renderClips, depth + 0.1)
+            render_border(g_opaqueVertexColoredLines, renderBounds,
+                g_layers[frontLayer].left,
+                g_layers[frontLayer].bottom,
+                g_layers[frontLayer].right,
+                g_layers[frontLayer].top,
+                renderClips, depth + 0.11)
         }
     }
+
+    var childStack i32 = stack + 1
 
     var count i32 = g_controls[index].childCount
     for i := 0; i < count; i = i + 1 {
@@ -1977,31 +2007,31 @@ func control_render(id control_id, clip mat.v4) () {
         } else if (guiType == GUI_CONTROL) {
             //control_print(guiIndex, "control_render_child GUI_CONTROL : ")
             uti.assert_(child.control == guiIndex, "unexpected error")
-            control_render(child, renderBounds)
+            control_render(child, renderBounds, childStack)
         } else if (guiType == GUI_SCREEN) {
             uti.assert_(false, "unidd recursive screen")
         } else if (guiType == GUI_PICTURE) {
-            picture_render(picture_id_(child, guiIndex), renderBounds)
+            picture_render(picture_id_(child, guiIndex), renderBounds, childStack)
         } else if (guiType == GUI_LABEL) {
-            label_render(label_id_(child, guiIndex), renderBounds)
+            label_render(label_id_(child, guiIndex), renderBounds, childStack)
         } else if (guiType == GUI_PARTITION) {
-            partition_render(partition_id_(child, guiIndex), renderBounds)
+            partition_render(partition_id_(child, guiIndex), renderBounds, childStack)
         } else if (guiType == GUI_KEYBOARD) {
-            keyboard_render(keyboard_id_(child, guiIndex), renderBounds)
+            keyboard_render(keyboard_id_(child, guiIndex), renderBounds, childStack)
         } else if (guiType == GUI_WINDOW) {
-            window_render(window_id_(child, guiIndex), renderBounds)
+            window_render(window_id_(child, guiIndex), renderBounds, childStack)
         } else if (guiType == GUI_GRAPH) {
-            graph_render(graph_id_(child, guiIndex), renderBounds)
+            graph_render(graph_id_(child, guiIndex), renderBounds, childStack)
         } else if (guiType == GUI_SPLITTER) {
-            splitter_render(splitter_id_(child, guiIndex), renderBounds)
+            splitter_render(splitter_id_(child, guiIndex), renderBounds, childStack)
         } else if (guiType == GUI_LIST) {
-            list_render(list_id_(child, guiIndex), renderBounds)
+            list_render(list_id_(child, guiIndex), renderBounds, childStack)
         } else if (guiType == GUI_SCROLLER) {
-            scroller_render(scroller_id_(child, guiIndex), renderBounds)
+            scroller_render(scroller_id_(child, guiIndex), renderBounds, childStack)
         } else if (guiType == GUI_LIFTER) {
-            lifter_render(lifter_id_(child, guiIndex), renderBounds)
+            lifter_render(lifter_id_(child, guiIndex), renderBounds, childStack)
         } else if (guiType == GUI_BINDER) {
-            binder_render(binder_id_(child, guiIndex), renderBounds)
+            binder_render(binder_id_(child, guiIndex), renderBounds, childStack)
         } else {
             printf("GUI TYPE %d\n", guiType)
             uti.assert_(false, "control_render : unknown gui type")
@@ -2281,7 +2311,7 @@ func render_batches(alpha bool) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func screen_render(id screen_id, clip mat.v4) () {
+func screen_render(id screen_id, clip mat.v4, stack i32) () {
     uti.assert_(is_valid_screen(id), "screen_render : invalid screen")
     gfx.begin_mesh(g_opaqueVertexColoredTriangles)
     gfx.begin_mesh(g_opaqueVertexColoredLines)
@@ -2290,7 +2320,7 @@ func screen_render(id screen_id, clip mat.v4) () {
 
     clip = gfx.push_scissor(g_controls[id.base.control].name, mat.v4_(-1.0, -1.0, 2.0, 2.0))
     //printf("SCREEN CLIP %f, %f, %f, %f\n", clip.x, clip.y, clip.z, clip.w)
-    control_render(id.base, clip)
+    control_render(id.base, clip, stack)
 
     gfx.pop_scissor()
     uti.assert_(gfx.g_scissorCount == 0, "screen_render : invalid scissor stack")
@@ -2513,9 +2543,9 @@ func splitter_resize(id splitter_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func splitter_render(id splitter_id, clip mat.v4) () {
+func splitter_render(id splitter_id, clip mat.v4, stack i32) () {
     uti.assert_(is_valid_splitter(id), "render_splitter : invalid id")
-    control_render(id.base, clip)
+    control_render(id.base, clip, stack)
 
     //control_print("splitter_render : ", id.base, false)
     //var master control_id = g_splitters[id.splitter].master
@@ -2861,10 +2891,10 @@ func label_resize(id label_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func label_render(id label_id, clip mat.v4) () {
+func label_render(id label_id, clip mat.v4, stack i32) () {
     uti.assert_(is_valid_label(id), "label_render : invalid id")
     //control_print("label_render : ", id.base, false)
-    control_render(id.base, clip)
+    control_render(id.base, clip, stack)
 
     var fontId font_id = g_labels[id.label].font
     uti.assert_(is_valid_font(fontId), "label_render : invalid font")
@@ -2888,7 +2918,7 @@ func label_render(id label_id, clip mat.v4) () {
     var renderClips mat.v4 = gfx.push_scissor(g_controls[control].name, renderBounds)
     gfx.append_text(meshId, fontTexture, fontName,
         renderPosition, g_controls[control].scale,
-        mat.v4_(1.0, 1.0, 1.0, 1.0), g_labels[id.label].text, true, g_labels[id.label].color_0, g_labels[id.label].color_1, renderClips)
+        mat.v4_(1.0, 1.0, 1.0, 1.0), g_labels[id.label].text, true, g_labels[id.label].color_0, g_labels[id.label].color_1, renderClips, compute_depth(stack))
     gfx.pop_scissor()
 }
 
@@ -3002,10 +3032,10 @@ func picture_resize(id picture_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func picture_render(id picture_id, clip mat.v4) () {
+func picture_render(id picture_id, clip mat.v4, stack i32) () {
     uti.assert_(is_valid_picture(id), "picture_render : invalid id")
 
-    control_render(id.base, clip)
+    control_render(id.base, clip, stack)
 
     var controlIndex i32 = id.base.control
 
@@ -3048,7 +3078,7 @@ func picture_render(id picture_id, clip mat.v4) () {
         //printf("renderBounds %f, %f, %f, %f\n", renderBounds.x, renderBounds.y, renderBounds.z, renderBounds.w)
         var renderClips mat.v4 = gfx.push_scissor(g_controls[controlIndex].name, renderBounds)
         var meshId gfx.mesh_id = g_batches[batch.batch].mesh
-        gfx.append_quad(meshId, renderBounds, mat.v4_(0.0, 0.0, 1.0, 1.0), color, renderClips)
+        gfx.append_quad(meshId, renderBounds, mat.v4_(0.0, 0.0, 1.0, 1.0), color, renderClips, compute_depth(stack))
         gfx.pop_scissor()
     }
 }
@@ -3210,9 +3240,9 @@ func window_resize(id window_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func window_render(id window_id, clip mat.v4) () {
+func window_render(id window_id, clip mat.v4, stack i32) () {
     uti.assert_(is_valid_window(id), "window_render : invalid id")
-    control_render(id.base, clip)
+    control_render(id.base, clip, stack)
 }
 
 //-----------------------------------------------------------------------------
@@ -3316,9 +3346,9 @@ func keyboard_resize(id keyboard_id) () {
     }
 }*/
 
-func keyboard_render(id keyboard_id, clip mat.v4) () {
+func keyboard_render(id keyboard_id, clip mat.v4, stack i32) () {
     uti.assert_(is_valid_keyboard(id), "keyboard_render : invalid id")
-    control_render(id.base, clip)
+    control_render(id.base, clip, stack)
 }
 
 //-----------------------------------------------------------------------------
@@ -3385,9 +3415,9 @@ func partition_resize(id partition_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func partition_render(id partition_id, clip mat.v4) () {
+func partition_render(id partition_id, clip mat.v4, stack i32) () {
     uti.assert_(is_valid_partition(id), "partition_render : invalid id")
-    control_render(id.base, clip)
+    control_render(id.base, clip, stack)
 }
 
 //-----------------------------------------------------------------------------
@@ -3749,9 +3779,9 @@ func graph_resize(id graph_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func graph_render(id graph_id, clip mat.v4) () {
+func graph_render(id graph_id, clip mat.v4, stack i32) () {
     uti.assert_(is_valid_graph(id), "graph_render : invalid id")
-    control_render(id.base, clip)
+    control_render(id.base, clip, stack)
 
     var controlIndex i32 = id.base.control
     var graphIndex i32 = id.graph
@@ -3770,7 +3800,7 @@ func graph_render(id graph_id, clip mat.v4) () {
     for i = 0; i < horzCount; i = i + 1 {
         var bounds mat.v4 = g_graphs[graphIndex].horz[i].bounds
         var color mat.v4 = g_graphs[graphIndex].horz[i].color
-        gfx.append_line(g_opaqueVertexColoredLines, bounds, color, renderClips)
+        gfx.append_line(g_opaqueVertexColoredLines, bounds, color, renderClips, compute_depth(stack))
     }
 
     var vertCount i32 = g_graphs[graphIndex].vertCount
@@ -3784,7 +3814,7 @@ func graph_render(id graph_id, clip mat.v4) () {
         }*/
 //        printf("II %d, COLOR %f, %f, %f, %f, BOUNDS %f, %f, %f, %f\n",
   //          i, color.x, color.y, color.z, color.w, bounds.x, bounds.y, bounds.z, bounds.w)
-        gfx.append_line(g_opaqueVertexColoredLines, bounds, color, renderClips)
+        gfx.append_line(g_opaqueVertexColoredLines, bounds, color, renderClips, compute_depth(stack))
     }
     gfx.pop_scissor()
     gfx.pop_scissor()
@@ -4259,9 +4289,9 @@ func list_resize(id list_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func list_render(id list_id, clip mat.v4) () {
+func list_render(id list_id, clip mat.v4, stack i32) () {
     uti.assert_(is_valid_list(id), "render_list : invalid id")
-    control_render(id.base, clip)
+    control_render(id.base, clip, stack)
 }
 
 //-----------------------------------------------------------------------------
@@ -4571,9 +4601,9 @@ func lifter_resize(id lifter_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func lifter_render(id lifter_id, clip mat.v4) () {
+func lifter_render(id lifter_id, clip mat.v4, stack i32) () {
     uti.assert_(is_valid_lifter(id), "render_lifter : invalid id")
-    control_render(id.base, clip)
+    control_render(id.base, clip, stack)
 }
 
 //-----------------------------------------------------------------------------
@@ -4797,9 +4827,9 @@ func scroller_resize(id scroller_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func scroller_render(id scroller_id, clip mat.v4) () {
+func scroller_render(id scroller_id, clip mat.v4, stack i32) () {
     uti.assert_(is_valid_scroller(id), "render_scroller : invalid id")
-    control_render(id.base, clip)
+    control_render(id.base, clip, stack)
 }
 
 //-----------------------------------------------------------------------------
@@ -4864,7 +4894,8 @@ func binder_create(name str) (out binder_id) {
 
     var container control_id = control_create("binder.container")
     control_add_child(out.base, container)
-    //control_set_skin(container, g_debugGreenSkin)
+    control_set_skin(container, g_blackSkin)
+    control_set_padding(container, mat.v4_(0.01, 0.01, 0.01, 0.0))
     control_set_dock(container, DOCK_FILL)
     g_binders[g_binderCount].container = container
 
@@ -4939,12 +4970,12 @@ func binder_resize(id binder_id) () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func binder_render(id binder_id, clip mat.v4) () {
+func binder_render(id binder_id, clip mat.v4, stack i32) () {
     uti.assert_(is_valid_binder(id), "render_binder : invalid id")
     //control_print("binder_render : ", id.base, false)
     var visible i32 = g_controls[id.base.control].visible
     if (visible > 0) {
-        control_render(id.base, clip)
+        control_render(id.base, clip, stack)
     }
 }
 
@@ -4962,7 +4993,7 @@ func init() () {
     g_fullscreenQuad = gfx.create_mesh(gl.TRIANGLES, attributes, 6 * 3)
 
     gfx.begin_mesh(g_fullscreenQuad)
-    gfx.append_quad(g_fullscreenQuad, mat.v4_(-1.0, 1.0, 2.0, -2.0), mat.v4_(0.0, 0.0, 1.0, 1.0), gfx.white, mat.v4_(-1.0, -1.0, 2.0, 2.0))
+    gfx.append_quad(g_fullscreenQuad, mat.v4_(-1.0, 1.0, 2.0, -2.0), mat.v4_(0.0, 0.0, 1.0, 1.0), gfx.white, mat.v4_(-1.0, -1.0, 2.0, 2.0), 0.0)
     gfx.end_mesh(g_fullscreenQuad)
 
     // fonts
@@ -4980,52 +5011,59 @@ func init() () {
     font_add_size(g_boldFont, g_fontSizeHeader)
     font_add_size(g_boldFont, g_fontSizeTitle)
 
+    // depth
+    g_depthBuffer = gfx.create_depth_buffer(app.app_width, app.app_height)
+
     // textures
     g_skycoinTexture = gfx.create_texture("textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
 
     // layers
-    g_debugLayer            = layer_create("debug"         , g_red       , g_green     , g_green     , g_green     , g_green )
-    g_debugRedLayer         = layer_create("debugRed"      , g_red       , g_gold      , g_gold      , g_gold      , g_gold  )
-    g_debugGreenLayer       = layer_create("debugGreen"    , g_green     , g_gold      , g_gold      , g_gold      , g_gold  )
-    g_debugBlueLayer        = layer_create("debugBlue"     , g_blue      , g_gold      , g_gold      , g_gold      , g_gold  )
-    g_debugGoldLayer        = layer_create("debugGold"     , g_gold      , g_blue      , g_blue      , g_blue      , g_blue  )
-    g_bootLayer             = layer_create("boot"          , g_black     , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_blackLayer            = layer_create("black"         , g_black     , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
-    g_blackBorderLayer      = layer_create("blackBorder"   , gfx.zero    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
-    g_redLayer              = layer_create("red"           , g_red       , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_greenLayer            = layer_create("green"         , g_green     , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_primaryBlueLayer      = layer_create("primaryBlue"   , g_blue      , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_primaryBlueAlphaLayer = layer_create("primaryBlueA50", g_blue_a50  , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_modalLayer            = layer_create("modal"         , g_black_a50 , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_windowLayer           = layer_create("window"        , g_black     , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
-    g_headerLayer           = layer_create("header"        , g_gray_2    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
-    g_focusedLayer          = layer_create("focused"       , g_blue      , g_light_blue, g_light_blue, g_light_blue, g_light_blue)
-    g_selectedLayer         = layer_create("selected"      , g_darkBlue  , g_blue      , g_blue      , g_blue      , g_blue)
-    g_borderFocusedLayer    = layer_create("borderFocused" , gfx.zero    , g_blue      , g_blue      , g_blue      , g_blue)
-    g_stripLayer            = layer_create("strip"         , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2)
-    g_pageFocusedLayer      = layer_create("pageFocused"   , g_gray_2    , g_gray_3    , gfx.zero    , g_gray_3    , g_gray_3)
-    g_binderPageLayer       = layer_create("binderPage"    , g_gray_1    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
+    g_debugLayer            = layer_create("debug"           , g_red       , g_green     , g_green     , g_green     , g_green )
+    g_debugRedLayer         = layer_create("debugRed"        , g_red       , g_gold      , g_gold      , g_gold      , g_gold  )
+    g_debugGreenLayer       = layer_create("debugGreen"      , g_green     , g_gold      , g_gold      , g_gold      , g_gold  )
+    g_debugBlueLayer        = layer_create("debugBlue"       , g_blue      , g_gold      , g_gold      , g_gold      , g_gold  )
+    g_debugGoldLayer        = layer_create("debugGold"       , g_gold      , g_blue      , g_blue      , g_blue      , g_blue  )
+    g_bootLayer             = layer_create("boot"            , g_black     , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_blackLayer            = layer_create("black"           , g_black     , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
+    g_blackBorderLayer      = layer_create("blackBorder"     , gfx.zero    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
+    g_redLayer              = layer_create("red"             , g_red       , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_greenLayer            = layer_create("green"           , g_green     , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_primaryBlueLayer      = layer_create("primaryBlue"     , g_blue      , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_primaryBlueAlphaLayer = layer_create("primaryBlueA50"  , g_blue_a50  , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_modalLayer            = layer_create("modal"           , g_black_a50 , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_windowLayer           = layer_create("window"          , g_black     , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
+    g_headerLayer           = layer_create("header"          , g_gray_2    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
+    g_focusedLayer          = layer_create("focused"         , g_blue      , g_light_blue, g_light_blue, g_light_blue, g_light_blue)
+    g_selectedLayer         = layer_create("selected"        , g_darkBlue  , g_blue      , g_blue      , g_blue      , g_blue)
+    g_borderFocusedLayer    = layer_create("borderFocused"   , gfx.zero    , g_blue      , g_blue      , g_blue      , g_blue)
+    g_stripLayer            = layer_create("strip"           , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2)
+    g_pageFocusedBack       = layer_create("pageFocusedBack" , g_black     , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_pageFocusedFront      = layer_create("pageFocusedFront", gfx.zero    , g_gray_3    , g_blue      , g_red       , g_green)
+    g_binderPageLayer       = layer_create("binderPage"      , g_gray_1    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
+    g_binderLayer           = layer_create("binder"          , g_black     , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
+
     // controls
-    g_debugSkin           = skin_create("debug"          , g_debugLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
-    g_debugRedSkin        = skin_create("debugRed"       , g_debugRedLayer   , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
-    g_debugGreenSkin      = skin_create("debugGreen"     , g_debugGreenLayer , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
-    g_debugBlueSkin       = skin_create("debugBlue"      , g_debugBlueLayer  , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
-    g_debugGoldSkin       = skin_create("debugGold"      , g_debugGoldLayer  , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
-    g_bootSkin            = skin_create("boot"           , g_bootLayer       , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
-    g_bootSkin            = skin_create("boot"           , g_bootLayer       , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
-    g_blackSkin           = skin_create("black"          , g_blackLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_borderFocusedLayer, invalid_layer(), g_selectedLayer, invalid_layer())
-    g_blackBorderSkin     = skin_create("blackFocused"   , g_blackBorderLayer , invalid_layer()      , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer      , invalid_layer(), g_selectedLayer, invalid_layer())
-    g_blackFocusedSkin    = skin_create("blackFocused"   , g_blackLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer      , invalid_layer(), g_selectedLayer, invalid_layer())
-    g_redSkin             = skin_create("red"            , g_redLayer        , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
-    g_greenSkin           = skin_create("green"          , g_greenLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
-    g_primaryBlueSkin     = skin_create("primaryBlue"    , g_primaryBlueLayer, invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
-    g_primaryBlueAlphaSkin= skin_create("primaryBlueA50" , invalid_layer()  , g_primaryBlueAlphaLayer, invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
-    g_modalSkin           = skin_create("modal"          , g_modalLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
-    g_windowSkin          = skin_create("window"         , g_windowLayer     , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
-    g_headerSkin          = skin_create("header"         , g_headerLayer     , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), g_selectedLayer, invalid_layer())
-    g_buttonSkin          = skin_create("button"         , g_headerLayer     , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer      , invalid_layer(), g_selectedLayer, invalid_layer())
-    g_stripSkin           = skin_create("strip"          , g_stripLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
-    g_binderPageSkin      = skin_create("binderPage"     , g_binderPageLayer , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_pageFocusedLayer  , invalid_layer(), invalid_layer(), invalid_layer())
+    g_debugSkin           = skin_create("debug"          , g_debugLayer      , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer(), invalid_layer())
+    g_debugRedSkin        = skin_create("debugRed"       , g_debugRedLayer   , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer(), invalid_layer())
+    g_debugGreenSkin      = skin_create("debugGreen"     , g_debugGreenLayer , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer(), invalid_layer())
+    g_debugBlueSkin       = skin_create("debugBlue"      , g_debugBlueLayer  , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer(), invalid_layer())
+    g_debugGoldSkin       = skin_create("debugGold"      , g_debugGoldLayer  , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer(), invalid_layer())
+    g_bootSkin            = skin_create("boot"           , g_bootLayer       , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer(), invalid_layer())
+    g_bootSkin            = skin_create("boot"           , g_bootLayer       , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer(), invalid_layer())
+    g_blackSkin           = skin_create("black"          , g_blackLayer      , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_borderFocusedLayer, invalid_layer()   , g_selectedLayer, invalid_layer())
+    g_blackBorderSkin     = skin_create("blackFocused"   , g_blackBorderLayer, invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer      , invalid_layer()   , g_selectedLayer, invalid_layer())
+    g_blackFocusedSkin    = skin_create("blackFocused"   , g_blackLayer      , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer      , invalid_layer()   , g_selectedLayer, invalid_layer())
+    g_redSkin             = skin_create("red"            , g_redLayer        , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer(), invalid_layer())
+    g_greenSkin           = skin_create("green"          , g_greenLayer      , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer(), invalid_layer())
+    g_primaryBlueSkin     = skin_create("primaryBlue"    , g_primaryBlueLayer, invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer(), invalid_layer())
+    g_primaryBlueAlphaSkin= skin_create("primaryBlueA50" , invalid_layer()   , g_primaryBlueAlphaLayer, invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer(), invalid_layer())
+    g_modalSkin           = skin_create("modal"          , g_modalLayer      , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer(), invalid_layer())
+    g_windowSkin          = skin_create("window"         , g_windowLayer     , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer(), invalid_layer())
+    g_headerSkin          = skin_create("header"         , g_headerLayer     , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , g_selectedLayer, invalid_layer())
+    g_buttonSkin          = skin_create("button"         , g_headerLayer     , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer      , invalid_layer()   , g_selectedLayer, invalid_layer())
+    g_stripSkin           = skin_create("strip"          , g_stripLayer      , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer(), invalid_layer())
+    g_binderPageSkin      = skin_create("binderPage"     , g_binderPageLayer , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_pageFocusedBack   , g_pageFocusedFront, invalid_layer(), invalid_layer())
+    g_binderSkin          = skin_create("binder"         , g_binderLayer     , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer(), invalid_layer())
 }
 
 //-----------------------------------------------------------------------------
@@ -5381,23 +5419,23 @@ func render() () {
     var clearColor mat.v4 = g_black
     var target_0 target_s = gfx.lock_target(app.app_width, app.app_height)
     gfx.bind_framebuffer(target_0.framebuffer)
-    gfx.clear(gl.COLOR_BUFFER_BIT, clearColor)
+    gfx.bind_depthbuffer(g_depthBuffer, true, gl.LESS, true)
+    gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, 1.0D)
     if (is_valid_screen(g_currentScreen)) {
-    //printf("----------------------------------------------------------------------------->\n")
-        screen_render(g_currentScreen, clip)
+        screen_render(g_currentScreen, clip, 0)
     }
 
     var target_1 target_s = gfx.lock_target(app.app_width, app.app_height)
     gfx.bind_framebuffer(target_1.framebuffer)
-    gfx.clear(gl.COLOR_BUFFER_BIT, clearColor)
+    gfx.bind_depthbuffer(g_depthBuffer, true, gl.LESS, true)
+    gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, 1.0D)
     if (is_valid_screen(g_nextScreen) && g_nextScreen.screen != g_currentScreen.screen) {
-    //printf("----------------------------------------------------------------------------->\n")
-        screen_render(g_nextScreen, clip)
+        screen_render(g_nextScreen, clip, 0)
     }
 
     var target_2 target_s = gfx.lock_target(app.app_width, app.app_height)
     gfx.bind_framebuffer(target_2.framebuffer)
-    gfx.clear(gl.COLOR_BUFFER_BIT, clearColor)
+    gfx.clear(gl.COLOR_BUFFER_BIT, clearColor, 0.0D)
     gfx.disable_depth()
     gfx.disable_blending()
     gfx.effect_use(gfx.g_fxTrans_0)
@@ -5412,16 +5450,15 @@ func render() () {
     for i = 0; i < g_modalCount; i = i + 1 {
         var target target_s = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target.framebuffer)
-        gfx.clear(gl.COLOR_BUFFER_BIT, clearColor)
+        gfx.bind_depthbuffer(g_depthBuffer, true, gl.LESS, true)
+        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, 1.0D)
         if (is_valid_screen(g_modals[i])) {
-            //control_print("modal : ", g_modals[i].base, false)
-    //printf("----------------------------------------------------------------------------->\n")
-            screen_render(g_modals[i], clip)
+            screen_render(g_modals[i], clip, 0)
         }
 
         var target_3 target_s = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target_3.framebuffer)
-        gfx.clear(gl.COLOR_BUFFER_BIT, clearColor)
+        gfx.clear(gl.COLOR_BUFFER_BIT, clearColor, 0.0D)
         gfx.disable_depth()
         gfx.disable_blending()
         gfx.effect_use(gfx.g_fxTrans_1)
@@ -5436,7 +5473,7 @@ func render() () {
 
     // ##todo fast path if no modals => render in default framebuffer 0
     gfx.bind_framebuffer(0)
-    gfx.clear(gl.COLOR_BUFFER_BIT, g_black)
+    gfx.clear(gl.COLOR_BUFFER_BIT, g_black, 0.0D)
     gfx.disable_depth()
     gfx.disable_blending()
     gfx.effect_use(gfx.g_fxTexture)
