@@ -259,43 +259,85 @@ func main() {
                 gui.control_set_focus_index(right.base, 1)
                 gui.splitter_set_direction(right, gui.SPLIT_BOTTOM)
 
+
                 var rightBottom splitter_id = gui.splitter_create("rightBottom")
                 var rightTop splitter_id = gui.splitter_create("rightTop")
                 gui.splitter_set_controls(right, rightBottom.base, rightTop.base)
-
+                gui.control_set_focus_index(rightTop.base, 0)
+                gui.control_set_focus_index(rightBottom.base, 1)
                 {
-                   //gui.control_add_child(right, rightBottom.base)
                     gui.control_set_size(rightBottom.base, mat.v2_(0.0, 0.5))
                     gui.control_set_dock(rightBottom.base, gui.DOCK_BOTTOM)
                     gui.control_set_spacing(rightBottom.base, mat.v2_(0.0, 0.01))
-                    //gui.control_set_padding(rightBottom.base, mat.v4_(0.0, 0.01, 0.0, 0.0))
                     gui.splitter_set_direction(rightBottom, gui.SPLIT_BOTTOM)
 
                     {
                         var rightBottomPlayControl control_id = gui.control_create("rightBottomPlayCtrl")
-                        //gui.control_add_child(rightBottom, rightBottomPlayControl)
                         gui.control_set_dock(rightBottomPlayControl, gui.DOCK_BOTTOM)
                         gui.control_set_skin(rightBottomPlayControl, gui.g_debugBlueSkin)
                         gui.control_set_size(rightBottomPlayControl, mat.v2_(0.0, 0.2))
 
-                        var rightBottomSplitter splitter_id = gui.splitter_create("rightBottomSplitter")
-                        //gui.control_add_child(rightBottom, rightBottomSplitter.base)
-                        gui.control_set_dock(rightBottomSplitter.base, gui.DOCK_TOP)
-                        gui.control_set_spacing(rightBottomSplitter.base, mat.v2_(0.01, 0.0))
-                        gui.splitter_set_direction(rightBottomSplitter, gui.SPLIT_HORZ)
+                        var orderType binder_id = gui.binder_create("orderType")
+                        gui.control_set_dock(orderType.base, gui.DOCK_TOP)
+                        {
+                            var limitOrder splitter_id = gui.splitter_create("limitOrder")
+                            gui.control_set_dock(limitOrder.base, gui.DOCK_TOP)
+                            gui.control_set_spacing(limitOrder.base, mat.v2_(0.01, 0.0))
+                            gui.splitter_set_direction(limitOrder, gui.SPLIT_HORZ)
 
-                        var bottomLeft control_id = gui.control_create("bottomLeft")
-                        gui.control_set_dock(bottomLeft, gui.DOCK_LEFT)
-                        gui.control_set_skin(bottomLeft, gui.g_debugGreenSkin)
+                            var bottomLeft control_id = gui.control_create("bottomLeft")
+                            gui.control_set_dock(bottomLeft, gui.DOCK_LEFT)
+                            gui.control_set_skin(bottomLeft, gui.g_debugGreenSkin)
 
-                        var bottomRight control_id = gui.control_create("bottomRight")
-                        gui.control_set_dock(bottomRight, gui.DOCK_RIGHT)
-                        gui.control_set_skin(bottomRight, gui.g_debugRedSkin)
+                            var bottomRight control_id = gui.control_create("bottomRight")
+                            gui.control_set_dock(bottomRight, gui.DOCK_RIGHT)
+                            gui.control_set_skin(bottomRight, gui.g_debugRedSkin)
 
-                        gui.splitter_set_controls(rightBottomSplitter, bottomLeft, bottomRight)
+                            gui.splitter_set_controls(limitOrder, bottomLeft, bottomRight)
+    
+                            gui.binder_add_page(orderType, "Limit", gui.g_white, gui.g_fontSizeSmall, limitOrder.base)
+                        }
+
+                        {
+                            var marketOrder splitter_id = gui.splitter_create("marketOrder")
+                            gui.control_set_dock(marketOrder.base, gui.DOCK_TOP)
+                            gui.control_set_spacing(marketOrder.base, mat.v2_(0.01, 0.0))
+                            gui.splitter_set_direction(marketOrder, gui.SPLIT_HORZ)
+
+                            var bottomLeft control_id = gui.control_create("bottomLeft")
+                            gui.control_set_dock(bottomLeft, gui.DOCK_LEFT)
+                            gui.control_set_skin(bottomLeft, gui.g_debugBlueSkin)
+
+                            var bottomRight control_id = gui.control_create("bottomRight")
+                            gui.control_set_dock(bottomRight, gui.DOCK_RIGHT)
+                            gui.control_set_skin(bottomRight, gui.g_debugBlueSkin)
+
+                            gui.splitter_set_controls(marketOrder, bottomLeft, bottomRight)
+    
+                            gui.binder_add_page(orderType, "Market", gui.g_white, gui.g_fontSizeSmall, marketOrder.base)
+                        }
+
+                        {
+                            var stopLimitOrder splitter_id = gui.splitter_create("stopLimitOrder")
+                            gui.control_set_dock(stopLimitOrder.base, gui.DOCK_TOP)
+                            gui.control_set_spacing(stopLimitOrder.base, mat.v2_(0.01, 0.0))
+                            gui.splitter_set_direction(stopLimitOrder, gui.SPLIT_HORZ)
+
+                            var bottomLeft control_id = gui.control_create("bottomLeft")
+                            gui.control_set_dock(bottomLeft, gui.DOCK_LEFT)
+                            gui.control_set_skin(bottomLeft, gui.g_debugGoldSkin)
+
+                            var bottomRight control_id = gui.control_create("bottomRight")
+                            gui.control_set_dock(bottomRight, gui.DOCK_RIGHT)
+                            gui.control_set_skin(bottomRight, gui.g_debugGoldSkin)
+
+                            gui.splitter_set_controls(stopLimitOrder, bottomLeft, bottomRight)
+    
+                            gui.binder_add_page(orderType, "Stop-Limit", gui.g_white, gui.g_fontSizeSmall, stopLimitOrder.base)
+                        }
                     }
 
-                    gui.splitter_set_controls(rightBottom, rightBottomPlayControl, rightBottomSplitter.base)
+                    gui.splitter_set_controls(rightBottom, rightBottomPlayControl, orderType.base)
                 }
 
                 {

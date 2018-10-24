@@ -38,7 +38,8 @@ var GUI_GRAPH       i32 =  8
 var GUI_SPLITTER    i32 =  9
 var GUI_LIST        i32 = 10
 var GUI_SCROLLER    i32 = 11
-var GUI_LIFTER   i32 = 12
+var GUI_LIFTER      i32 = 12
+var GUI_BINDER      i32 = 13
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -128,7 +129,7 @@ func template_id_(base control_id, template i32) (out template_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func invalid_template() () {
+func invalid_template() (out template_id) {
     out.base = invalid_control()
     out.template = -1
 }
@@ -601,6 +602,8 @@ var g_focusedLayer layer_id
 var g_selectedLayer layer_id
 var g_borderFocusedLayer layer_id
 var g_stripLayer layer_id
+var g_pageFocusedLayer layer_id
+var g_binderPageLayer layer_id
 
 var g_debugSkin skin_id
 var g_debugRedSkin skin_id
@@ -620,6 +623,7 @@ var g_windowSkin skin_id
 var g_headerSkin skin_id
 var g_buttonSkin skin_id
 var g_stripSkin skin_id
+var g_binderPageSkin skin_id
 
 var textureLogo str = "textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png"
 
@@ -642,7 +646,7 @@ func alpha(color mat.v4, a f32) (out mat.v4) {
 //-----------------------------------------------------------------------------
 // CONTROL
 //-----------------------------------------------------------------------------
-var g_controls [512]control_s
+var g_controls [1024]control_s
 var g_controlCount i32 = 0
 
 //-----------------------------------------------------------------------------
@@ -892,6 +896,13 @@ func control_set_scale(id control_id, scale v2) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+func control_set_visible(id control_id, visible i32) {
+    uti.assert_(is_valid_control(id), "control_set_visible : invalid id")
+    g_controls[id.control].visible = visible
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func control_add_child(parent control_id, child control_id) {
     uti.assert_(is_valid_control(parent), "control_add_child : invalid parent")
     uti.assert_(is_valid_control(child), "control_add_child : invalid child")
@@ -979,6 +990,8 @@ func control_set_parent_focus(id control_id, child control_id, value i32) {
         } else if (guiType == GUI_SCROLLER) {
             var dummy i32 = 0
         } else if (guiType == GUI_LIFTER) {
+            var dummy i32 = 0
+        } else if (guiType == GUI_BINDER) {
             var dummy i32 = 0
         } else {
             printf("GUI TYPE %d\n", guiType)
@@ -1421,6 +1434,8 @@ func control_measure(id control_id) (width f32, height f32) {
         uti.assert_(false, "not implemented")
     } else if (guiType == GUI_LIFTER) {
         uti.assert_(false, "not implemented")
+    } else if (guiType == GUI_BINDER) {
+        uti.assert_(false, "not implemented")
     } else {
         printf("GUI TYPE %d\n", guiType)
         uti.assert_(false, "control_resize : unknown gui type")
@@ -1507,6 +1522,8 @@ func control_resize_(id control_id, pixelBounds mat.v2, bounds mat.v2, autoBound
             scroller_resize(scroller_id_(child, guiIndex))
         } else if (guiType == GUI_LIFTER) {
             lifter_resize(lifter_id_(child, guiIndex))
+        } else if (guiType == GUI_BINDER) {
+            binder_resize(binder_id_(child, guiIndex))
         } else {
             printf("GUI TYPE %d\n", guiType)
             uti.assert_(false, "control_resize : unknown gui type")
@@ -1810,6 +1827,8 @@ func control_redock(id control_id, padding mat.v4) () {
             control_redock(control_id_(childControl), parentPadding)
         } else if (guiType == GUI_LIFTER) {
             control_redock(control_id_(childControl), parentPadding)
+        } else if (guiType == GUI_BINDER) {
+            control_redock(control_id_(childControl), parentPadding)
         } else {
             //control_print("control_redock parent : ", id, false)
             //control_print("control_redock child : ", child, false)
@@ -1981,6 +2000,8 @@ func control_render(id control_id, clip mat.v4) () {
             scroller_render(scroller_id_(child, guiIndex), renderBounds)
         } else if (guiType == GUI_LIFTER) {
             lifter_render(lifter_id_(child, guiIndex), renderBounds)
+        } else if (guiType == GUI_BINDER) {
+            binder_render(binder_id_(child, guiIndex), renderBounds)
         } else {
             printf("GUI TYPE %d\n", guiType)
             uti.assert_(false, "control_render : unknown gui type")
@@ -4781,6 +4802,152 @@ func scroller_render(id scroller_id, clip mat.v4) () {
     control_render(id.base, clip)
 }
 
+//-----------------------------------------------------------------------------
+// BINDER
+//-----------------------------------------------------------------------------
+type binder_id struct {
+    base control_id
+    binder i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type binder_s struct {
+    id binder_id
+    header control_id
+    container control_id
+    selected i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func binder_id_(base control_id, binder i32) (out binder_id) {
+    uti.assert_(g_binderCount < len(g_binders), "binder_create : overflow") // ##1 use slice
+    out.base = base
+    out.binder = binder
+    uti.assert_(is_valid_binder(out), "binder_id_: invalid id")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func invalid_binder() (out binder_id) {
+    out.base = invalid_control()
+    out.binder = -1
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_binder(id binder_id) (out bool) {
+    out = id.binder >= 0 && id.binder < g_binderCount && is_valid_control(id.base)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var g_binders[8] binder_s
+var g_binderCount i32
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func binder_create(name str) (out binder_id) {
+    out.binder = g_binderCount
+    out.base = control_create_(name, GUI_BINDER, g_binderCount)
+
+    var binder binder_s
+    g_binders[g_binderCount].id = out
+
+    var header control_id = control_create("binder.header")
+    control_add_child(out.base, header)
+    control_set_dock(header, DOCK_TOP)
+    //control_set_skin(header, g_debugRedSkin)
+    control_set_size(header, mat.v2_(0.0, 0.08))
+    g_binders[g_binderCount].header = header
+
+    var container control_id = control_create("binder.container")
+    control_add_child(out.base, container)
+    //control_set_skin(container, g_debugGreenSkin)
+    control_set_dock(container, DOCK_FILL)
+    g_binders[g_binderCount].container = container
+
+    g_binders[g_binderCount].selected = -1
+
+    g_binderCount = g_binderCount + 1
+    uti.assert_(is_valid_binder(out), "create_binder : invalid id")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func binder_add_page(id binder_id, name str, color mat.v4, size i32, control control_id) {
+    uti.assert_(is_valid_binder(id), "binder_add_page : invalid id")
+    var header control_id = g_binders[id.binder].header
+    var pageCount i32 = g_controls[header.control].childCount
+
+    var page label_id = label_create(sprintf("binder.page_%d", pageCount))
+    control_add_child(header, page.base)
+    control_set_dock(page.base, DOCK_LEFT)
+    control_set_autosize(page.base, AUTOSIZE_X)
+    control_set_skin(page.base, g_binderPageSkin)
+    control_set_padding(page.base, mat.v4_(0.01, 0.0, 0.01, 0.0))
+    control_set_focusable(page.base, 1)
+    label_set_font(page, g_boldFont)
+    label_set_text(page, name)
+    label_set_size(page, size)
+    label_set_color(page, color)
+    label_set_align(page, ALIGN_CENTER)
+
+    var container control_id = g_binders[id.binder].container
+    control_add_child(container, control)
+    control_set_dock(control, DOCK_FILL)
+    control_set_visible(control, 0)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func binder_process_event(id binder_id, event *event_s) (out i32) {
+    uti.assert_(is_valid_binder(id), "binder_process_event : invalid id")
+    var visible i32 = g_controls[id.base.control].visible
+    if (visible > 0) {
+        out = control_process_event(id.base, event)
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func binder_resize(id binder_id) () {
+    uti.assert_(is_valid_binder(id), "resize_binder : invalid id")
+    var visible i32 = g_controls[id.base.control].visible
+    if (visible > 0) {
+        control_resize(id.base)
+
+        var header control_id = g_binders[id.binder].header
+        var container control_id = g_binders[id.binder].container
+
+        var pageCount i32 = g_controls[header.control].childCount
+
+        var i i32 = 0
+        for i = 0; i < pageCount; i = i + 1 {
+            var child control_id = g_controls[header.control].children[i]
+            var page control_id = g_controls[container.control].children[i]
+            var childFocused i32 = control_focused(child)
+            if (childFocused > 0) {
+                control_set_visible(page, 1)
+            } else {
+                control_set_visible(page, 0)
+            }
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func binder_render(id binder_id, clip mat.v4) () {
+    uti.assert_(is_valid_binder(id), "render_binder : invalid id")
+    //control_print("binder_render : ", id.base, false)
+    var visible i32 = g_controls[id.base.control].visible
+    if (visible > 0) {
+        control_render(id.base, clip)
+    }
+}
+
 
 //-----------------------------------------------------------------------------
 // GUI
@@ -4835,8 +5002,9 @@ func init() () {
     g_focusedLayer          = layer_create("focused"       , g_blue      , g_light_blue, g_light_blue, g_light_blue, g_light_blue)
     g_selectedLayer         = layer_create("selected"      , g_darkBlue  , g_blue      , g_blue      , g_blue      , g_blue)
     g_borderFocusedLayer    = layer_create("borderFocused" , gfx.zero    , g_blue      , g_blue      , g_blue      , g_blue)
-    g_stripLayer            = layer_create("strip"         , g_gray_1    , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2)
-
+    g_stripLayer            = layer_create("strip"         , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2)
+    g_pageFocusedLayer      = layer_create("pageFocused"   , g_gray_2    , g_gray_3    , gfx.zero    , g_gray_3    , g_gray_3)
+    g_binderPageLayer       = layer_create("binderPage"    , g_gray_1    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
     // controls
     g_debugSkin           = skin_create("debug"          , g_debugLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
     g_debugRedSkin        = skin_create("debugRed"       , g_debugRedLayer   , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
@@ -4857,8 +5025,7 @@ func init() () {
     g_headerSkin          = skin_create("header"         , g_headerLayer     , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), g_selectedLayer, invalid_layer())
     g_buttonSkin          = skin_create("button"         , g_headerLayer     , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer      , invalid_layer(), g_selectedLayer, invalid_layer())
     g_stripSkin           = skin_create("strip"          , g_stripLayer      , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer(), invalid_layer(), invalid_layer())
-
-    printf("C5\n")
+    g_binderPageSkin      = skin_create("binderPage"     , g_binderPageLayer , invalid_layer()       , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_pageFocusedLayer  , invalid_layer(), invalid_layer(), invalid_layer())
 }
 
 //-----------------------------------------------------------------------------
@@ -5024,6 +5191,8 @@ func control_process_event(id control_id, event *event_s) (out i32) {
             out = scroller_process_event(scroller_id_(child, guiIndex), event)
         } else if (guiType == GUI_LIFTER) {
             out = lifter_process_event(lifter_id_(child, guiIndex), event)
+        } else if (guiType == GUI_BINDER) {
+            out = binder_process_event(binder_id_(child, guiIndex), event)
         } else {
             printf("GUI TYPE %d\n", guiType)
             uti.assert_(false, "control_process_event : unknown gui type")
