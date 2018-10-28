@@ -23,7 +23,9 @@ var g_fullscreenQuad                gfx.mesh_id
 
 var g_skycoinTexture gfx.texture_s
 
-var g_depthBuffer i32 = -1
+var g_depthBuffer_0 i32 = -1
+var g_depthBuffer_1 i32 = -1
+var g_depthBuffer_2 i32 = -1
 
 //-----------------------------------------------------------------------------
 // GUI
@@ -1966,9 +1968,9 @@ func control_render(id control_id, clip mat.v4, stack i32) () {
         uti.assert_(is_valid_layer(backLayer) || backLayer.layer == -1, "control_render : invalid layer skin")
         if is_valid_layer(backLayer) {
             render_surface(g_opaqueVertexColoredTriangles, renderBounds, g_layers[backLayer.layer].surface, renderClips, depth)
-            if (id.control == 41) {
+            /*if (id.control == 41) {
                 printf("DEPTH 41 %f\n", depth + 0.01)
-            }
+            }*/
             render_border(g_opaqueVertexColoredLines, renderBounds,
                 g_layers[backLayer.layer].left,
                 g_layers[backLayer.layer].bottom,
@@ -1979,8 +1981,8 @@ func control_render(id control_id, clip mat.v4, stack i32) () {
 
         uti.assert_(is_valid_layer(frontLayer) || frontLayer.layer == -1, "control_render : invalid layer skin")
         if (is_valid_layer(frontLayer)) {
-            control_print("front layer ", id, false)
-            printf("DEPTH %f\n", depth + 0.11)
+            //control_print("front layer ", id, false)
+            //printf("DEPTH %f\n", depth + 0.11)
             render_surface(g_opaqueVertexColoredTriangles,renderBounds, g_layers[frontLayer.layer].surface, renderClips, depth + 0.1)
             render_border(g_opaqueVertexColoredLines, renderBounds,
                 g_layers[frontLayer].left,
@@ -5012,8 +5014,9 @@ func init() () {
     font_add_size(g_boldFont, g_fontSizeTitle)
 
     // depth
-    g_depthBuffer = gfx.create_depth_buffer(app.app_width, app.app_height)
-
+    g_depthBuffer_0 = gfx.create_depth_buffer(app.app_width, app.app_height)
+    g_depthBuffer_1 = gfx.create_depth_buffer(app.app_width, app.app_height)
+    g_depthBuffer_2 = gfx.create_depth_buffer(app.app_width, app.app_height)
     // textures
     g_skycoinTexture = gfx.create_texture("textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
 
@@ -5038,7 +5041,7 @@ func init() () {
     g_borderFocusedLayer    = layer_create("borderFocused"   , gfx.zero    , g_blue      , g_blue      , g_blue      , g_blue)
     g_stripLayer            = layer_create("strip"           , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2)
     g_pageFocusedBack       = layer_create("pageFocusedBack" , g_black     , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_pageFocusedFront      = layer_create("pageFocusedFront", gfx.zero    , g_gray_3    , g_blue      , g_red       , g_green)
+    g_pageFocusedFront      = layer_create("pageFocusedFront", gfx.zero    , g_gray_3    , g_black     , g_gray_3    , g_gray_3)
     g_binderPageLayer       = layer_create("binderPage"      , g_gray_1    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
     g_binderLayer           = layer_create("binder"          , g_black     , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
 
@@ -5415,20 +5418,25 @@ func resize() () {
 func render() () {
 
     var clip mat.v4 = mat.v4_(-1.0, -1.0, 2.0, 2.0)
+    var depthTest bool = true
+    var depthFunc i32 = gl.GEQUAL
+    var depthClear f64 = -1.0D
+    var depthWrite bool = true
+
     //var clearColor mat.v4 = mat.v4_(1.0, 0.0, 1.0, 1.0)
     var clearColor mat.v4 = g_black
     var target_0 target_s = gfx.lock_target(app.app_width, app.app_height)
     gfx.bind_framebuffer(target_0.framebuffer)
-    gfx.bind_depthbuffer(g_depthBuffer, true, gl.LESS, true)
-    gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, 1.0D)
+    gfx.bind_depthbuffer(g_depthBuffer_0, depthTest, depthFunc, depthWrite)
+    gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, depthClear)
     if (is_valid_screen(g_currentScreen)) {
         screen_render(g_currentScreen, clip, 0)
     }
 
     var target_1 target_s = gfx.lock_target(app.app_width, app.app_height)
     gfx.bind_framebuffer(target_1.framebuffer)
-    gfx.bind_depthbuffer(g_depthBuffer, true, gl.LESS, true)
-    gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, 1.0D)
+    gfx.bind_depthbuffer(g_depthBuffer_1, depthTest, depthFunc, depthWrite)
+    gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, depthClear)
     if (is_valid_screen(g_nextScreen) && g_nextScreen.screen != g_currentScreen.screen) {
         screen_render(g_nextScreen, clip, 0)
     }
@@ -5450,8 +5458,8 @@ func render() () {
     for i = 0; i < g_modalCount; i = i + 1 {
         var target target_s = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target.framebuffer)
-        gfx.bind_depthbuffer(g_depthBuffer, true, gl.LESS, true)
-        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, 1.0D)
+        gfx.bind_depthbuffer(g_depthBuffer_2, depthTest, depthFunc, depthWrite)
+        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, depthClear)
         if (is_valid_screen(g_modals[i])) {
             screen_render(g_modals[i], clip, 0)
         }

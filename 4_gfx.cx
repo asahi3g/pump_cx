@@ -1066,7 +1066,7 @@ func init(width i32, height i32)() {
     out vec2 v_v2Texcoord;
     void main()
     {
-        gl_Position = vec4(i_v3Position.rg, 0.0, 1);
+        gl_Position = vec4(i_v3Position, 1);
         v_v4Albedo = i_v4Albedo;
         v_v2Texcoord = i_v2Texcoord;
     }`, "vsPassThrough")
@@ -1520,7 +1520,7 @@ func bind_depthbuffer(depthbuffer i32, test bool, compare i32, write bool) {
     uti.assert_(no_glerror(), "gl.FramebufferRenderbuffer")
 
     depth_test(test)
-    depth_func(gl.GEQUAL)
+    depth_func(compare)
     depth_write(write)
 }
 

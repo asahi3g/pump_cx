@@ -6,20 +6,12 @@ package app
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 import "glfw"
-import "gui"
-// ##1 remove when callbacks moved to gui
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 var app_width i32 = 800
 var app_height i32 = 600
 var app_exit bool = false
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-func __process_keyboard(window str, key i32, scancode i32, action i32, mods i32) () { // ##1 move in gui when we can callback from another package than the calling expression
-    gui.process_keyboard(window, key, scancode, action, mods)
-}
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -42,7 +34,7 @@ func init(window str, name str, width i32, height i32, targetFps f64, major i32,
         swapInterval = 1 // should be based on targetFps
     }
     glfw.SwapInterval(swapInterval)
-    glfw.SetKeyCallback(window, "__process_keyboard")
+    glfw.SetKeyCallback(window, "process_keyboard", "gui")
     // xPos, yPos := glfw.GetCursorPos("window")
     // glfw.SetMouseButtonCallback("window", "mouseButton") --> Doesn't work yet
 }
