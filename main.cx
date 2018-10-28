@@ -253,7 +253,7 @@ func main() {
             {
                 var right splitter_id = gui.splitter_create("right")
                 gui.control_add_child(panel, right.base)
-                gui.control_set_size(right.base, mat.v2_(0.88, 0.0))
+                gui.control_set_size(right.base, mat.v2_(1.0, 0.0))
                 gui.control_set_dock(right.base, gui.DOCK_RIGHT)
                 gui.control_set_spacing(right.base, mat.v2_(0.0, 0.01))
                 gui.control_set_focus_index(right.base, 1)
