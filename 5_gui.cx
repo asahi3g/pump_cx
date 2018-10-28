@@ -1656,7 +1656,9 @@ func align_control(id control_id, align i32, posx f32, posy f32, width f32, heig
     } else if (align == ALIGN_RIGHT) {
         x = contX + contW - width - padding.z
         y = contY + (contH - height) / 2.0
-        //uti.assert_(false, "ALIGN_RIGHT not implemented")
+        /*if (id.control == 153) {
+            printf("ALIGN_CONTROL CONTX %f, CONTY %f, CONTW %f, CONTH %f, WIDTH %f, HEIGHT %f OFFSET X %f, OFFSET Y %f\n", contX, contY, contW, contH, width, height, x, y)
+        }*/
     } else if (align == ALIGN_BOTTOM) {
         uti.assert_(false, "ALIGN_BOTTOM not implemented")
     } else if (align == ALIGN_TOP) {
@@ -1713,7 +1715,9 @@ func control_redock(id control_id, padding mat.v4) () {
         h = g_dock.top - g_dock.bottom - paddingY
         y = g_dock.bottom + paddingBottom
         //uti.assert_(autosize == AUTOSIZE_NONE, "control_redock : DOCK_FILL is not compatible with AUTOSIZE")
-        //control_print("DOCK_FILL : ", id, false)
+        /*if (index == 153) {
+        control_print("DOCK_FILL : ", id, false)
+        }*/
     } else if (dock == DOCK_LEFT) {
         x = g_dock.left + paddingLeft
         w = size.x
@@ -1766,13 +1770,13 @@ func control_redock(id control_id, padding mat.v4) () {
     var contW f32 = g_offset.width//g_dock.right - g_dock.left//g_offset.width
     var contH f32 = g_offset.height//g_dock.top - g_dock.bottom//g_offset.height
 
-    //control_print("befor align : ", id, false)
-    /*if (index == 50) {
+    /*if (index == 153) {
+    control_print("befor align : ", id, false)
     printf("redock %f, %f\n", x, y)
     }*/
     x, y = align_control(id, align, x, y, size.x, size.y, contX, contY, contW, contH, padding)
-    //control_print("after align : ", id, false)
-    /*if (index == 50) {
+    /*if (index == 153) {
+    control_print("after align : ", id, false)
     printf("redock %f, %f\n", x, y)
     }*/
     push_scope()
@@ -4178,16 +4182,14 @@ func list_resize(id list_id) () {
     var lineCount i32 = g_controls[linesIndex].childCount
     var i i32 = 0
 
+    var containerWidth f32 = g_controls[scrollerContainer].size.x
+    var lineWidth f32 = 0.0
     for i = 0; i < columnCount; i = i + 1 {
     var maxWidth f32 = 0.0
         var column control_id = g_controls[headerIndex].children[i]
         //control_print("list_resize : column ", column, false)
         var columnIndex i32 = column.control
         g_controls[column.control].selected = 0
-
-        if ((i + 1) == columnCount) {
-            control_set_dock(column, DOCK_FILL)
-        }
 
         var width f32
         var height f32
@@ -4211,6 +4213,11 @@ func list_resize(id list_id) () {
         }
         //printf("MAX_WIDTH %f\n", maxWidth)
         g_controls[columnIndex].size.x = maxWidth
+        if ((i + 1) == columnCount) {
+            control_set_dock(column, DOCK_FILL)
+            g_controls[columnIndex].size.x = containerWidth - lineWidth
+        }
+
         //control_print("column : ", column, false)
         for k = 0; k < lineCount; k = k + 1 {
             var line control_id = g_controls[linesIndex].children[k]
@@ -4230,6 +4237,7 @@ func list_resize(id list_id) () {
             g_controls[lineIndex].selected = 0
             if ((i + 1) == columnCount) {
                 control_set_dock(item, DOCK_FILL)
+                g_controls[itemIndex].size.x = containerWidth - lineWidth
             }
 
             /*var focusedItem i32 = g_controls[itemIndex].focused
@@ -4239,6 +4247,7 @@ func list_resize(id list_id) () {
             }*/
             //control_print("item : ", item, false)
         }
+        lineWidth = lineWidth + maxWidth
     }
 
     if (lineCount > 0 && columnCount > 0) {
@@ -4278,8 +4287,11 @@ func list_resize(id list_id) () {
         //g_controls[selectedItemId.control].selected = 1
     }
 
-    g_controls[linesIndex].size.x = g_controls[scrollerContainer].size.x
-    control_resize(id.base)
+    g_controls[linesIndex].size.x = containerWidth
+
+    {
+        control_resize(id.base)
+    }
 
 
     var focusedLine control_id = invalid_control()
@@ -4326,6 +4338,7 @@ type lifter_s struct {
     carret control_id
     direction i32
     offset f32
+    size f32
 }
 
 //-----------------------------------------------------------------------------
@@ -4352,6 +4365,13 @@ func invalid_lifter() (out lifter_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+func lifter_set_size(id lifter_id, value f32) {
+    uti.assert_(is_valid_lifter(id), "lifter_set_size : invalid id")
+    g_lifters[id.lifter].size = value
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 var g_lifters[8] lifter_s
 var g_lifterCount i32
 
@@ -4368,9 +4388,10 @@ func lifter_create(name str) (out lifter_id) {
 
     var carret control_id = control_create("carret")
     g_lifters[g_lifterCount].carret = carret
+
     control_add_child(out.base, carret)
     //control_set_dock(carret, DOCK_TOP)
-    control_set_size(carret, mat.v2_(0.038, 0.038 * gfx.gfx_ratio_y))
+    //control_set_size(carret, mat.v2_(0.03, 0.03 * gfx.gfx_ratio_y))
     control_set_skin(carret, g_buttonSkin)
     control_set_focusable(carret, 1)
 
@@ -4425,7 +4446,6 @@ func lifter_process_event(id lifter_id, event *event_s) (out i32) {
                         }
                     }
                     lifter_set_offset(id, offset)
-                    g_controls[carret.control].size = mat.v2_(0.038, 0.038 * gfx.gfx_ratio_y)
                 }
             }
         }
@@ -4536,7 +4556,6 @@ func lifter_get_max_offset(id lifter_id) (out f32) {
 //-----------------------------------------------------------------------------
 func lifter_resize(id lifter_id) () {
     uti.assert_(is_valid_lifter(id), "resize_lifter : invalid id")
-    control_resize(id.base)
 
     var lifterIndex i32 = id.lifter
     var direction i32 = g_lifters[lifterIndex].direction
@@ -4546,6 +4565,12 @@ func lifter_resize(id lifter_id) () {
 
     var carret control_id = g_lifters[lifterIndex].carret
     var carretIndex i32 = carret.control
+
+    var lifterSize f32 = g_lifters[id.lifter].size
+
+    {
+        control_resize(id.base)
+    }
 
     var offset f32 = lifter_get_offset(id)
     var maxAmount f32 = lifter_get_max_amount(id)
@@ -4560,6 +4585,7 @@ func lifter_resize(id lifter_id) () {
 
     if (direction == LIFT_HORZ) {
         g_controls[carret.control].position.x = offset
+        g_controls[carretIndex].size.y = lifterSize * gfx.gfx_ratio_y
     } else if (direction == LIFT_VERT) {
         var centerH f32 = g_controls[id.base.control].size.y
         var carretH f32 = g_controls[carret.control].size.y
@@ -4567,6 +4593,7 @@ func lifter_resize(id lifter_id) () {
         var offsetY f32 = centerH - carretH - offset
         //printf("REOFFSET %f, %f, %f, %f\n", offset, carretH, centerH, offsetY)
         g_controls[carret.control].position.y = offsetY
+        g_controls[carretIndex].size.x = lifterSize
     } else {
         uti.assert_(false, "lifter_resize : unknown direction")
     }
@@ -4637,16 +4664,19 @@ func scroller_create(name str) (out scroller_id) {
     out.scroller = g_scrollerCount
     out.base = control_create_(name, GUI_SCROLLER, g_scrollerCount)
 
+    var lifterSize f32 = 0.028
+
     var scroller scroller_s
     g_scrollers[g_scrollerCount].id = out
 
     var vlift lifter_id = lifter_create("vlift")
     control_add_child(out.base, vlift.base)
-    control_set_size(vlift.base, mat.v2_(0.038, 0.0))
+    control_set_size(vlift.base, mat.v2_(0.03, 0.0))
     control_set_dock(vlift.base, DOCK_RIGHT)
     control_set_focus_index(vlift.base, 1)
     //control_set_skin(vlift.base, g_debugBlueSkin)
     lifter_set_direction(vlift, LIFT_VERT)
+    lifter_set_size(vlift, lifterSize)
     g_scrollers[g_scrollerCount].vlift = vlift
 
     var panel control_id = control_create("panel")
@@ -4657,11 +4687,12 @@ func scroller_create(name str) (out scroller_id) {
 
     var hlift lifter_id = lifter_create("hlift")
     control_add_child(panel, hlift.base)
-    control_set_size(hlift.base, mat.v2_(0.0, 0.038 * gfx.gfx_ratio_y))
+    control_set_size(hlift.base, mat.v2_(0.0, 0.03 * gfx.gfx_ratio_y))
     control_set_dock(hlift.base, DOCK_BOTTOM)
     control_set_focus_index(hlift.base, 1)
     //control_set_skin(hlift.base, g_greenSkin)
     lifter_set_direction(hlift, LIFT_HORZ)
+    lifter_set_size(hlift, lifterSize)
     g_scrollers[g_scrollerCount].hlift = hlift
 
     var container control_id = control_create("container")
