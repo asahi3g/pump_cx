@@ -46,8 +46,8 @@ var g_clearDepth f64
 
 var gfx_width f32 = 0.0
 var gfx_height f32 = 0.0
-var gfx_viewport mat.v2 = mat.v2_zero
-
+var gfx_viewport_size mat.v2 = mat.v2_zero
+var gfx_viewport_bounds mat.v4 = mat.v4_zero
 var gfx_ratio_x f32 = 1.0
 var gfx_ratio_y  f32 = 1.0
 var red mat.v4
@@ -587,6 +587,11 @@ func append_line(id mesh_id, line mat.v4, color mat.v4, clip mat.v4, depth f32) 
     v1 = v0 + dv * nh / h
     */
 
+    x0 = 2.0 * x0 / gfx_width - 1.0
+    y0 = 2.0 * y0 / gfx_height - 1.0
+    x1 = 2.0 * x1 / gfx_width - 1.0
+    y1 = 2.0 * y1 / gfx_height - 1.0
+    
     g_meshes[mesh].vertices[index] = x0
     index = index + 1
     g_meshes[mesh].vertices[index] = y0
@@ -731,6 +736,11 @@ func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4, clip mat.v4, 
   //  v0 = vv1 - dv * nh / h
 
   //  printf("new bounds : %f, %f, %f, %f, %f, %f, uv %f, %f, %f, %f\n", x, y, nw, nh, x1, y1, u0, v0, u1, v1)
+
+    x = 2.0 * i32.f32(f32.i32(x)) / gfx_width - 1.0
+    y = 2.0 * i32.f32(f32.i32(y)) / gfx_height - 1.0
+    x1 = 2.0 * i32.f32(f32.i32(x1)) / gfx_width - 1.0
+    y1 = 2.0 * i32.f32(f32.i32(y1)) / gfx_height - 1.0
 
     g_meshes[mesh].vertices[index] = x
     index = index + 1
@@ -1031,7 +1041,8 @@ func init(width i32, height i32)() {
 
     gfx_width = i32.f32(width)
     gfx_height = i32.f32(height)
-    gfx_viewport = mat.v2_(gfx_width, gfx_height)
+    gfx_viewport_size = mat.v2_(gfx_width, gfx_height)
+    gfx_viewport_bounds = mat.v4_(0.0, 0.0, gfx_width, gfx_height)
 
     gfx_ratio_y = gfx_width / gfx_height
     gfx_ratio_x = gfx_height / gfx_width
@@ -1157,8 +1168,7 @@ func init(width i32, height i32)() {
     gl.ClearColor(g_clearColor.x, g_clearColor.y, g_clearColor.z, g_clearColor.w)
     uti.assert_(no_glerror(), "gl.ClearColor")
 
-    set_viewport(mat.v4_(0.0, 0.0, 2.0, 2.0))
-    //push_scissor(mat.v4_(0.0, 0.0, 2.0, 2.0))
+    set_viewport(gfx_viewport_bounds)
 
     //-----------------------------------------------------------------------------
     //-----------------------------------------------------------------------------
@@ -1244,10 +1254,10 @@ func free()() {
 //-----------------------------------------------------------------------------
 func set_viewport(bounds mat.v4) {
 
-    var x i32 = f32.i32(bounds.x * gfx_width / 2.0)
-    var y i32 = f32.i32(bounds.y * gfx_height / 2.0)
-    var width i32 = f32.i32(bounds.z * gfx_width / 2.0)
-    var height i32 = f32.i32(bounds.w * gfx_height / 2.0)
+    var x i32 = f32.i32(bounds.x)
+    var y i32 = f32.i32(bounds.y)
+    var width i32 = f32.i32(bounds.z)
+    var height i32 = f32.i32(bounds.w)
 
     if (gfx_viewportX != x ||
         gfx_viewportY != y ||
@@ -1273,10 +1283,10 @@ func set_scissor(bounds mat.v4) {
         uti.assert_(no_glerror(), "gl.Scissor")
     }
 
-    var x i32 = f32.i32(bounds.x * gfx_width / 2.0)
-    var y i32 = f32.i32(bounds.y * gfx_height / 2.0)
-    var width i32 = f32.i32(bounds.z * gfx_width / 2.0)
-    var height i32 = f32.i32(bounds.w * gfx_height / 2.0)
+    var x i32 = f32.i32(bounds.x)
+    var y i32 = f32.i32(bounds.y)
+    var width i32 = f32.i32(bounds.z)
+    var height i32 = f32.i32(bounds.w)
 
     if (gfx_scissorX != x ||
         gfx_scissorY != y ||
@@ -1663,24 +1673,28 @@ os.Open(path)
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+var g_debugMesh mesh_id
+
 func append_text(id mesh_id, texture texture_s, name str, position mat.v2, scale mat.v2, color mat.v4, text str, debug bool, color0 mat.v4, color1 mat.v4, clip mat.v4, depth f32) {
     uti.assert_(is_valid_mesh(id), "append_text : invalid id")
     var index i32 = 0
     var size i32 = 0
 
-    //var maxGlyphWidth i32 = 0;
-    //var maxGlyphHeight i32 = 0;
-    //maxGlyphWidth, maxGlyphHeight = gltext.GlyphBounds(name)
+    var maxGlyphW i32 = 0;
+    var maxGlyphH i32 = 0;
+    maxGlyphW, maxGlyphH = gltext.GlyphBounds(name)
+    var maxGlyphWidth f32 = scale.x * i32.f32(maxGlyphW)
+    var maxGlyphHeight f32 = scale.y * i32.f32(maxGlyphH)
 
-    //var textW i32
-    //var textH i32
-    //textW, textH := measure_text(name, text)
+    var textW i32
+    var textH i32
+    textW, textH := measure_text(name, text)
 
-//    var textWidth f32 = scale.x * i32.f32(textW)
-//    var textHeight f32 = scale.y * i32.f32(textH)
+    var textWidth f32 = scale.x * i32.f32(textW)
+    var textHeight f32 = scale.y * i32.f32(textH)
 
     var quadX f32 = position.x
-    var quadY f32 = position.y// - ratio * i32.f32(textH) / gfx_height
+    var quadY f32 = position.y - (maxGlyphHeight - textHeight) // - ratio * i32.f32(textH) / gfx_height
     //if (center == true) {
     //    quadX = -1.0 + (2.0 - textWidth / gfx_width) / 2.0 // / gfx_width
     //    quadY =  0.0 - textHeight / (gfx_height * 2.0) // / gfx_height
@@ -1690,6 +1704,10 @@ func append_text(id mesh_id, texture texture_s, name str, position mat.v2, scale
     var th f32 = i32.f32(texture.height)
     var index i32 = 0
     var dummyIndex i32 = 0
+    var debugColor mat.v4
+
+//    printf("TEXT : %s\n", text)
+
     for (size >= 0) {
 
         var rune i32
@@ -1702,22 +1720,27 @@ func append_text(id mesh_id, texture texture_s, name str, position mat.v2, scale
         rune, size, glyphX, glyphY, glyphWidth, glyphHeight, glyphAdvance = gltext.NextRune(name, text, index)
         if (size >= 0) {
 
-            var quadAdvance f32 = scale.x * i32.f32(glyphAdvance) / gfx_width
-            var quadWidth f32 = scale.x * i32.f32(glyphWidth) / gfx_width
-            var quadHeight f32 = scale.y * i32.f32(glyphHeight) / gfx_height
+            var quadAdvance f32 = scale.x * i32.f32(glyphAdvance)// / gfx_width
+            var quadWidth f32 = scale.x * i32.f32(glyphWidth)// / gfx_width
+            var quadHeight f32 = textHeight //scale.y * i32.f32(glyphHeight)// / gfx_height
             var qu0 f32 = i32.f32(glyphX) / tw
             var qv0 f32 = i32.f32(glyphY) / th
 
+            //printf("GH %f, MGH %f, TH %f\n", i32.f32(glyphHeight), maxGlyphHeight, textHeight)
             var qu1 f32 = qu0 + i32.f32(glyphAdvance) / tw
             var qv1 f32 = qv0 + i32.f32(glyphHeight) / th
 
             uti.assert_(rune >= 0, "invalid rune")
             if (debug == true) {
                 color = color0
+                debugColor = color1
                 if ((dummyIndex % 2) == 0) {
                     color = color1
+                    debugColor = color0
                 }
             }
+
+            //append_quad(g_debugMesh, mat.v4_(quadX, quadY, quadAdvance, quadHeight), mat.v4_(qu0, qv0, qu1, qv1), red, clip, depth)
             append_quad(id, mat.v4_(quadX, quadY, quadAdvance, quadHeight), mat.v4_(qu0, qv0, qu1, qv1),  color, clip, depth)
             index = index + size
             quadX = quadX + quadAdvance
