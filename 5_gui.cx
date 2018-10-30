@@ -6,6 +6,7 @@ package gui
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 import "app"
+import "fps"
 import "gl"
 import "glfw"
 import "gltext"
@@ -1633,10 +1634,10 @@ func align_control(id control_id, align i32, posx f32, posy f32, width f32, heig
         if (align == ALIGN_CENTER) {
             x = contX + (contW - width) / 2.0
                 y = contY + (contH - height) / 2.0
-                if (id.control == 57) {
+                /*if (id.control == 57) {
                 control_print("align_center : ", id, false)
                   printf("ALIGN_CENTER CONTX %f, CONTY %f, CONTW %f, CONTH %f, WIDTH %f, HEIGHT %f OFFSET X %f, OFFSET Y %f\n", contX, contY, contW, contH, width, height, x, y)
-                  }
+                  }*/
         } else if (align == ALIGN_HORZ_BOTTOM) {
             x = contX + (contW - width) / 2.0
                 y = contY + padding.y
@@ -1899,13 +1900,13 @@ func render_surface(id mesh_id, bounds mat.v4, color mat.v4, clip mat.v4, depth 
 //-----------------------------------------------------------------------------
 func render_border(id mesh_id, bounds mat.v4, left mat.v4, bottom mat.v4, right mat.v4, top mat.v4, clip mat.v4, depth f32) () {
     var x0 f32 = bounds.x
-        var y0 f32 = bounds.y
-        var x1 f32 = x0 + bounds.z
-        var y1 f32 = y0 + bounds.w
+    var y0 f32 = bounds.y
+    var x1 f32 = x0 + bounds.z
+    var y1 f32 = y0 + bounds.w
 
-        if (left.w > 0) {
-            gfx.append_line(id, mat.v4_(x0, y0, x0, y1), left, clip, depth)
-        }
+    if (left.w > 0) {
+        gfx.append_line(id, mat.v4_(x0, y0, x0, y1), left, clip, depth)
+    }
 
     if (bottom.w > 0) {
         gfx.append_line(id, mat.v4_(x0, y0, x1, y0), bottom, clip, depth)
@@ -1929,134 +1930,122 @@ func compute_depth(stack i32) (out f32) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func control_render(id control_id, clip mat.v4, stack i32) () {
+    //fps.begin_profile(g_profileRenderControlFull)
+
     uti.assert_(is_valid_control(id), "control_render : invalid control index")
 
-        var index i32 = id.control
-        /*if (index == 26) {
-            control_print("before control_render : ", id, false)
-        }*/
+    var index i32 = id.control
     var visible i32 = g_controls[index].visible
-        if (visible > 0) {
-            /*if (index == 43) {
-              control_print("control_render : ", id, false)
-              }*/
-            //var renderBounds mat.v4 = mat.v4_v2v2(g_controls[index].renderPosition, g_controls[index].renderSize)
-            var renderBounds mat.v4 = mat.v4_v2v2(g_controls[index].renderPosition, g_controls[index].size)
-                //control_print("control_render : renderBounds ", id, false)
-                //printf("renderBounds %f, %f, %f, %f\n", renderBounds.x, renderBounds.y, renderBounds.z, renderBounds.w)
-                var renderClips mat.v4 = gfx.push_scissor(g_controls[index].name, renderBounds)
-                //printf("renderClips %f, %f, %f, %f\n", renderClips.x, renderClips.y, renderClips.z, renderClips.w)
-                var skin skin_id = g_controls[index].skin
-                uti.assert_(is_valid_skin(skin) || skin.skin == -1, "control_render : invalid control skin")
-                if is_valid_skin(skin) {
-                    var depth f32 = compute_depth(stack)
-                        var focused i32 = g_controls[index].focused
-                        var childFocused i32 = g_controls[index].childFocused
-                        var selected i32 = g_controls[index].selected
-                        /*if (index == 82) {
-                          control_print("childFocus : ", id, false)
-                          }*/
+    if (visible > 0) {
+        var renderBounds mat.v4 = mat.v4_v2v2(g_controls[index].renderPosition, g_controls[index].size)
+        var renderClips mat.v4 = gfx.push_scissor(g_controls[index].name, renderBounds)
+        //fps.begin_profile(g_profileControlRender)
+        var skin skin_id = g_controls[index].skin
+        uti.assert_(is_valid_skin(skin) || skin.skin == -1, "control_render : invalid control skin")
+        if is_valid_skin(skin) {
+            var depth f32 = compute_depth(stack)
+            var focused i32 = g_controls[index].focused
+            var childFocused i32 = g_controls[index].childFocused
+            var selected i32 = g_controls[index].selected
+            var backLayer layer_id = g_skins[skin.skin].back
+            var frontLayer layer_id = g_skins[skin.skin].front
 
-                        var backLayer layer_id = g_skins[skin.skin].back
-                        var frontLayer layer_id = g_skins[skin.skin].front
-                        if (focused > 0 || childFocused > 0) {
-                            var backFocusedLayer layer_id = g_skins[skin.skin].focused_back
-                                if (is_valid_layer(backFocusedLayer)) {
-                                    backLayer = backFocusedLayer
-                                }
-                            var frontFocusedLayer layer_id = g_skins[skin.skin].focused_front
-                                if (is_valid_layer(frontFocusedLayer)) {
-                                    frontLayer = frontFocusedLayer
-                                }
-                        } else if (selected > 0) {
-                            var backSelectedLayer layer_id = g_skins[skin.skin].selected_back
-                                if (is_valid_layer(backSelectedLayer)) {
-                                    backLayer = backSelectedLayer
-                                }
-                            var frontSelectedLayer layer_id = g_skins[skin.skin].selected_front
-                                if (is_valid_layer(frontSelectedLayer)) {
-                                    frontLayer = frontSelectedLayer
-                                }
-                        }
-
-                    uti.assert_(is_valid_layer(backLayer) || backLayer.layer == -1, "control_render : invalid layer skin")
-                        if is_valid_layer(backLayer) {
-                            render_surface(g_opaqueVertexColoredTriangles, renderBounds, g_layers[backLayer.layer].surface, renderClips, depth)
-                                /*if (id.control == 41) {
-                                  printf("DEPTH 41 %f\n", depth + 0.01)
-                                  }*/
-                                render_border(g_opaqueVertexColoredLines, renderBounds,
-                                        g_layers[backLayer.layer].left,
-                                        g_layers[backLayer.layer].bottom,
-                                        g_layers[backLayer.layer].right,
-                                        g_layers[backLayer.layer].top,
-                                        renderClips, depth + 0.01)
-                        }
-
-                    uti.assert_(is_valid_layer(frontLayer) || frontLayer.layer == -1, "control_render : invalid layer skin")
-                        if (is_valid_layer(frontLayer)) {
-                            //control_print("front layer ", id, false)
-                            //printf("DEPTH %f\n", depth + 0.11)
-                            render_surface(g_opaqueVertexColoredTriangles,renderBounds, g_layers[frontLayer.layer].surface, renderClips, depth + 0.1)
-                                render_border(g_opaqueVertexColoredLines, renderBounds,
-                                        g_layers[frontLayer].left,
-                                        g_layers[frontLayer].bottom,
-                                        g_layers[frontLayer].right,
-                                        g_layers[frontLayer].top,
-                                        renderClips, depth + 0.11)
-                        }
+            if (focused > 0 || childFocused > 0) {
+                var backFocusedLayer layer_id = g_skins[skin.skin].focused_back
+                if (is_valid_layer(backFocusedLayer)) {
+                    backLayer = backFocusedLayer
                 }
-
-            var childStack i32 = stack + 1
-
-                var count i32 = g_controls[index].childCount
-                for i := 0; i < count; i = i + 1 {
-                    var child control_id = g_controls[index].children[i]
-                        uti.assert_(is_valid_control(child), "control_render : invalid child control")
-                        var childVisible i32 = g_controls[child.control].visible
-                        if (childVisible > 0) {
-                            var guiType i32 = g_controls[child].gui_type
-                                var guiIndex i32 = g_controls[child].gui_index
-
-                                if (guiType == GUI_INVALID) {
-                                    uti.assert_(false, "invalid gui type (GUI_INVALID)")
-                                } else if (guiType == GUI_CONTROL) {
-                                    //control_print(guiIndex, "control_render_child GUI_CONTROL : ")
-                                    uti.assert_(child.control == guiIndex, "unexpected error")
-                                        control_render(child, renderBounds, childStack)
-                                } else if (guiType == GUI_SCREEN) {
-                                    uti.assert_(false, "unidd recursive screen")
-                                } else if (guiType == GUI_PICTURE) {
-                                    picture_render(picture_id_(child, guiIndex), renderBounds, childStack)
-                                } else if (guiType == GUI_LABEL) {
-                                    label_render(label_id_(child, guiIndex), renderBounds, childStack)
-                                } else if (guiType == GUI_PARTITION) {
-                                    partition_render(partition_id_(child, guiIndex), renderBounds, childStack)
-                                } else if (guiType == GUI_KEYBOARD) {
-                                    keyboard_render(keyboard_id_(child, guiIndex), renderBounds, childStack)
-                                } else if (guiType == GUI_WINDOW) {
-                                    window_render(window_id_(child, guiIndex), renderBounds, childStack)
-                                } else if (guiType == GUI_GRAPH) {
-                                    graph_render(graph_id_(child, guiIndex), renderBounds, childStack)
-                                } else if (guiType == GUI_SPLITTER) {
-                                    splitter_render(splitter_id_(child, guiIndex), renderBounds, childStack)
-                                } else if (guiType == GUI_LIST) {
-                                    list_render(list_id_(child, guiIndex), renderBounds, childStack)
-                                } else if (guiType == GUI_SCROLLER) {
-                                    scroller_render(scroller_id_(child, guiIndex), renderBounds, childStack)
-                                } else if (guiType == GUI_LIFTER) {
-                                    lifter_render(lifter_id_(child, guiIndex), renderBounds, childStack)
-                                } else if (guiType == GUI_BINDER) {
-                                    binder_render(binder_id_(child, guiIndex), renderBounds, childStack)
-                                } else {
-                                    printf("GUI TYPE %d\n", guiType)
-                                        uti.assert_(false, "control_render : unknown gui type")
-                                }
-                        }
+                var frontFocusedLayer layer_id = g_skins[skin.skin].focused_front
+                if (is_valid_layer(frontFocusedLayer)) {
+                    frontLayer = frontFocusedLayer
                 }
-            gfx.pop_scissor()
-                //control_print("after control_render : ", id, false)
+            } else if (selected > 0) {
+                var backSelectedLayer layer_id = g_skins[skin.skin].selected_back
+                if (is_valid_layer(backSelectedLayer)) {
+                    backLayer = backSelectedLayer
+                }
+                var frontSelectedLayer layer_id = g_skins[skin.skin].selected_front
+                if (is_valid_layer(frontSelectedLayer)) {
+                    frontLayer = frontSelectedLayer
+                }
+            }
+
+            uti.assert_(is_valid_layer(backLayer) || backLayer.layer == -1, "control_render : invalid layer skin")
+            if is_valid_layer(backLayer) {
+                render_surface(g_opaqueVertexColoredTriangles, renderBounds, g_layers[backLayer.layer].surface, renderClips, depth)
+                render_border(g_opaqueVertexColoredLines, renderBounds,
+                            g_layers[backLayer.layer].left,
+                            g_layers[backLayer.layer].bottom,
+                            g_layers[backLayer.layer].right,
+                            g_layers[backLayer.layer].top,
+                            renderClips, depth + 0.01)
+            }
+
+            uti.assert_(is_valid_layer(frontLayer) || frontLayer.layer == -1, "control_render : invalid layer skin")
+            if (is_valid_layer(frontLayer)) {
+                render_surface(g_opaqueVertexColoredTriangles,renderBounds, g_layers[frontLayer.layer].surface, renderClips, depth + 0.1)
+                    render_border(g_opaqueVertexColoredLines, renderBounds,
+                            g_layers[frontLayer].left,
+                            g_layers[frontLayer].bottom,
+                            g_layers[frontLayer].right,
+                            g_layers[frontLayer].top,
+                            renderClips, depth + 0.11)
+            }
         }
+        //fps.end_profile(g_profileControlRender)
+
+        //fps.begin_profile(g_profileControlRenderChild)
+        var childStack i32 = stack + 1
+        var count i32 = g_controls[index].childCount
+        for i := 0; i < count; i = i + 1 {
+            var child control_id = g_controls[index].children[i]
+                uti.assert_(is_valid_control(child), "control_render : invalid child control")
+                var childVisible i32 = g_controls[child.control].visible
+                if (childVisible > 0) {
+                    var guiType i32 = g_controls[child].gui_type
+                        var guiIndex i32 = g_controls[child].gui_index
+
+                        if (guiType == GUI_INVALID) {
+                            uti.assert_(false, "invalid gui type (GUI_INVALID)")
+                        } else if (guiType == GUI_CONTROL) {
+                            //control_print(guiIndex, "control_render_child GUI_CONTROL : ")
+                            uti.assert_(child.control == guiIndex, "unexpected error")
+                                control_render(child, renderBounds, childStack)
+                        } else if (guiType == GUI_SCREEN) {
+                            uti.assert_(false, "unidd recursive screen")
+                        } else if (guiType == GUI_PICTURE) {
+                            picture_render(picture_id_(child, guiIndex), renderBounds, childStack)
+                        } else if (guiType == GUI_LABEL) {
+                            label_render(label_id_(child, guiIndex), renderBounds, childStack)
+                        } else if (guiType == GUI_PARTITION) {
+                            partition_render(partition_id_(child, guiIndex), renderBounds, childStack)
+                        } else if (guiType == GUI_KEYBOARD) {
+                            keyboard_render(keyboard_id_(child, guiIndex), renderBounds, childStack)
+                        } else if (guiType == GUI_WINDOW) {
+                            window_render(window_id_(child, guiIndex), renderBounds, childStack)
+                        } else if (guiType == GUI_GRAPH) {
+                            graph_render(graph_id_(child, guiIndex), renderBounds, childStack)
+                        } else if (guiType == GUI_SPLITTER) {
+                            splitter_render(splitter_id_(child, guiIndex), renderBounds, childStack)
+                        } else if (guiType == GUI_LIST) {
+                            list_render(list_id_(child, guiIndex), renderBounds, childStack)
+                        } else if (guiType == GUI_SCROLLER) {
+                            scroller_render(scroller_id_(child, guiIndex), renderBounds, childStack)
+                        } else if (guiType == GUI_LIFTER) {
+                            lifter_render(lifter_id_(child, guiIndex), renderBounds, childStack)
+                        } else if (guiType == GUI_BINDER) {
+                            binder_render(binder_id_(child, guiIndex), renderBounds, childStack)
+                        } else {
+                            printf("GUI TYPE %d\n", guiType)
+                                uti.assert_(false, "control_render : unknown gui type")
+                        }
+                }
+        }
+        gfx.pop_scissor()
+        //control_print("after control_render : ", id, false)
+        //fps.end_profile(g_profileControlRenderChild)
+    }
+    //fps.end_profile(g_profileRenderControlFull)
 }
 
 //-----------------------------------------------------------------------------
@@ -2329,45 +2318,59 @@ func render_batches(alpha bool) {
 //-----------------------------------------------------------------------------
 func screen_render(id screen_id, clip mat.v4, stack i32) () {
     uti.assert_(is_valid_screen(id), "screen_render : invalid screen")
-        gfx.begin_mesh(g_opaqueVertexColoredTriangles)
-        gfx.begin_mesh(g_opaqueVertexColoredLines)
-        gfx.begin_mesh(g_alphaVertexColoredTriangles)
-        begin_batches()
+    fps.begin_profile(g_profileRenderScreenControl)
 
-        clip = gfx.push_scissor(g_controls[id.base.control].name, gfx.gfx_viewport_bounds)
-        //printf("SCREEN CLIP %f, %f, %f, %f\n", clip.x, clip.y, clip.z, clip.w)
-        control_render(id.base, clip, stack)
+    gfx.begin_mesh(g_opaqueVertexColoredTriangles)
+    gfx.begin_mesh(g_opaqueVertexColoredLines)
+    gfx.begin_mesh(g_alphaVertexColoredTriangles)
+    begin_batches()
 
-        gfx.pop_scissor()
-        uti.assert_(gfx.g_scissorCount == 0, "screen_render : invalid scissor stack")
-        end_batches()
-        gfx.end_mesh(g_alphaVertexColoredTriangles)
-        gfx.end_mesh(g_opaqueVertexColoredLines)
-        gfx.end_mesh(g_opaqueVertexColoredTriangles)
+    clip = gfx.push_scissor(g_controls[id.base.control].name, gfx.gfx_viewport_bounds)
+    //printf("SCREEN CLIP %f, %f, %f, %f\n", clip.x, clip.y, clip.z, clip.w)
+    control_render(id.base, clip, stack)
+    gfx.pop_scissor()
 
-        // opaque
-        if gfx.mesh_is_empty(g_opaqueVertexColoredTriangles) == false {
-            gfx.disable_blending()
-                gfx.effect_use(gfx.g_fxVertexColor)
-                gfx.render_mesh(g_opaqueVertexColoredTriangles)
-        }
+    uti.assert_(gfx.g_scissorCount == 0, "screen_render : invalid scissor stack")
+    end_batches()
+    gfx.end_mesh(g_alphaVertexColoredTriangles)
+    gfx.end_mesh(g_opaqueVertexColoredLines)
+    gfx.end_mesh(g_opaqueVertexColoredTriangles)
 
+    fps.end_profile(g_profileRenderScreenControl)
+
+    // opaque
+    fps.begin_profile(g_profileRenderOpaqueVertexColoredTriangles)
+    if gfx.mesh_is_empty(g_opaqueVertexColoredTriangles) == false {
+        gfx.disable_blending()
+            gfx.effect_use(gfx.g_fxVertexColor)
+            gfx.render_mesh(g_opaqueVertexColoredTriangles)
+    }
+    fps.end_profile(g_profileRenderOpaqueVertexColoredTriangles)
+
+    fps.begin_profile(g_profileRenderOpaqueTexturedTriangles)
     render_batches(false)
+    fps.end_profile(g_profileRenderOpaqueTexturedTriangles)
 
-        if gfx.mesh_is_empty(g_opaqueVertexColoredLines) == false {
-            gfx.disable_blending()
-                gfx.effect_use(gfx.g_fxVertexColor)
-                gfx.render_mesh(g_opaqueVertexColoredLines)
-        }
+    fps.begin_profile(g_profileRenderOpaqueVertexColoredLines)
+    if gfx.mesh_is_empty(g_opaqueVertexColoredLines) == false {
+        gfx.disable_blending()
+            gfx.effect_use(gfx.g_fxVertexColor)
+            gfx.render_mesh(g_opaqueVertexColoredLines)
+    }
+    fps.end_profile(g_profileRenderOpaqueVertexColoredLines)
 
     // alpha
+    fps.begin_profile(g_profileRenderAlphaVertexColoredTriangles)
     if gfx.mesh_is_empty(g_alphaVertexColoredTriangles) == false {
         gfx.enable_blending(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-            gfx.effect_use(gfx.g_fxVertexColor)
-            gfx.render_mesh(g_alphaVertexColoredTriangles)
+        gfx.effect_use(gfx.g_fxVertexColor)
+        gfx.render_mesh(g_alphaVertexColoredTriangles)
     }
+    fps.end_profile(g_profileRenderAlphaVertexColoredTriangles)
 
+    fps.begin_profile(g_profileRenderAlphaTexturedTriangles)
     render_batches(true)
+    fps.end_profile(g_profileRenderAlphaTexturedTriangles)
 }
 
 //-----------------------------------------------------------------------------
@@ -2897,9 +2900,9 @@ func label_resize(id label_id) () {
         //printf("LABEL_SCALE %f, %f, width %f, height %f, scale.x * width %f, scale.y * height %f\n", scale.x, scale.y, width, height, scale.x * width, scale.y * height)
 
         var newSize mat.v2 = mat.v2_mul(scale, pixelBounds)
-        if (id.base.control == 57) {
+        /*if (id.base.control == 57) {
             printf("PIXEL_BOUNDS %f, %f, AUTO_BOUNSD %f, %f, SCALE %f, %f\n", pixelBounds.x, pixelBounds.y, autoBounds.x, autoBounds.y, scale.x, scale.y)
-        }
+        }*/
 
         position.x, position.y = align_control(id.base, g_labels[id.label].textAlign, 0.0, 0.0, newSize.x, newSize.y, position.x, position.y, size.x, size.y, padding)
         //position.y = position.y - newSize.y / 2.0
@@ -5038,8 +5041,8 @@ func init() () {
 
     // depth
     g_depthBuffer_0 = gfx.create_depth_buffer(app.app_width, app.app_height)
-    g_depthBuffer_1 = gfx.create_depth_buffer(app.app_width, app.app_height)
-    g_depthBuffer_2 = gfx.create_depth_buffer(app.app_width, app.app_height)
+    //g_depthBuffer_1 = gfx.create_depth_buffer(app.app_width, app.app_height)
+    //g_depthBuffer_2 = gfx.create_depth_buffer(app.app_width, app.app_height)
     // textures
     g_skycoinTexture = gfx.create_texture("textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
 
@@ -5439,6 +5442,23 @@ func resize() () {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+var g_profileRenderCurrentScreen fps.profile_id
+var g_profileRenderNextScreen fps.profile_id
+var g_profileRenderScreenEffect fps.profile_id
+var g_profileRenderModals fps.profile_id
+var g_profileRenderDefaultFramebuffer fps.profile_id
+var g_profileRenderScreenControl fps.profile_id
+var g_profileRenderOpaqueVertexColoredTriangles fps.profile_id
+var g_profileRenderOpaqueTexturedTriangles fps.profile_id
+var g_profileRenderOpaqueVertexColoredLines fps.profile_id
+var g_profileRenderAlphaVertexColoredTriangles fps.profile_id
+var g_profileRenderAlphaTexturedTriangles fps.profile_id
+var g_profileControlRender fps.profile_id
+var g_profileControlRenderChild fps.profile_id
+var g_profileRenderControlFull fps.profile_id
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func render() () {
 
     var clip mat.v4 = gfx.gfx_viewport_bounds
@@ -5447,42 +5467,65 @@ func render() () {
     var depthClear f64 = -1.0D
     var depthWrite bool = true
 
-    //var clearColor mat.v4 = mat.v4_(1.0, 0.0, 1.0, 1.0)
     var clearColor mat.v4 = g_black
-    var target_0 target_s = gfx.lock_target(app.app_width, app.app_height)
-    gfx.bind_framebuffer(target_0.framebuffer)
-    gfx.bind_depthbuffer(g_depthBuffer_0, depthTest, depthFunc, depthWrite)
-    gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, depthClear)
+
+    fps.begin_profile(g_profileRenderCurrentScreen)
+    var target_0 gfx.target_s = gfx.invalid_target()
     if (is_valid_screen(g_currentScreen)) {
+        target_0 = gfx.lock_target(app.app_width, app.app_height)
+        gfx.bind_framebuffer(target_0.framebuffer)
+        gfx.bind_depthbuffer(g_depthBuffer_0, depthTest, depthFunc, depthWrite)
+        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, depthClear)
         screen_render(g_currentScreen, clip, 0)
     }
+    fps.end_profile(g_profileRenderCurrentScreen)
 
-    var target_1 target_s = gfx.lock_target(app.app_width, app.app_height)
-    gfx.bind_framebuffer(target_1.framebuffer)
-    gfx.bind_depthbuffer(g_depthBuffer_1, depthTest, depthFunc, depthWrite)
-    gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, depthClear)
+    var target_1 gfx.target_s = gfx.invalid_target()
+    fps.begin_profile(g_profileRenderNextScreen)
     if (is_valid_screen(g_nextScreen) && g_nextScreen.screen != g_currentScreen.screen) {
+        target_1 = gfx.lock_target(app.app_width, app.app_height)
+        gfx.bind_framebuffer(target_1.framebuffer)
+        gfx.bind_depthbuffer(g_depthBuffer_0, depthTest, depthFunc, depthWrite)
+        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, depthClear)
         screen_render(g_nextScreen, clip, 0)
     }
+    fps.end_profile(g_profileRenderNextScreen)
 
-    var target_2 target_s = gfx.lock_target(app.app_width, app.app_height)
-    gfx.bind_framebuffer(target_2.framebuffer)
-    gfx.clear(gl.COLOR_BUFFER_BIT, clearColor, 0.0D)
-    gfx.disable_depth()
-    gfx.disable_blending()
-    gfx.effect_use(gfx.g_fxTrans_0)
-    gfx.effect_assign_texture(gfx.g_fxTrans_0, 0, target_0.texture.name)
-    gfx.effect_assign_texture(gfx.g_fxTrans_0, 1, target_1.texture.name)
-    gfx.effect_assign_float(gfx.g_fxTrans_0, 0, f64.f32(g_transitionTime / g_transitionDuration))
-    gfx.render_mesh(g_fullscreenQuad)
-    gfx.unlock_target(target_0)
-    gfx.unlock_target(target_1)
+    fps.begin_profile(g_profileRenderScreenEffect)
+    var target_2 gfx.target_s = gfx.invalid_target()
+    //if (gfx.is_valid_target(target_0) && gfx.is_valid_target(target_1)) {
+        target_2 = gfx.lock_target(app.app_width, app.app_height)
+        gfx.bind_framebuffer(target_2.framebuffer)
+        gfx.clear(gl.COLOR_BUFFER_BIT, clearColor, 0.0D)
+        gfx.disable_depth()
+        gfx.disable_blending()
+        gfx.effect_use(gfx.g_fxTrans_0)
+        gfx.effect_assign_texture(gfx.g_fxTrans_0, 0, target_0.texture.name)
+        gfx.effect_assign_texture(gfx.g_fxTrans_0, 1, target_1.texture.name)
+        gfx.effect_assign_float(gfx.g_fxTrans_0, 0, f64.f32(g_transitionTime / g_transitionDuration))
+        gfx.render_mesh(g_fullscreenQuad)
+        if (gfx.is_valid_target(target_0)) {
+            gfx.unlock_target(target_0)
+        }
+        if (gfx.is_valid_target(target_1)) {
+            gfx.unlock_target(target_1)
+        }
+    /*} else if (gfx.is_valid_target(target_0)) {
+        target_2 = target_0
+    } else if (gfx.is_valid_target(target_1)) {
+        target_2 = target_1
+    } else {
+        uti.assert_(false, "render : invalid target")
+    }*/
 
+    fps.end_profile(g_profileRenderScreenEffect)
+
+    fps.begin_profile(g_profileRenderModals)
     var i i32 = 0
     for i = 0; i < g_modalCount; i = i + 1 {
         var target target_s = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target.framebuffer)
-        gfx.bind_depthbuffer(g_depthBuffer_2, depthTest, depthFunc, depthWrite)
+        gfx.bind_depthbuffer(g_depthBuffer_0, depthTest, depthFunc, depthWrite)
         gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, depthClear)
         if (is_valid_screen(g_modals[i])) {
             screen_render(g_modals[i], clip, 0)
@@ -5502,7 +5545,9 @@ func render() () {
         gfx.unlock_target(target_2)
         target_2 = target_3
     }
+    fps.end_profile(g_profileRenderModals)
 
+    fps.begin_profile(g_profileRenderDefaultFramebuffer)
     // ##todo fast path if no modals => render in default framebuffer 0
     gfx.bind_framebuffer(0)
     gfx.clear(gl.COLOR_BUFFER_BIT, g_black, 0.0D)
@@ -5512,6 +5557,7 @@ func render() () {
     gfx.effect_assign_texture(gfx.g_fxTexture, 0, target_2.texture.name)
     gfx.render_mesh(g_fullscreenQuad)
     gfx.unlock_target(target_2)
+    fps.end_profile(g_profileRenderDefaultFramebuffer)
 
 }
 

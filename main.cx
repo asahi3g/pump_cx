@@ -108,6 +108,67 @@ func on_exit_app_window_yes_state(controlIndex i32, action i32) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+func add_percent(id control_id) {
+    var line control_id = gui.control_create("label_text")
+    gui.control_add_child(id, line)
+//    gui.control_set_size(line, mat.v2_(0.0, 32.0))
+    gui.control_set_autosize(line, gui.AUTOSIZE_Y)
+//    gui.control_set_skin(line, g_debugRedSkin)
+ gui.control_set_padding(line, mat.v4_(3.0, 3.0, 3.0, 3.0))
+    gui.control_set_dock(line, gui.DOCK_BOTTOM)
+
+    var textLabel label_id = gui.label_create("100")
+    gui.control_add_child(line, textLabel.base)
+    gui.control_set_skin(textLabel.base, gui.g_headerSkin)
+    gui.control_set_dock(textLabel.base, gui.DOCK_RIGHT)
+    gui.control_set_autosize(textLabel.base, gui.AUTOSIZE_Y)
+    gui.control_set_padding(textLabel.base, mat.v4_(3.0, 3.0, 3.0, 3.0))
+    gui.control_set_size(textLabel.base, mat.v2_(55.0, 0.0))
+    gui.label_set_font(textLabel, gui.g_boldFont)
+    gui.label_set_text(textLabel, "100%")
+    gui.label_set_size(textLabel, gui.g_fontSizeSmall)
+    gui.label_set_color(textLabel, gui.g_gray_3)
+    gui.label_set_align(textLabel, gui.ALIGN_CENTER)
+
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func add_label_text(id control_id, label str, text str) {
+    var line control_id = gui.control_create("label_text")
+    gui.control_add_child(id, line)
+//    gui.control_set_size(line, mat.v2_(0.0, 32.0))
+    gui.control_set_autosize(line, gui.AUTOSIZE_Y)
+//    gui.control_set_skin(line, g_debugRedSkin)
+ gui.control_set_padding(line, mat.v4_(3.0, 3.0, 3.0, 3.0))
+    gui.control_set_dock(line, gui.DOCK_BOTTOM)
+
+    var textLabel label_id = gui.label_create("text")
+    gui.control_add_child(line, textLabel.base)
+    gui.control_set_skin(textLabel.base, gui.g_headerSkin)
+    gui.control_set_dock(textLabel.base, gui.DOCK_RIGHT)
+    gui.control_set_autosize(textLabel.base, gui.AUTOSIZE_Y)
+    gui.control_set_size(textLabel.base, mat.v2_(100.0, 0.0))
+    gui.label_set_font(textLabel, gui.g_boldFont)
+    gui.label_set_text(textLabel, text)
+    gui.label_set_size(textLabel, gui.g_fontSizeSmall)
+    gui.label_set_color(textLabel, gui.g_gray_3)
+    gui.label_set_align(textLabel, gui.ALIGN_CENTER)
+
+    var captionLabel label_id = gui.label_create("caption")
+    gui.control_add_child(line, captionLabel.base)
+    gui.control_set_dock(captionLabel.base, gui.DOCK_RIGHT)
+    gui.control_set_autosize(captionLabel.base, gui.AUTOSIZE)
+//    gui.control_set_size(captionLabel.base, mat.v2_(50.0, 0.0))
+    gui.label_set_font(captionLabel, gui.g_boldFont)
+    gui.label_set_text(captionLabel, label)
+    gui.label_set_size(captionLabel, gui.g_fontSizeSmall)
+    gui.label_set_color(captionLabel, gui.g_gray_3)
+    gui.label_set_align(captionLabel, gui.ALIGN_CENTER)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func main() {
 
     var targetFps f64 = 60.0D
@@ -288,11 +349,11 @@ func main() {
                         gui.control_set_focusable(playButton.base, 1)
                         gui.control_set_padding(playButton.base, mat.v4_(5.0, 5.0, 5.0, 5.0))
                         gui.control_set_autosize(playButton.base, AUTOSIZE_Y)
-                        gui.label_set_font(playButton, g_boldFont)
+                        gui.label_set_font(playButton, gui.g_boldFont)
                         gui.label_set_text(playButton, "Play")
                         gui.label_set_size(playButton, gui.g_fontSizeButton)
                         gui.label_set_color(playButton, gui.g_white)
-                        gui.label_set_align(playButton, ALIGN_CENTER)
+                        gui.label_set_align(playButton, gui.ALIGN_CENTER)
 
 
                         //gui.control_set_size(rightBottomPlayControl, mat.v2_(0.0, 100.0))
@@ -317,11 +378,16 @@ func main() {
                             gui.control_set_focusable(buyButton.base, 1)
                             gui.control_set_padding(buyButton.base, mat.v4_(5.0, 5.0, 5.0, 5.0))
                             gui.control_set_autosize(buyButton.base, AUTOSIZE_Y)
-                            gui.label_set_font(buyButton, g_boldFont)
+                            gui.label_set_font(buyButton, gui.g_boldFont)
                             gui.label_set_text(buyButton, "Buy CX")
                             gui.label_set_size(buyButton, gui.g_fontSizeButton)
                             gui.label_set_color(buyButton, gui.g_white)
-                            gui.label_set_align(buyButton, ALIGN_CENTER)
+                            gui.label_set_align(buyButton, gui.ALIGN_CENTER)
+
+                            add_label_text(bottomLeft , "Total:", "0.000")
+                            add_percent(bottomLeft)
+                            add_label_text(bottomLeft, "Amount:", "0.000")
+                            add_label_text(bottomLeft , "Price:", "0.000")
 
                             /*var padding control_id = gui.control_create("padding")
                             gui.control_add_child(bottomLeft, padding)
@@ -341,11 +407,16 @@ func main() {
                             gui.control_set_focusable(sellButton.base, 1)
                             gui.control_set_padding(sellButton.base, mat.v4_(5.0, 5.0, 5.0, 5.0))
                             gui.control_set_autosize(sellButton.base, AUTOSIZE_Y)
-                            gui.label_set_font(sellButton, g_boldFont)
+                            gui.label_set_font(sellButton, gui.g_boldFont)
                             gui.label_set_text(sellButton, "Sell CX")
                             gui.label_set_size(sellButton, gui.g_fontSizeButton)
                             gui.label_set_color(sellButton, gui.g_white)
                             gui.label_set_align(sellButton, ALIGN_CENTER)
+
+                            add_label_text(bottomRight , "Total:", "0.000")
+                            add_percent(bottomRight)
+                            add_label_text(bottomRight, "Amount:", "0.000")
+                            add_label_text(bottomRight , "Price:", "0.000")
 
                             gui.splitter_set_controls(limitOrder, bottomLeft, bottomRight)
     
@@ -604,16 +675,63 @@ func main() {
 
     gui.show_screen(g_mainScreen)
 
+    var profileSwap profile_id = fps.create_profile("swap")
+    var profileFrame profile_id = fps.create_profile("frame")
+    var profileUpdate profile_id = fps.create_profile("update")
+    var profileGuiUpdate profile_id = fps.create_profile("gui_update")
+    var profileGuiResize profile_id = fps.create_profile("gui_resize")
+    var profileRender profile_id = fps.create_profile("render")
+    var profileGuiRender profile_id = fps.create_profile("gui_render")
+    gui.g_profileRenderCurrentScreen = fps.create_profile("gui_render_current_screen")
+    gui.g_profileRenderScreenControl = fps.create_profile("gui_render_screen_control")
+    gui.g_profileRenderOpaqueVertexColoredTriangles = fps.create_profile("gui_render_opaque_vertex_colored_triangles")
+    gui.g_profileRenderOpaqueTexturedTriangles = fps.create_profile("gui_render_opaque_textured_triangles")
+    gui.g_profileRenderOpaqueVertexColoredLines = fps.create_profile("gui_render_opaque_vertex_colored_lines")
+    gui.g_profileRenderAlphaVertexColoredTriangles = fps.create_profile("gui_render_alpha_vertex_colored_triangles")
+    gui.g_profileRenderAlphaTexturedTriangles = fps.create_profile("gui_render_alpha_textured_triangles")
+    gui.g_profileRenderNextScreen = fps.create_profile("gui_render_next_screen")
+    gui.g_profileRenderScreenEffect = fps.create_profile("gui_render_screen_effect")
+    gui.g_profileRenderModals = fps.create_profile("gui_render_modals")
+    gui.g_profileRenderDefaultFramebuffer = fps.create_profile("gui_render_default_framebuffer")
+    gui.g_profileControlRender = fps.create_profile("gui_control_render")
+    gui.g_profileControlRenderChild = fps.create_profile("gui_control_render_child")
+    gui.g_profileRenderControlFull = fps.create_profile("gui_render_control_full")
     // main loop
     var fps fps.fps_s = fps.init(targetFps)
     for app.running(application) {
-        //printf("DEBUG : EVENT_UNUSED %d\n", gui.EVENT_UNUSED)
+
+        // swap
         fps = fps.begin_update(fps)
-        app.begin_update(application)
-        gui.update(fps.delta_time(&fps))
-        gui.resize()
-        gui.render()
-        app.end_update(application)
+        fps.begin_profile(profileSwap)
+        {
+            // frame
+            fps.begin_profile(profileFrame)
+            app.begin_update(application)
+
+            {
+                // update
+                fps.begin_profile(profileUpdate)
+                    fps.begin_profile(profileGuiUpdate)
+                        gui.update(fps.delta_time(&fps))
+                    fps.end_profile(profileGuiUpdate)
+                    fps.begin_profile(profileGuiResize)
+                        gui.resize()
+                    fps.end_profile(profileGuiResize)
+                fps.end_profile(profileUpdate)
+            }
+            {
+                // render
+                fps.begin_profile(profileRender)
+                    fps.begin_profile(profileGuiRender)
+                        gui.render()
+                    fps.end_profile(profileGuiRender)
+                fps.end_profile(profileRender)
+            }
+
+            app.end_update(application)
+            fps.end_profile(profileFrame)
+        }
+        fps.end_profile(profileSwap)
         fps = fps.end_update(fps)
     }
 
