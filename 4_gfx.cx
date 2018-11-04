@@ -241,6 +241,7 @@ func effect_bind_uniform(id effect_id, name str) {
 //-----------------------------------------------------------------------------
 var g_fxVertexColor effect_id = invalid_effect()
 var g_fxTexture     effect_id = invalid_effect()
+//var g_fxFont        effect_id = invalid_effect()
 var g_fxTrans_0     effect_id = invalid_effect()
 var g_fxTrans_1     effect_id = invalid_effect()
 
@@ -548,7 +549,7 @@ func append_line(id mesh_id, line mat.v4, color mat.v4, clip mat.v4, depth f32) 
         var cLeft bool = x0 < clipLeft && x1 < clipLeft
         var cBottom bool = y0  < clipBottom && y1 < clipBottom
         var cTop bool = y0 > clipTop && y1 > clipTop
-        if (cLeft == false && cBottom == false && /*cRight == false && */cTop == false) {
+        if (cLeft == false && cBottom == false && /*cRight == false &&*/ cTop == false) {
 
             var r f32 = color.x
             var g f32 = color.y
@@ -996,6 +997,22 @@ func init(width i32, height i32)() {
     `, "psVertexColor")
 
     //-----------------------------------------------------------------------------
+    // psFont
+    //-----------------------------------------------------------------------------
+    //gl.Strs(
+    //`
+    //#version 130
+    //uniform sampler2D u_t2Albedo;
+    //in vec4 v_v4Albedo;
+    //in vec2 v_v2Texcoord;
+    //out vec4 o_v4Color;
+    //void main()
+    //{
+    //    o_v4Color = vec4(vec3(0.4, 0.0, 0.4) + texture2D(u_t2Albedo, v_v2Texcoord).rgb + v_v4Albedo.xxx * 0.00001, 1);
+    //}
+    //`, "psFont")
+
+    //-----------------------------------------------------------------------------
     // psVertexTexture
     //-----------------------------------------------------------------------------
     gl.Strs(
@@ -1081,6 +1098,12 @@ func init(width i32, height i32)() {
     effect_bind_attribute(g_fxTexture, 2, "i_v2Texcoord")
     effect_bind_sampler(g_fxTexture, "u_t2Albedo")
 
+    //g_fxFont = create_effect("vsPassThrough", "psFont")
+    //effect_bind_attribute(g_fxFont, 0, "i_v3Position")
+    //effect_bind_attribute(g_fxFont, 1, "i_v4Albedo")
+    //effect_bind_attribute(g_fxFont, 2, "i_v2Texcoord")
+    //effect_bind_sampler(g_fxFont, "u_t2Albedo")
+
     g_fxTrans_0 = create_effect("vsPassThrough", "psTransition_0")
     effect_bind_attribute(g_fxTrans_0, 0, "i_v3Position")
     effect_bind_attribute(g_fxTrans_0, 2, "i_v2Texcoord")
@@ -1105,6 +1128,7 @@ func free()() {
     gl.Free("vsPassThrough")
     gl.Free("psVertexColor")
     gl.Free("psTexture")
+    //gl.Free("psFont")
     gl.Free("psTransition_0")
     gl.Free("psTransition_1")
     gl.Free("i_v3Position")
@@ -1234,52 +1258,52 @@ func push_scissor(name str, bounds mat.v4) (out mat.v4) {
         out.z = mat.max(0.0, width)
         out.w = mat.max(0.0, height)
         var i i32 = 0
-        /*for i = 0; i < g_scissorCount; i = i + 1 {
-            printf("----")
-        }
-        printf("x0 %f, y0 %f, x1 %f, y1 %f, x2 %f, y2 %f, x3 %f, y3 %f\n", x0, y0, x1, y1, x2, y2, x3, y3)
-        for i = 0; i < g_scissorCount; i = i + 1 {
-            printf("----")
-        }
-        printf("max %f, %f, min %f, %f\n", maxX, maxY, minX, minY)*/
-        /*for i = 0; i < g_scissorCount; i = i + 1 {
-            printf("----")
-        }*/
+        //for i = 0; i < g_scissorCount; i = i + 1 {
+        //    printf("----")
+        //}
+        //printf("x0 %f, y0 %f, x1 %f, y1 %f, x2 %f, y2 %f, x3 %f, y3 %f\n", x0, y0, x1, y1, x2, y2, x3, y3)
+        //for i = 0; i < g_scissorCount; i = i + 1 {
+        //    printf("----")
+        //}
+        //printf("max %f, %f, min %f, %f\n", maxX, maxY, minX, minY)
+        //for i = 0; i < g_scissorCount; i = i + 1 {
+        //    printf("----")
+        //}
         var scissorW f32 = scissor.x + scissor.z
         var scissorH f32 = scissor.y + scissor.w
-        /*printf("%s old scissor %f, %f, %f, %f\n", name, scissor.x, scissor.y, scissorW, scissorH)
-        for i = 0; i < g_scissorCount; i = i + 1 {
-            printf("----")
-        }*/
+        //printf("%s old scissor %f, %f, %f, %f\n", name, scissor.x, scissor.y, scissorW, scissorH)
+        //for i = 0; i < g_scissorCount; i = i + 1 {
+        //    printf("----")
+        //}
 //        printf("%s bounds  %f, %f, %f, %f\n", name, bounds.x, bounds.y, bounds.z, bounds.w)
-/*        for i = 0; i < g_scissorCount; i = i + 1 {
-            printf("----")
-        }*/
+//        for i = 0; i < g_scissorCount; i = i + 1 {
+  //          printf("----")
+        //}
         var outW f32 = out.x + out.z
         var outH f32 = out.y + out.w
         //printf("%s new scissor %f, %f, %f, %f\n", name, out.x, out.y, outW, outH)
     } else {
         out = bounds
-        /*var i i32 = 0
-        for i = 0; i < g_scissorCount; i = i + 1 {
-            printf("----")
-        }
-        printf("%s bounds %f, %f, %f, %f\n", name, bounds.x, bounds.y, bounds.z, bounds.w)
-        for i = 0; i < g_scissorCount; i = i + 1 {
-            printf("----")
-        }
-        printf("%s out first %f, %f, %f, %f\n", name, out.x, out.y, out.z, out.w)*/
+        //var i i32 = 0
+        //for i = 0; i < g_scissorCount; i = i + 1 {
+        //    printf("----")
+        //}
+        //printf("%s bounds %f, %f, %f, %f\n", name, bounds.x, bounds.y, bounds.z, bounds.w)
+        //for i = 0; i < g_scissorCount; i = i + 1 {
+        //    printf("----")
+        //}
+        //printf("%s out first %f, %f, %f, %f\n", name, out.x, out.y, out.z, out.w)
 
     }
     g_scissors[g_scissorCount] = out
-    /*if (out.x == 0.0 && out.y == 0.0 && out.z == 0 && out.w == 0) {
-        printf("%s thostuhsth \n", name)
-        uti.assert_(false, "fuck")
-    }
+    //if (out.x == 0.0 && out.y == 0.0 && out.z == 0 && out.w == 0) {
+    //    printf("%s thostuhsth \n", name)
+    //    uti.assert_(false, "fuck")
+    //}
 
-    var tmp mat.v4 =  g_scissors[g_scissorCount]
-    printf("%d, tmp readback %f, %f, %f, %f\n", g_scissorCount, tmp.x, tmp.y, tmp.z, tmp.w)
-*/
+    //var tmp mat.v4 =  g_scissors[g_scissorCount]
+    //printf("%d, tmp readback %f, %f, %f, %f\n", g_scissorCount, tmp.x, tmp.y, tmp.z, tmp.w)
+
     g_scissorCount = g_scissorCount + 1
     //set_scissor(bounds)
 }
@@ -1289,10 +1313,10 @@ func push_scissor(name str, bounds mat.v4) (out mat.v4) {
 func pop_scissor() {
     uti.assert_(g_scissorCount > 0, "pop_scissor : underflow")
     g_scissorCount = g_scissorCount - 1
-    /*if (g_scissorCount > 0) {
-        var scissor i32 = g_scissorCount - 1
+    //if (g_scissorCount > 0) {
+    //    var scissor i32 = g_scissorCount - 1
         //set_scissor(g_scissors[scissor])
-    }*/
+    //}
 }
 
 //-----------------------------------------------------------------------------
@@ -1554,10 +1578,15 @@ func assign_float(slot i32, value f32) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func create_font_texture(name str, path str, scale i32, low i32, high i32, dir i32) (texture texture_s) {
-    printf("CREATE_FONT %s, %s\n", name, path)
-os.Open(path)
-    gltext.LoadTrueType(name, path, scale, low, high, dir) // ##0 release
+func create_font_texture(name str, path str, scale i32, min i32, max i32, dir i32) (texture texture_s) {
+    os.Open(path)
+//    if (range == true) {
+  //  var min i32 = ui32.i32(runes[0])
+    //var max i32 = ui32.i32(runes[1])
+        gltext.LoadTrueType(name, path, scale, min, max, dir) // ##0 release
+    //}// else {
+     //   gltext.LoadTrueTypeEx(name, path, scale, runes, dir) // ##0 release
+   // }
     os.Close(path)
     texture.name = gltext.Texture(name)
 
@@ -1575,7 +1604,76 @@ os.Open(path)
 //-----------------------------------------------------------------------------
 var g_debugMesh mesh_id
 
+func append_glyph(id mesh_id, texture texture_s, name str, position mat.v2, scale mat.v2, color mat.v4, glyph i32, debug bool, color0 mat.v4, color1 mat.v4, clip mat.v4, depth f32) {
+//    printf("NAME %s\n", name)
+    uti.assert_(is_valid_mesh(id), "append_text : invalid id")
+    var index i32 = 0
+    var size i32 = 0
+
+    var maxGlyphW i32 = 0;
+    var maxGlyphH i32 = 0;
+    maxGlyphW, maxGlyphH = gltext.GlyphBounds(name)
+    var maxGlyphWidth f32 = scale.x * i32.f32(maxGlyphW)
+    var maxGlyphHeight f32 = scale.y * i32.f32(maxGlyphH)
+
+    var textW i32
+    var textH i32
+    textW, textH := measure_glyph(name, glyph)
+
+    var textWidth f32 = scale.x * i32.f32(textW)
+    var textHeight f32 = scale.y * i32.f32(textH)
+
+    var quadX f32 = position.x
+    var quadY f32 = position.y - (maxGlyphHeight - textHeight) // - ratio * i32.f32(textH) / gfx_height
+    //if (center == true) {
+    //    quadX = -1.0 + (2.0 - textWidth / gfx_width) / 2.0 // / gfx_width
+    //    quadY =  0.0 - textHeight / (gfx_height * 2.0) // / gfx_height
+    //}
+
+    var tw f32 = i32.f32(texture.width)
+    var th f32 = i32.f32(texture.height)
+    var index i32 = 0
+    var dummyIndex i32 = 0
+    var debugColor mat.v4
+
+    var rune i32
+    var glyphX i32
+    var glyphY i32
+    var glyphWidth i32
+    var glyphHeight i32
+    var glyphAdvance i32
+
+    glyphX, glyphY, glyphWidth, glyphHeight, glyphAdvance = gltext.GlyphInfo(name, glyph)
+//    printf("RUNE\n")
+    var quadAdvance f32 = scale.x * i32.f32(glyphAdvance)// / gfx_width
+    var quadWidth f32 = scale.x * i32.f32(glyphWidth)// / gfx_width
+    var quadHeight f32 = textHeight //scale.y * i32.f32(glyphHeight)// / gfx_height
+    var qu0 f32 = i32.f32(glyphX) / tw
+    var qv0 f32 = i32.f32(glyphY) / th
+
+ //   printf("U %f, V %f, GH %f, MGH %f, TH %f\n", qu0, qv0, i32.f32(glyphHeight), maxGlyphHeight, textHeight)
+    var qu1 f32 = qu0 + i32.f32(glyphAdvance) / tw
+    var qv1 f32 = qv0 + i32.f32(glyphHeight) / th
+
+    if (debug == true) {
+        color = color0
+        debugColor = color1
+        if ((dummyIndex % 2) == 0) {
+            color = color1
+            debugColor = color0
+        }
+    }
+
+    //append_quad(g_debugMesh, mat.v4_(quadX, quadY, quadAdvance, quadHeight), mat.v4_(qu0, qv0, qu1, qv1), red, clip, depth)
+    append_quad(id, mat.v4_(quadX, quadY, quadAdvance, quadHeight), mat.v4_(qu0, qv0, qu1, qv1),  color, clip, depth)
+    index = index + size
+    quadX = quadX + quadAdvance
+    dummyIndex = dummyIndex + 1
+}
+
 func append_text(id mesh_id, texture texture_s, name str, position mat.v2, scale mat.v2, color mat.v4, text str, debug bool, color0 mat.v4, color1 mat.v4, clip mat.v4, depth f32) {
+//    printf("NAME %s\n", name)
+//    if (name == "awesomeBold_25") {
     uti.assert_(is_valid_mesh(id), "append_text : invalid id")
     var index i32 = 0
     var size i32 = 0
@@ -1620,13 +1718,14 @@ func append_text(id mesh_id, texture texture_s, name str, position mat.v2, scale
         rune, size, glyphX, glyphY, glyphWidth, glyphHeight, glyphAdvance = gltext.NextRune(name, text, index)
         if (size >= 0) {
 
+//            printf("RUNE\n")
             var quadAdvance f32 = scale.x * i32.f32(glyphAdvance)// / gfx_width
             var quadWidth f32 = scale.x * i32.f32(glyphWidth)// / gfx_width
             var quadHeight f32 = textHeight //scale.y * i32.f32(glyphHeight)// / gfx_height
             var qu0 f32 = i32.f32(glyphX) / tw
             var qv0 f32 = i32.f32(glyphY) / th
 
-            //printf("GH %f, MGH %f, TH %f\n", i32.f32(glyphHeight), maxGlyphHeight, textHeight)
+  //          printf("U %f, V %f, GH %f, MGH %f, TH %f\n", qu0, qv0, i32.f32(glyphHeight), maxGlyphHeight, textHeight)
             var qu1 f32 = qu0 + i32.f32(glyphAdvance) / tw
             var qv1 f32 = qv0 + i32.f32(glyphHeight) / th
 
@@ -1645,8 +1744,17 @@ func append_text(id mesh_id, texture texture_s, name str, position mat.v2, scale
             index = index + size
             quadX = quadX + quadAdvance
             dummyIndex = dummyIndex + 1
-        }
+        }// else {
+          //  printf("no rune")
+        //}
     }
+  //  }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func measure_glyph(name str, glyph i32) (w i32, h i32) {
+    w, h = gltext.MetricsGlyph(name, glyph)
 }
 
 //-----------------------------------------------------------------------------

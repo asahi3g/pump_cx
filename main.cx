@@ -108,62 +108,60 @@ func on_exit_app_window_yes_state(controlIndex i32, action i32) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func add_percent(id control_id) {
+func add_percent(id control_id, focusIndex i32) {
     var line control_id = gui.control_create("label_text")
     gui.control_add_child(id, line)
-//    gui.control_set_size(line, mat.v2_(0.0, 32.0))
     gui.control_set_autosize(line, gui.AUTOSIZE_Y)
-//    gui.control_set_skin(line, g_debugRedSkin)
- gui.control_set_padding(line, mat.v4_(3.0, 3.0, 3.0, 3.0))
+    gui.control_set_padding(line, mat.v4_(3.0, 3.0, 3.0, 3.0))
     gui.control_set_dock(line, gui.DOCK_BOTTOM)
+    gui.control_set_focus_index(line, focusIndex)
 
     var textLabel label_id = gui.label_create("100")
     gui.control_add_child(line, textLabel.base)
-    gui.control_set_skin(textLabel.base, gui.g_headerSkin)
+    gui.control_set_skin(textLabel.base, gui.g_textboxSkin)
     gui.control_set_dock(textLabel.base, gui.DOCK_RIGHT)
     gui.control_set_autosize(textLabel.base, gui.AUTOSIZE_Y)
     gui.control_set_padding(textLabel.base, mat.v4_(3.0, 3.0, 3.0, 3.0))
     gui.control_set_size(textLabel.base, mat.v2_(55.0, 0.0))
+    gui.control_set_focusable(textLabel.base, 1)
     gui.label_set_font(textLabel, gui.g_boldFont)
     gui.label_set_text(textLabel, "100%")
     gui.label_set_size(textLabel, gui.g_fontSizeSmall)
     gui.label_set_color(textLabel, gui.g_gray_3)
     gui.label_set_align(textLabel, gui.ALIGN_CENTER)
-
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func add_label_text(id control_id, label str, text str) {
+func add_label_text(id control_id, label str, text str, focusIndex i32) {
     var line control_id = gui.control_create("label_text")
     gui.control_add_child(id, line)
-//    gui.control_set_size(line, mat.v2_(0.0, 32.0))
     gui.control_set_autosize(line, gui.AUTOSIZE_Y)
-//    gui.control_set_skin(line, g_debugRedSkin)
- gui.control_set_padding(line, mat.v4_(3.0, 3.0, 3.0, 3.0))
+    gui.control_set_padding(line, mat.v4_(3.0, 3.0, 3.0, 3.0))
     gui.control_set_dock(line, gui.DOCK_BOTTOM)
+    gui.control_set_focus_index(line, focusIndex)
 
-    var textLabel label_id = gui.label_create("text")
+    var textLabel label_id = gui.label_create(sprintf("textbox_%s", label))
     gui.control_add_child(line, textLabel.base)
-    gui.control_set_skin(textLabel.base, gui.g_headerSkin)
+    gui.control_set_skin(textLabel.base, gui.g_textboxSkin)
     gui.control_set_dock(textLabel.base, gui.DOCK_RIGHT)
     gui.control_set_autosize(textLabel.base, gui.AUTOSIZE_Y)
     gui.control_set_size(textLabel.base, mat.v2_(100.0, 0.0))
+    gui.control_set_focusable(textLabel.base, 1)
     gui.label_set_font(textLabel, gui.g_boldFont)
     gui.label_set_text(textLabel, text)
     gui.label_set_size(textLabel, gui.g_fontSizeSmall)
-    gui.label_set_color(textLabel, gui.g_gray_3)
+    gui.label_set_color(textLabel, gui.g_gray_4)
     gui.label_set_align(textLabel, gui.ALIGN_CENTER)
 
-    var captionLabel label_id = gui.label_create("caption")
+    var captionLabel label_id = gui.label_create(sprintf("caption_%s", label))
     gui.control_add_child(line, captionLabel.base)
     gui.control_set_dock(captionLabel.base, gui.DOCK_RIGHT)
     gui.control_set_autosize(captionLabel.base, gui.AUTOSIZE)
-//    gui.control_set_size(captionLabel.base, mat.v2_(50.0, 0.0))
     gui.label_set_font(captionLabel, gui.g_boldFont)
     gui.label_set_text(captionLabel, label)
     gui.label_set_size(captionLabel, gui.g_fontSizeSmall)
-    gui.label_set_color(captionLabel, gui.g_gray_3)
+    gui.label_set_color(captionLabel, gui.g_gray_4)
     gui.label_set_align(captionLabel, gui.ALIGN_CENTER)
 }
 
@@ -286,7 +284,6 @@ func main() {
     // main screen
     {
         g_mainScreen = gui.create_screen("main")
-        //gui.control_set_skin(g_mainScreen.base, gui.g_debugRedSkin)
         gui.control_set_bounds(g_mainScreen.base, screenBounds)
         gui.control_set_padding(g_mainScreen.base, gui.g_padding)
         gui.screen_set_duration(g_mainScreen, -2.0D)
@@ -298,20 +295,95 @@ func main() {
         {
             var control control_id = gui.control_create("toolbar")
             gui.control_add_child(g_mainScreen.base, control)
-            gui.control_set_padding(control, mat.v4_(0.01, 0.01, 0.01, 0.01))
-            gui.control_set_size(control, mat.v2_(0.0, 32.0))
+            gui.control_set_padding(control, mat.v4_(5.0, 3.0, 10.0, 3.0))
             gui.control_set_skin(control, gui.g_blackSkin)
-            //gui.control_set_skin(control, gui.g_debugRedSkin)
+            gui.control_set_autosize(control, gui.AUTOSIZE_Y)
             gui.control_set_dock(control, gui.DOCK_TOP)
+
+            var icon label_id = gui.label_create("icon")
+            gui.control_add_child(control, icon.base)
+            gui.control_set_dock(icon.base, gui.DOCK_LEFT)
+            gui.control_set_padding(icon.base, mat.v4_(10.0, 0.0, 0.0, 0.0))
+            gui.control_set_autosize(icon.base, gui.AUTOSIZE_X)
+            gui.label_set_color(icon, gui.g_gold)
+            gui.label_set_rune(icon, 388)
+            gui.label_set_size(icon, gui.g_fontSizeHeader)
+            gui.label_set_align(icon, gui.ALIGN_CENTER)
+
+            var logo label_id = gui.label_create("logo")
+            gui.control_add_child(control, logo.base)
+            gui.control_set_dock(logo.base, gui.DOCK_LEFT)
+            gui.control_set_padding(logo.base, mat.v4_(0.0, 0.0, 0.0, 0.0))
+            gui.control_set_autosize(logo.base, gui.AUTOSIZE)
+            gui.label_set_font(logo, gui.g_boldFont)
+            gui.label_set_color(logo, gui.g_gold)
+            gui.label_set_text(logo, "PUMPCX")
+            gui.label_set_size(logo, gui.g_fontSizeHeader)
+            gui.label_set_align(logo, gui.ALIGN_CENTER)
+
+            var date label_id = gui.label_create("date")
+            gui.control_add_child(control, date.base)
+            gui.control_set_dock(date.base, gui.DOCK_LEFT)
+            gui.control_set_padding(date.base, mat.v4_(5.0, 0.0, 20.0, 0.0))
+            gui.control_set_autosize(date.base, gui.AUTOSIZE_X)
+            gui.label_set_font(date, gui.g_regularFont)
+            gui.label_set_color(date, gui.g_gray_3)
+            gui.label_set_text(date, "2018-11-02 12:08:42")
+            gui.label_set_size(date, gui.g_fontSizeSmall)
+            gui.label_set_align(date, gui.ALIGN_CENTER)
+
+            var lang gui.combo_id = gui.combo_create("lang")
+            gui.control_add_child(control, lang.base)
+            gui.control_set_dock(lang.base, gui.DOCK_RIGHT)
+            gui.control_set_autosize(lang.base, gui.AUTOSIZE_X)
+            var langLabel gui.label_id = gui.combo_get_text(lang)
+            gui.label_set_font(langLabel, gui.g_regularFont)
+            gui.label_set_color(langLabel, gui.g_gray_3)
+            gui.label_set_text(langLabel, "English")
+            gui.label_set_size(langLabel, gui.g_fontSizeSmall)
+            var langPic gui.label_id = gui.combo_get_pic(lang)
+            //gui.label_set_font(langPic, gui.g_awesomeBoldFont)
+            gui.label_set_color(langPic, g_white)
+            gui.label_set_rune(langPic, 171)
+            gui.label_set_size(langPic, gui.g_fontSizeText)
+
+            var user combo_id = gui.combo_create("user")
+            gui.control_add_child(control, user.base)
+            gui.control_set_dock(user.base, gui.DOCK_RIGHT)
+            gui.control_set_autosize(user.base, gui.AUTOSIZE_X)
+            var userLabel label_id = gui.combo_get_text(user)
+            gui.label_set_font(userLabel, gui.g_regularFont)
+            gui.label_set_color(userLabel, gui.g_gray_3)
+            gui.label_set_text(userLabel, "Asahi3g")
+            gui.label_set_size(userLabel, gui.g_fontSizeSmall)
+            var userPic gui.label_id = gui.combo_get_pic(user)
+            //gui.label_set_font(userPic, gui.g_awesomeBoldFont)
+            gui.label_set_color(userPic, gui.g_white)
+            gui.label_set_rune(userPic, 6)
+            gui.label_set_size(userPic, gui.g_fontSizeText)
+
+            var pair gui.combo_id = gui.combo_create("pair")
+            gui.control_add_child(control, pair.base)
+            gui.control_set_dock(pair.base, gui.DOCK_RIGHT)
+            gui.control_set_autosize(pair.base, gui.AUTOSIZE_X)
+            var pairLabel gui.label_id = gui.combo_get_text(pair)
+            gui.label_set_font(pairLabel, gui.g_boldFont)
+            gui.label_set_color(pairLabel, gui.g_gray_4)
+            gui.label_set_text(pairLabel, "CX / SYN")
+            gui.label_set_size(pairLabel, gui.g_fontSizeText)
+            var pairPic gui.label_id = gui.combo_get_pic(pair)
+            //gui.label_set_font(pairPic, gui.g_awesomeBoldFont)
+            gui.label_set_color(pairPic, gui.g_white)
+            gui.label_set_rune(pairPic, 282)
+            gui.label_set_size(pairPic, gui.g_fontSizeText)
+
         }
 
         {
             var panel control_id = gui.control_create("panel")
             gui.control_add_child(g_mainScreen.base, panel)
             gui.control_set_padding(panel, mat.v4_(0.0, 0.0, 3.0, 0.0))
-            //gui.control_set_size(panel, mat.v2_(0.0, 0.1))
             gui.control_set_dock(panel, gui.DOCK_FILL)
-            //gui.control_set_skin(panel, gui.g_debugGreenSkin)
 
             {
                 var right splitter_id = gui.splitter_create("right")
@@ -344,7 +416,7 @@ func main() {
 
                         var playButton label_id = gui.label_create("playButton")
                         gui.control_add_child(rightBottomPlayControl, playButton.base)
-                        gui.control_set_skin(playButton.base, gui.g_primaryBlueSkin)
+                        gui.control_set_skin(playButton.base, gui.g_blueSkin)
                         gui.control_set_dock(playButton.base, gui.DOCK_BOTTOM)
                         gui.control_set_focusable(playButton.base, 1)
                         gui.control_set_padding(playButton.base, mat.v4_(5.0, 5.0, 5.0, 5.0))
@@ -376,6 +448,7 @@ func main() {
                             gui.control_set_skin(buyButton.base, gui.g_greenSkin)
                             gui.control_set_dock(buyButton.base, gui.DOCK_BOTTOM)
                             gui.control_set_focusable(buyButton.base, 1)
+                            gui.control_set_focus_index(buyButton.base, 4)
                             gui.control_set_padding(buyButton.base, mat.v4_(5.0, 5.0, 5.0, 5.0))
                             gui.control_set_autosize(buyButton.base, AUTOSIZE_Y)
                             gui.label_set_font(buyButton, gui.g_boldFont)
@@ -384,10 +457,10 @@ func main() {
                             gui.label_set_color(buyButton, gui.g_white)
                             gui.label_set_align(buyButton, gui.ALIGN_CENTER)
 
-                            add_label_text(bottomLeft , "Total:", "0.000")
-                            add_percent(bottomLeft)
-                            add_label_text(bottomLeft, "Amount:", "0.000")
-                            add_label_text(bottomLeft , "Price:", "0.000")
+                            add_label_text(bottomLeft , "Total:", "0.000", 3)
+                            add_percent(bottomLeft, 2)
+                            add_label_text(bottomLeft, "Amount:", "0.000", 1)
+                            add_label_text(bottomLeft , "Price:", "0.000", 0)
 
                             /*var padding control_id = gui.control_create("padding")
                             gui.control_add_child(bottomLeft, padding)
@@ -400,11 +473,12 @@ func main() {
                             //gui.control_set_skin(bottomRight, gui.g_debugRedSkin)
                             gui.control_set_padding(bottomRight, mat.v4_(5.0, 10.0, 10.0, 10.0))
 
-                            var sellButton label_id = gui.label_create("buyButton")
+                            var sellButton label_id = gui.label_create("sellButton")
                             gui.control_add_child(bottomRight, sellButton.base)
                             gui.control_set_skin(sellButton.base, gui.g_redSkin)
                             gui.control_set_dock(sellButton.base, gui.DOCK_BOTTOM)
                             gui.control_set_focusable(sellButton.base, 1)
+                            gui.control_set_focus_index(sellButton.base, 4)
                             gui.control_set_padding(sellButton.base, mat.v4_(5.0, 5.0, 5.0, 5.0))
                             gui.control_set_autosize(sellButton.base, AUTOSIZE_Y)
                             gui.label_set_font(sellButton, gui.g_boldFont)
@@ -413,10 +487,10 @@ func main() {
                             gui.label_set_color(sellButton, gui.g_white)
                             gui.label_set_align(sellButton, ALIGN_CENTER)
 
-                            add_label_text(bottomRight , "Total:", "0.000")
-                            add_percent(bottomRight)
-                            add_label_text(bottomRight, "Amount:", "0.000")
-                            add_label_text(bottomRight , "Price:", "0.000")
+                            add_label_text(bottomRight , "Total:", "0.000", 3)
+                            add_percent(bottomRight, 2)
+                            add_label_text(bottomRight, "Amount:", "0.000", 1)
+                            add_label_text(bottomRight , "Price:", "0.000", 0)
 
                             gui.splitter_set_controls(limitOrder, bottomLeft, bottomRight)
     
@@ -463,6 +537,8 @@ func main() {
                     }
 
                     gui.splitter_set_controls(rightBottom, rightBottomPlayControl, orderType.base)
+                    gui.control_set_focus_index(orderType.base, 0)
+                    gui.control_set_focus_index(rightBottomPlayControl, 1)
                 }
 
                 {
@@ -556,7 +632,7 @@ func main() {
         g_pumpcxScreen = gui.create_screen("pumpcx")
         gui.control_set_skin(g_pumpcxScreen.base, gui.g_blackSkin)
         gui.control_set_bounds(g_pumpcxScreen.base, screenBounds)
-        gui.screen_set_duration(g_pumpcxScreen, -2.0D)
+        gui.screen_set_duration(g_pumpcxScreen, 2.0D)
         gui.screen_set_on_next(g_pumpcxScreen, g_mainScreen)
         gui.screen_set_on_event(g_pumpcxScreen, g_mainScreen)
 
@@ -564,7 +640,7 @@ func main() {
             var label label_id = gui.label_create("pumpcx")
             gui.control_add_child(g_pumpcxScreen.base, label.base)
             //gui.control_set_skin(label.base, gui.g_redSkin)
-            gui.control_set_bounds(label.base, mat.v4_(0.0, 0.0, 600.0, 600.0))
+            gui.control_set_bounds(label.base, mat.v4_(0.0, 0.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
             gui.control_set_autoscale(label.base, gui.AUTOSCALE)
             gui.control_set_align(label.base, gui.ALIGN_CENTER)
             gui.label_set_font(label, gui.g_boldFont)
@@ -584,14 +660,16 @@ func main() {
         gui.screen_set_on_event(g_skycoinScreen, g_mainScreen)
 
         {
-            var picture picture_id = gui.create_picture("skycoin")
+            var picture picture_id = gui.picture_create("skycoin")
             gui.control_add_child(g_skycoinScreen.base, picture.base)
             //gui.control_set_skin(picture.base, g_blackSkin) // panic if no skin g_redSkin)
-            gui.control_set_bounds(picture.base, mat.v4_(0.0, 0.0, 600.0, 600.0))
+            gui.control_set_bounds(picture.base, mat.v4_(0.0, 0.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
             gui.control_set_align(picture.base, gui.ALIGN_CENTER)
             gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
             gui.picture_set_align(picture, gui.ALIGN_CENTER)
             gui.picture_set_texture(picture, gui.g_skycoinTexture)
+        var fontTexture texture_s = gui.g_fonts[gui.g_awesomeBoldFont.font].textures[0] // ##0 auto select best size
+    gui.picture_set_texture(picture, fontTexture)
         }
     }
 
@@ -600,7 +678,7 @@ func main() {
         g_debugScreen = gui.create_screen("debug")
         gui.control_set_skin(g_debugScreen.base, gui.g_blackSkin)
         gui.control_set_bounds(g_debugScreen.base, screenBounds)
-        gui.screen_set_duration(g_debugScreen, -2.0D)
+        gui.screen_set_duration(g_debugScreen, 2.0D)
         gui.screen_set_on_next(g_debugScreen, g_skycoinScreen)
         gui.screen_set_on_event(g_debugScreen, g_mainScreen)
 
@@ -631,7 +709,7 @@ func main() {
         }
 
         {
-            var picture picture_id = gui.create_picture("skycoin_0")
+            var picture picture_id = gui.picture_create("skycoin_0")
             gui.control_add_child(g_debugScreen.base, picture.base)
             gui.control_set_bounds(picture.base, mat.v4_(0.0, 0.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
             gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
@@ -640,7 +718,7 @@ func main() {
         }
 
         {
-            var picture picture_id = gui.create_picture("skycoin_1")
+            var picture picture_id = gui.picture_create("skycoin_1")
             gui.control_add_child(g_debugScreen.base, picture.base)
             gui.control_set_bounds(picture.base, mat.v4_(gfx.gfx_width / 2.0, gfx.gfx_height / 2.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
             gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
@@ -666,13 +744,8 @@ func main() {
         gui.screen_set_on_event(g_bootScreen, g_mainScreen)
     }
 
-    //gui.g_nextScreen = g_bootScreen
-    //gui.g_nextScreen = g_debugScreen
-    //gui.g_nextScreen = g_skycoinScreen
-    //gui.g_nextScreen = g_pumpcxScreen
-    //gui.g_nextScreen = g_mainScreen
-    //gui.g_nextScreen = g_gameScreen
-
+    //gui.show_screen(g_bootScreen)
+    //gui.show_screen(g_skycoinScreen)
     gui.show_screen(g_mainScreen)
 
     var profileSwap profile_id = fps.create_profile("swap")
