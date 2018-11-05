@@ -594,11 +594,11 @@ var g_gray_5            mat.v4 = mat.rgba_ui8(239, 240, 240, 255)
 var g_gray_6            mat.v4 = mat.rgba_ui8(247, 247, 247, 255)
 var g_gray_7            mat.v4 = mat.rgba_ui8(251, 251, 251, 255)
 
-var g_black_a50 mat.v4 = mat.v4_mul(g_black, mat.v4_(0.5, 0.5, 0.5, 0.8))
+var g_black_a10 mat.v4 = mat.v4_mul(g_black, mat.v4_(0.7, 0.7, 0.7, 0.6))
+var g_black_a50 mat.v4 = mat.v4_mul(g_black, mat.v4_(0.7, 0.7, 0.7, 0.8))
 var g_blue_a50  mat.v4 = alpha(g_blue, 0.5)
 var g_goldA50 mat.v4 = alpha(g_gold, 0.5)
 
-var g_debugLayer layer_id
 var g_debugRedLayer layer_id
 var g_debugGreenLayer layer_id
 var g_debugBlueLayer layer_id
@@ -606,14 +606,13 @@ var g_debugGoldLayer layer_id
 var g_goldLayer layer_id
 var g_bootLayer layer_id
 var g_blackLayer layer_id
-var g_grayLayer layer_id
-var g_blackBorderLayer layer_id
+var g_zeroBorderLayer layer_id
 var g_redLayer layer_id
 var g_greenLayer layer_id
-var g_primaryBlueLayer layer_id
-var g_primaryBlueAlphaLayer layer_id
+var g_blueLayer layer_id
+var g_blueAlphaLayer layer_id
+var g_popupLayer layer_id
 var g_modalLayer layer_id
-var g_windowLayer layer_id
 var g_headerLayer layer_id
 var g_textboxLayer layer_id
 var g_focusedLayer layer_id
@@ -624,23 +623,21 @@ var g_pageFocusedBack layer_id
 var g_pageFocusedFront layer_id
 var g_pageSelectedBack layer_id
 var g_pageSelectedFront layer_id
-var g_binderPageLayer layer_id
-var g_binderLayer layer_id
 
-var g_debugSkin skin_id
 var g_debugRedSkin skin_id
 var g_debugGreenSkin skin_id
 var g_debugBlueSkin skin_id
 var g_debugGoldSkin skin_id
 var g_bootSkin skin_id
 var g_blackSkin skin_id
-var g_blackBorderSkin skin_id
+var g_zeroBorderSkin skin_id
 var g_blackFocusedSkin skin_id
 var g_grayFocusedSkin skin_id
 var g_redSkin skin_id
 var g_greenSkin skin_id
 var g_blueSkin skin_id
-var g_primaryBlueAlphaSkin skin_id
+var g_blueAlphaSkin skin_id
+var g_popupSkin skin_id
 var g_modalSkin skin_id
 var g_windowSkin skin_id
 var g_headerSkin skin_id
@@ -649,6 +646,7 @@ var g_buttonSkin skin_id
 var g_stripSkin skin_id
 var g_binderPageSkin skin_id
 var g_binderSkin skin_id
+var g_zeroSkin skin_id
 
 var textureLogo str = "textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png"
 
@@ -2123,68 +2121,68 @@ var g_screenCount i32
 var g_modals [64]screen_id
 var g_modalCount i32 = 0
 
-    var g_currentScreen screen_id = invalid_screen()
+var g_currentScreen screen_id = invalid_screen()
 var g_nextScreen    screen_id = invalid_screen()
 
-    var g_transitionDuration f64 = 0.5D
-    var g_transitionTime     f64 = 0.0D
+var g_transitionDuration f64 = 0.5D
+var g_transitionTime     f64 = 0.0D
 
-    //-----------------------------------------------------------------------------
-    //-----------------------------------------------------------------------------
-    type screen_id struct {
-        base control_id
-            screen i32
-    }
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type screen_id struct {
+    base control_id
+    screen i32
+}
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 type screen_s struct {
     id    screen_id
-        on_exit   screen_id
-        on_enter  screen_id
-        on_menu   screen_id
-        on_next   screen_id
-        duration  f64
-        time      f64
-        state     i32
-        prevState i32
-        modal     bool
-        paused    bool
+    on_exit   screen_id
+    on_enter  screen_id
+    on_menu   screen_id
+    on_next   screen_id
+    duration  f64
+    time      f64
+    state     i32
+    prevState i32
+    modal     bool
+    paused    bool
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func screen_id_(base control_id, screen i32) (out screen_id) {
     out.base = base
-        out.screen = screen
-        uti.assert_(is_valid_screen(out), "screen_id_: invalid id")
+    out.screen = screen
+    uti.assert_(is_valid_screen(out), "screen_id_: invalid id")
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func create_screen(name str) (out screen_id) {
-    uti.assert_(g_screenCount < len(g_screens), "create_screen : overflow") // ##1 use slice
-        out.screen = g_screenCount
-        out.base = control_create_(name, GUI_SCREEN, out.screen)
+func screen_create(name str) (out screen_id) {
+    uti.assert_(g_screenCount < len(g_screens), "screen_create : overflow") // ##1 use slice
+    out.screen = g_screenCount
+    out.base = control_create_(name, GUI_SCREEN, out.screen)
 
-        control_set_focus_index(out.base, 0)
+    control_set_focus_index(out.base, 0)
 
-        var screen screen_s
-        screen.id = out
-        screen.on_exit   = invalid_screen()
-        screen.on_enter  = invalid_screen()
-        screen.on_menu   = invalid_screen()
-        screen.on_next   = invalid_screen()
-        screen.duration  = -1.0D
-        screen.time      = 0.0D
-        screen.state     = STATE_CLOSED
-        screen.prevState = STATE_CLOSED
-        screen.modal     = false
-        screen.paused    = false
+    var screen screen_s
+    screen.id = out
+    screen.on_exit   = invalid_screen()
+    screen.on_enter  = invalid_screen()
+    screen.on_menu   = invalid_screen()
+    screen.on_next   = invalid_screen()
+    screen.duration  = -1.0D
+    screen.time      = 0.0D
+    screen.state     = STATE_CLOSED
+    screen.prevState = STATE_CLOSED
+    screen.modal     = false
+    screen.paused    = false
 
-        g_screens[out.screen] = screen
-        g_screenCount = out.screen + 1
-        uti.assert_(is_valid_screen(out), "create_screen : invalid id")
+    g_screens[out.screen] = screen
+    g_screenCount = out.screen + 1
+    uti.assert_(is_valid_screen(out), "screen_create : invalid id")
 }
 
 //-----------------------------------------------------------------------------
@@ -2192,7 +2190,7 @@ func create_screen(name str) (out screen_id) {
 //func invalid_screen() { // ##pending issue
 func invalid_screen() (out screen_id) {
     out.base = invalid_control()
-        out.screen = -1
+    out.screen = -1
 }
 
 //-----------------------------------------------------------------------------
@@ -2205,119 +2203,119 @@ func is_valid_screen(id screen_id) (out bool) {
 //-----------------------------------------------------------------------------
 func sceen_set_modal(id screen_id, modal bool) () {
     uti.assert_(is_valid_screen(id), "screen_set_modal : invalid id")
-        g_screens[id.screen].modal = true
+    g_screens[id.screen].modal = true
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func screen_set_on_exit(id screen_id, exit screen_id) () {
     uti.assert_(is_valid_screen(id), "screen_on_exit : invalid id")
-        uti.assert_(is_valid_screen(exit)  , "screen_on_exit : invalid id")
-        g_screens[id.screen].on_exit = exit
+    uti.assert_(is_valid_screen(exit)  , "screen_on_exit : invalid id")
+    g_screens[id.screen].on_exit = exit
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func screen_set_on_menu(id screen_id, menu screen_id) () {
     uti.assert_(is_valid_screen(id), "screen_on_menu : invalid id")
-        uti.assert_(is_valid_screen(menu)  , "screen_on_menu : invalid id")
-        g_screens[id.screen].on_menu = menu
+    uti.assert_(is_valid_screen(menu)  , "screen_on_menu : invalid id")
+    g_screens[id.screen].on_menu = menu
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func screen_set_on_enter(id screen_id, enter screen_id) () {
     uti.assert_(is_valid_screen(id), "screen_on_enter : invalid id")
-        uti.assert_(is_valid_screen(enter) , "screen_on_enter : invalid id")
-        g_screens[id.screen].on_enter = enter
+    uti.assert_(is_valid_screen(enter) , "screen_on_enter : invalid id")
+    g_screens[id.screen].on_enter = enter
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func screen_set_on_next(id screen_id, next screen_id) () {
     uti.assert_(is_valid_screen(id), "screen_on_next : invalid id 0")
-        uti.assert_(is_valid_screen(next)  , "screen_on_next : invalid id 1")
-        g_screens[id.screen].on_next = next
+    uti.assert_(is_valid_screen(next)  , "screen_on_next : invalid id 1")
+    g_screens[id.screen].on_next = next
 }
 
 //-----------------------------------------------------------------------------
 func screen_set_on_event(id screen_id, event screen_id) () {
     screen_set_on_exit(id, event)
-        screen_set_on_enter(id, event)
-        screen_set_on_menu(id, event)
+    screen_set_on_enter(id, event)
+    screen_set_on_menu(id, event)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func screen_set_duration(id screen_id, duration f64) {
     uti.assert_(is_valid_screen(id), "screen_set_duration : invalid id")
-        g_screens[id.screen].duration = duration
+    g_screens[id.screen].duration = duration
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func screen_set_modal(id screen_id, modal bool) {
     uti.assert_(is_valid_screen(id), "screen_set_modal : invalid id")
-        g_screens[id.screen].modal = modal
+    g_screens[id.screen].modal = modal
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func screen_process_event(id screen_id, event *event_s) (out i32) {
     uti.assert_(is_valid_screen(id), "screen_process_event : invalid id")
-        out = control_process_event(id.base, event)
+    out = control_process_event(id.base, event)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func change_screen_state(id screen_id, state i32) () {
     uti.assert_(is_valid_screen(id), "change_screen_state : invalid id")
-        g_screens[id.screen].prevState = g_screens[id.screen].state
-        printf("CHANGE %d\n", state)
-        g_screens[id.screen].state = state
-        var prev i32 = g_screens[id.screen].prevState
-        var curr i32 = g_screens[id.screen].state
-        if (prev != curr) {
-            printf("%d screen state changed %d -> %d\n", id.screen, prev, curr)
-        }
+    g_screens[id.screen].prevState = g_screens[id.screen].state
+    printf("CHANGE %d\n", state)
+    g_screens[id.screen].state = state
+    var prev i32 = g_screens[id.screen].prevState
+    var curr i32 = g_screens[id.screen].state
+    if (prev != curr) {
+        printf("%d screen state changed %d -> %d\n", id.screen, prev, curr)
+    }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func screen_state_changed(id screen_id, prev i32, curr i32) (value bool) {
     uti.assert_(is_valid_screen(id), "screen_state_chaned : invalid id")
-        var screenPrev i32 = g_screens[id.screen].prevState
-        var screenCurr i32 = g_screens[id.screen].state
-        value = ((screenPrev == prev) && (screenCurr == curr))
+    var screenPrev i32 = g_screens[id.screen].prevState
+    var screenCurr i32 = g_screens[id.screen].state
+    value = ((screenPrev == prev) && (screenCurr == curr))
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func update_screen(id screen_id, deltaTime f64) () {
     uti.assert_(is_valid_screen(id), "update_screen : invalid id")
-        var t f64 = g_screens[id.screen].time
-        var d f64 = g_screens[id.screen].duration
+    var t f64 = g_screens[id.screen].time
+    var d f64 = g_screens[id.screen].duration
 
-        g_screens[id.screen].time = t
-        var state i32 = g_screens[id.screen].state
-        if ((t <= 0) && (state == STATE_CLOSED)) {
-            printf("CHANGE SHOWING\n")
-                change_screen_state(id, STATE_SHOWING)
-        } else if ((t >= d) && (d > 0) && (state == STATE_OPENED)) { // can't use g_screens[screen].state here
-            printf("CHANGE CLOSING %d\n", g_screens[id.screen].state)
-                change_screen_state(id, STATE_CLOSING)
-        }
+    g_screens[id.screen].time = t
+    var state i32 = g_screens[id.screen].state
+    if ((t <= 0) && (state == STATE_CLOSED)) {
+        printf("CHANGE SHOWING\n")
+            change_screen_state(id, STATE_SHOWING)
+    } else if ((t >= d) && (d > 0) && (state == STATE_OPENED)) { // can't use g_screens[screen].state here
+        printf("CHANGE CLOSING %d\n", g_screens[id.screen].state)
+            change_screen_state(id, STATE_CLOSING)
+    }
 
     t = t + deltaTime
-        g_screens[id.screen].time = t
-        //    printf("time %f", f64.f32(t))
+    g_screens[id.screen].time = t
+    //    printf("time %f", f64.f32(t))
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func screen_resize(id screen_id) () {
     uti.assert_(is_valid_screen(id), "screen_resize : invalid id")
-        control_resize(id.base)
+    control_resize(id.base)
 }
 
 //-----------------------------------------------------------------------------
@@ -5215,6 +5213,7 @@ type combo_s struct {
     picture label_id
     label label_id
     expand label_id
+    screen screen_id
     window window_id
     list list_id
 }
@@ -5262,6 +5261,13 @@ func combo_get_pic(id combo_id) (out label_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+func combo_get_list(id combo_id) (out list_id) {
+    uti.assert_(is_valid_combo(id), "combo_get_list : invalid id")
+    out = g_combos[id.combo].list
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func combo_create(name str) (out combo_id) {
     out.combo = g_comboCount
     out.base = control_create_(name, GUI_COMBO, g_comboCount)
@@ -5269,11 +5275,35 @@ func combo_create(name str) (out combo_id) {
     control_set_padding(out.base, g_padding)
     g_combos[g_comboCount].id = out
 
+    var screen screen_id = screen_create("screen")
+    g_combos[g_comboCount].screen = screen
+    control_set_skin(screen.base, g_popupSkin)
+    control_set_bounds(screen.base, gfx.gfx_viewport_bounds)
+    screen_set_duration(screen, -2.0D)
+    screen_set_modal(screen, true)
+
     var window window_id = window_create("window")
+    control_add_child(screen.base, window.base)
+    control_set_skin(window.base, g_windowSkin)
+    control_set_size(window.base, mat.v2_(100.0, 100.0))
+    //control_set_autosize(window.base, AUTOSIZE)
+    //control_set_align(window.base, ALIGN_CENTER)
+    var windowHeader control_id = g_windows[window.window].header
+    control_set_visible(windowHeader, 0)
+    var windowStrip control_id = g_windows[window.window].strip
+    control_set_visible(windowStrip, 0)
+    //window_set_caption(window, "combo")
+   //         gui.window_add_button(window, "no", "No", "main", "on_exit_app_window_no_state")
+     //       gui.window_add_button(window, "yes", "Yes", "main", "on_exit_app_window_yes_state")
+
+
     g_combos[g_comboCount].window = window
 
     var list list_id = list_create("list")
+    control_set_autosize(list.base, AUTOSIZE)
+
     g_combos[g_comboCount].list = list
+    window_set_containee(window, list.base)
 
     var expand label_id = label_create("expand")
     g_combos[g_comboCount].expand = expand
@@ -5318,9 +5348,31 @@ func combo_create(name str) (out combo_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func combo_process_event(id combo_id, event *event_s) (out i32) {
+    out = EVENT_UNUSED
     uti.assert_(is_valid_combo(id), "combo_process_event : invalid id")
     var visible i32 = g_controls[id.base.control].visible
+
     if (visible > 0) {
+        var focused i32 = control_focused(id.base)
+        if (focused > 0) {
+            var action i32 = ((*event).keyboard).action
+            var key i32 = ((*event).keyboard).key
+            if (action == KEY_PRESS) {
+                if (key == KEYCODE_SPACE || key == KEYCODE_ENTER) {
+                    out = EVENT_CONSUMED
+                    var screen screen_id = g_combos[id.combo].screen
+                    var window window_id = g_combos[id.combo].window
+                    var comboPosition mat.v2 = g_controls[id.base.control].renderPosition
+                    var windowSize mat.v2 = g_controls[window.base.control].size
+                    comboPosition.y = comboPosition.y - windowSize.y
+                    control_set_position(window.base, comboPosition)
+                    show_screen(screen)
+                }
+            }
+        }
+    }
+
+    if (out == EVENT_UNUSED) {
         out = control_process_event(id.base, event)
     }
 }
@@ -5359,7 +5411,7 @@ func init() () {
     g_fullscreenQuad = gfx.create_mesh(gl.TRIANGLES, attributes, 6 * 3)
 
     gfx.begin_mesh(g_fullscreenQuad)
-    gfx.append_quad(g_fullscreenQuad, gfx.gfx_viewport_bounds, mat.v4_(0.0, 0.0, 1.0, 1.0), gfx.white, gfx.gfx_viewport_bounds, 0.0)
+    gfx.append_quad(g_fullscreenQuad, gfx.gfx_viewport_bounds, mat.v4_(0.0, 1.0, 1.0, 0.0), gfx.white, gfx.gfx_viewport_bounds, 0.0)
     gfx.end_mesh(g_fullscreenQuad)
 
     // fonts
@@ -5399,57 +5451,54 @@ func init() () {
     g_skycoinTexture = gfx.create_texture("textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
 
     // layers
-    g_debugLayer            = layer_create("debug"            , g_red       , g_green     , g_green     , g_green     , g_green )
-    g_debugRedLayer         = layer_create("debugRed"         , g_red       , g_gold      , g_gold      , g_gold      , g_gold  )
-    g_debugGreenLayer       = layer_create("debugGreen"       , g_green     , g_gold      , g_gold      , g_gold      , g_gold  )
+    g_blackLayer            = layer_create("black"            , g_black     , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
+    g_bootLayer             = layer_create("boot"             , g_black     , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_popupLayer            = layer_create("popup"            , g_black_a10 , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_modalLayer            = layer_create("modal"            , g_black_a50 , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
     g_debugBlueLayer        = layer_create("debugBlue"        , g_blue      , g_gold      , g_gold      , g_gold      , g_gold  )
+    g_focusedLayer          = layer_create("focused"          , g_blue      , g_light_blue, g_light_blue, g_light_blue, g_light_blue)
+    g_pageFocusedBack       = layer_create("pageFocusedBack"  , g_blue      , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_blueLayer             = layer_create("blue"             , g_blue      , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_selectedLayer         = layer_create("selected"         , g_darkBlue  , g_blue      , g_blue      , g_blue      , g_blue)
+    g_pageSelectedBack      = layer_create("pageSelectedBack" , g_darkBlue  , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
     g_debugGoldLayer        = layer_create("debugGold"        , g_gold      , g_blue      , g_blue      , g_blue      , g_blue  )
     g_goldLayer             = layer_create("gold"             , g_goldA50   , g_gold      , g_gold      , g_gold      , g_gold)
-    g_bootLayer             = layer_create("boot"             , g_black     , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_blackLayer            = layer_create("black"            , g_black     , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
-    g_grayLayer             = layer_create("gray"             , g_black     , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
-    g_blackBorderLayer      = layer_create("blackBorder"      , gfx.zero    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
-    g_redLayer              = layer_create("red"              , g_red       , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_greenLayer            = layer_create("green"            , g_green     , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_primaryBlueLayer      = layer_create("primaryBlue"      , g_blue      , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_primaryBlueAlphaLayer = layer_create("primaryBlueA50"   , g_blue_a50  , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_modalLayer            = layer_create("modal"            , g_black_a50 , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_windowLayer           = layer_create("window"           , g_black     , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
     g_textboxLayer          = layer_create("textbox"          , g_gray_1    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
-    g_headerLayer           = layer_create("header"           , g_gray_2    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
-    g_focusedLayer          = layer_create("focused"          , g_blue      , g_light_blue, g_light_blue, g_light_blue, g_light_blue)
-    g_selectedLayer         = layer_create("selected"         , g_darkBlue  , g_blue      , g_blue      , g_blue      , g_blue)
-    g_borderFocusedLayer    = layer_create("borderFocused"    , gfx.zero    , g_blue      , g_blue      , g_blue      , g_blue)
     g_stripLayer            = layer_create("strip"            , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2)
-    g_pageSelectedBack      = layer_create("pageSelectedBack" , g_darkBlue  , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_headerLayer           = layer_create("header"           , g_gray_2    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
+    g_debugGreenLayer       = layer_create("debugGreen"       , g_green     , g_gold      , g_gold      , g_gold      , g_gold  )
+    g_greenLayer            = layer_create("green"            , g_green     , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_debugRedLayer         = layer_create("debugRed"         , g_red       , g_gold      , g_gold      , g_gold      , g_gold  )
+    g_redLayer              = layer_create("red"              , g_red       , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_borderFocusedLayer    = layer_create("borderFocused"    , gfx.zero    , g_blue      , g_blue      , g_blue      , g_blue)
     g_pageSelectedFront     = layer_create("pageSelectedFront", gfx.zero    , g_gray_3    , g_black     , g_gray_3    , g_gray_3)
-    g_pageFocusedBack       = layer_create("pageFocusedBack"  , g_blue      , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_zeroBorderLayer       = layer_create("zeroBorder"       , gfx.zero    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
     g_pageFocusedFront      = layer_create("pageFocusedFront" , gfx.zero    , g_light_blue, g_light_blue, g_light_blue, g_light_blue)
-    g_binderPageLayer       = layer_create("binderPage"       , g_gray_1    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
-    g_binderLayer           = layer_create("binder"           , g_black     , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
+    g_blueAlphaLayer        = layer_create("blueA50"          , g_blue_a50  , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
 
-    // controls
-    g_debugSkin           = skin_create("debug"          , g_debugLayer      , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer()   , invalid_layer())
-    g_debugRedSkin        = skin_create("debugRed"       , g_debugRedLayer   , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer()   , invalid_layer())
-    g_debugGreenSkin      = skin_create("debugGreen"     , g_debugGreenLayer , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer()   , invalid_layer())
-    g_debugBlueSkin       = skin_create("debugBlue"      , g_debugBlueLayer  , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer()   , invalid_layer())
-    g_debugGoldSkin       = skin_create("debugGold"      , g_debugGoldLayer  , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer()   , invalid_layer())
-    g_bootSkin            = skin_create("boot"           , g_bootLayer       , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer()   , invalid_layer())
-    g_blackSkin           = skin_create("black"          , g_blackLayer      , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_borderFocusedLayer, invalid_layer()   , g_selectedLayer   , invalid_layer())
-    g_blackBorderSkin     = skin_create("blackFocused"   , g_blackBorderLayer, invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer      , invalid_layer()   , g_selectedLayer   , invalid_layer())
-    g_grayFocusedSkin     = skin_create("grayFocused"    , g_grayLayer       , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer      , invalid_layer()   , g_selectedLayer   , invalid_layer())
-    g_redSkin             = skin_create("red"            , g_redLayer        , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , g_goldLayer       , invalid_layer()   , invalid_layer())
-    g_greenSkin           = skin_create("green"          , g_greenLayer      , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , g_goldLayer       , invalid_layer()   , invalid_layer())
-    g_blueSkin            = skin_create("primaryBlue"    , g_primaryBlueLayer, invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_goldLayer         , g_goldLayer       , invalid_layer()   , invalid_layer())
-    g_primaryBlueAlphaSkin= skin_create("primaryBlueA50" , invalid_layer()   , g_primaryBlueAlphaLayer, invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer()   , invalid_layer())
-    g_modalSkin           = skin_create("modal"          , g_modalLayer      , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer()   , invalid_layer())
-    g_windowSkin          = skin_create("window"         , g_windowLayer     , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer()   , invalid_layer())
-    g_headerSkin          = skin_create("header"         , g_headerLayer     , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer      , invalid_layer()   , g_selectedLayer   , invalid_layer())
-    g_textboxSkin         = skin_create("textbox"        , g_textboxLayer    , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer      , invalid_layer()   , g_selectedLayer   , invalid_layer())
-    g_buttonSkin          = skin_create("button"         , g_headerLayer     , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_focusedLayer      , invalid_layer()   , g_selectedLayer   , invalid_layer())
-    g_stripSkin           = skin_create("strip"          , g_stripLayer      , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer()   , invalid_layer())
-    g_binderPageSkin      = skin_create("binderPage"     , g_binderPageLayer , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), g_pageFocusedBack   , g_pageFocusedFront, g_pageSelectedBack, g_pageSelectedFront)
-    g_binderSkin          = skin_create("binder"         , g_binderLayer     , invalid_layer()        , invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer(), invalid_layer()     , invalid_layer()   , invalid_layer()   , invalid_layer())
+    // skins
+g_blackSkin      =skin_create("black"       , g_blackLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_borderFocusedLayer,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_grayFocusedSkin=skin_create("grayFocused" , g_blackLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_windowSkin     =skin_create("window"      , g_blackLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_binderSkin     =skin_create("binder"      , g_blackLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_blueSkin       =skin_create("blue"        , g_blueLayer      ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_goldLayer         ,g_goldLayer       ,invalid_layer()   ,invalid_layer())
+g_bootSkin       =skin_create("boot"        , g_bootLayer      ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_zeroSkin       =skin_create("blackFocused", g_bootLayer      ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_debugRedSkin   =skin_create("debugRed"    , g_debugRedLayer  ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_debugGreenSkin =skin_create("debugGreen"  , g_debugGreenLayer,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_debugBlueSkin  =skin_create("debugBlue"   , g_debugBlueLayer ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_debugGoldSkin  =skin_create("debugGold"   , g_debugGoldLayer ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_greenSkin      =skin_create("green"       , g_greenLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,g_goldLayer       ,invalid_layer()   ,invalid_layer())
+g_headerSkin     =skin_create("header"      , g_headerLayer    ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_buttonSkin     =skin_create("button"      , g_headerLayer    ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_blueAlphaSkin  =skin_create("blueA50"     , invalid_layer()  ,g_blueAlphaLayer,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_modalSkin      =skin_create("popup"       , g_modalLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_popupSkin      =skin_create("modal"       , g_popupLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_redSkin        =skin_create("red"         , g_redLayer       ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,g_goldLayer       ,invalid_layer()   ,invalid_layer())
+g_stripSkin      =skin_create("strip"       , g_stripLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_textboxSkin    =skin_create("textbox"     , g_textboxLayer   ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_binderPageSkin =skin_create("binderPage"  , g_textboxLayer   ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_pageFocusedBack   ,g_pageFocusedFront,g_pageSelectedBack,g_pageSelectedFront)
+g_zeroBorderSkin =skin_create("blackFocused", g_zeroBorderLayer,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
 }
 
 //-----------------------------------------------------------------------------
@@ -5828,7 +5877,7 @@ func render() () {
     var depthClear f64 = -1.0D
     var depthWrite bool = true
 
-    var clearColor mat.v4 = g_black
+    var clearColor mat.v4 = mat.v4_(0.0, 0.0, 0.0, 0.0)
 
     fps.begin_profile(g_profileRenderCurrentScreen)
     var target_0 gfx.target_s = gfx.invalid_target()
@@ -5836,7 +5885,7 @@ func render() () {
         target_0 = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target_0.framebuffer)
         gfx.bind_depthbuffer(g_depthBuffer_0, depthTest, depthFunc, depthWrite)
-        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, depthClear)
+        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, g_black, depthClear)
         screen_render(g_currentScreen, clip, 0)
     }
     fps.end_profile(g_profileRenderCurrentScreen)
@@ -5847,7 +5896,7 @@ func render() () {
         target_1 = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target_1.framebuffer)
         gfx.bind_depthbuffer(g_depthBuffer_0, depthTest, depthFunc, depthWrite)
-        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, depthClear)
+        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, g_black, depthClear)
         screen_render(g_nextScreen, clip, 0)
     }
     fps.end_profile(g_profileRenderNextScreen)
@@ -5857,7 +5906,7 @@ func render() () {
     //if (gfx.is_valid_target(target_0) && gfx.is_valid_target(target_1)) {
         target_2 = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target_2.framebuffer)
-        gfx.clear(gl.COLOR_BUFFER_BIT, clearColor, 0.0D)
+        gfx.clear(gl.COLOR_BUFFER_BIT, gfx.zero, 0.0D)
         gfx.disable_depth()
         gfx.disable_blending()
         gfx.effect_use(gfx.g_fxTrans_0)
@@ -5887,14 +5936,14 @@ func render() () {
         var target target_s = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target.framebuffer)
         gfx.bind_depthbuffer(g_depthBuffer_0, depthTest, depthFunc, depthWrite)
-        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, clearColor, depthClear)
+        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, gfx.zero, depthClear)
         if (is_valid_screen(g_modals[i])) {
             screen_render(g_modals[i], clip, 0)
         }
 
         var target_3 target_s = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target_3.framebuffer)
-        gfx.clear(gl.COLOR_BUFFER_BIT, clearColor, 0.0D)
+        gfx.clear(gl.COLOR_BUFFER_BIT, gfx.zero, 0.0D)
         gfx.disable_depth()
         gfx.disable_blending()
         gfx.effect_use(gfx.g_fxTrans_1)
@@ -5911,7 +5960,7 @@ func render() () {
     fps.begin_profile(g_profileRenderDefaultFramebuffer)
     // ##todo fast path if no modals => render in default framebuffer 0
     gfx.bind_framebuffer(0)
-    gfx.clear(gl.COLOR_BUFFER_BIT, g_black, 0.0D)
+    gfx.clear(gl.COLOR_BUFFER_BIT, gfx.zero, 0.0D)
     gfx.disable_depth()
     gfx.disable_blending()
     gfx.effect_use(gfx.g_fxTexture)
