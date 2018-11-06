@@ -89,14 +89,15 @@ func begin_update(in fps_s) (out fps_s) {
 
     var full bool = false
     var i i32 = 0
-    if out.currentTime - out.fpsTime > 1.0D {
+    var elapsed f64 = 2.0D
+    if (out.currentTime - out.fpsTime > elapsed) {
         out.fpsTime = out.currentTime
-        //printf("fps : %d\n", f64.i32(out.fps))
+        printf("fps : %d\n", f64.i32(out.fps / elapsed))
         out.fps = 0.0D
         full = true
-        /*for i = 0; i < g_profileTreeCount; i = i + 1 {
+        for i = 0; i < g_profileTreeCount; i = i + 1 {
             print_profile(g_profileTree[i])
-        }*/
+        }
 
     } else {
         out.fps = out.fps + 1.0D;

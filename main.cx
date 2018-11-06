@@ -354,7 +354,7 @@ func main() {
             gui.control_set_skin(lang.base, gui.g_zeroSkin)
             var langLabel gui.label_id = gui.combo_get_text(lang)
             gui.label_set_font(langLabel, gui.g_regularFont)
-            gui.label_set_color(langLabel, gui.g_gray_3)
+            gui.label_set_color(langLabel, gui.g_gray_4)
             gui.label_set_text(langLabel, "English")
             gui.label_set_size(langLabel, gui.g_fontSizeSmall)
             var langPic gui.label_id = gui.combo_get_pic(lang)
@@ -367,13 +367,21 @@ func main() {
             gui.list_add_column(langList, "L", gui.g_white, columnSize)
             {
                 var line gui.control_id = gui.list_add_line(langList)
-                gui.list_line_add_label(line, "E", gui.ALIGN_RIGHT, gui.g_red, itemSize)
-                gui.list_line_add_label(line, "English", gui.ALIGN_RIGHT, gui.g_white, itemSize)
+                //gui.list_line_add_label(line, "E", gui.ALIGN_RIGHT, gui.g_red, itemSize)
+                gui.list_line_add_picture(line, gui.ALIGN_CENTER, gui.g_USTexture)
+                gui.list_line_add_label(line, "US", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.invalid_skin())
             }
             {
                 var line gui.control_id = gui.list_add_line(langList)
-                gui.list_line_add_label(line, "F", gui.ALIGN_RIGHT, gui.g_green, itemSize)
-                gui.list_line_add_label(line, "French", gui.ALIGN_RIGHT, gui.g_white, itemSize)
+                //gui.list_line_add_label(line, "F", gui.ALIGN_RIGHT, gui.g_green, itemSize)
+                gui.list_line_add_picture(line, gui.ALIGN_CENTER, gui.g_BRTexture)
+                gui.list_line_add_label(line, "BR", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.invalid_skin())
+            }
+            {
+                var line gui.control_id = gui.list_add_line(langList)
+                //gui.list_line_add_label(line, "F", gui.ALIGN_RIGHT, gui.g_green, itemSize)
+                gui.list_line_add_picture(line, gui.ALIGN_CENTER, gui.g_JPTexture)
+                gui.list_line_add_label(line, "JP", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.invalid_skin())
             }
 
 
@@ -602,9 +610,9 @@ func main() {
                             gui.list_add_column(sell, "Total", gui.g_white, columnSize)
                             for item = 0; item < 16; item = item + 1 {
                                 var line gui.control_id = gui.list_add_line(sell)
-                                gui.list_line_add_label(line, "0.3", gui.ALIGN_RIGHT, gui.g_red, itemSize)
-                                gui.list_line_add_label(line, "0.4", gui.ALIGN_RIGHT, textColor, itemSize)
-                                gui.list_line_add_label(line, "0.5", gui.ALIGN_RIGHT, textColor, itemSize)
+                                gui.list_line_add_label(line, "0.3", gui.ALIGN_RIGHT, gui.g_red, itemSize, gui.g_grayFocusedSkin)
+                                gui.list_line_add_label(line, "0.4", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
+                                gui.list_line_add_label(line, "0.5", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
                             }
 
                             var buy gui.list_id = gui.list_create("buy")
@@ -616,9 +624,9 @@ func main() {
 
                             for item = 0; item < 16; item = item + 1 {
                                 var line gui.control_id = gui.list_add_line(buy)
-                                gui.list_line_add_label(line, "0.0", gui.ALIGN_RIGHT, gui.g_green, itemSize)
-                                gui.list_line_add_label(line, "0.1", gui.ALIGN_RIGHT, textColor, itemSize)
-                                gui.list_line_add_label(line, "0.2", gui.ALIGN_RIGHT, textColor, itemSize)
+                                gui.list_line_add_label(line, "0.0", gui.ALIGN_RIGHT, gui.g_green, itemSize, gui.g_grayFocusedSkin)
+                                gui.list_line_add_label(line, "0.1", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
+                                gui.list_line_add_label(line, "0.2", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
                             }
 
                             gui.splitter_set_controls(order, sell.base, buy.base)
@@ -639,9 +647,9 @@ func main() {
                                 if ((item % 3) == 0 || (item % 5) == 0) {
                                     color = gui.g_red
                                 }
-                                gui.list_line_add_label(line, "0.0", gui.ALIGN_RIGHT, color, itemSize)
-                                gui.list_line_add_label(line, "0.1", gui.ALIGN_RIGHT, textColor, itemSize)
-                                gui.list_line_add_label(line, "0.2", gui.ALIGN_RIGHT, textColor, itemSize)
+                                gui.list_line_add_label(line, "0.0", gui.ALIGN_RIGHT, color, itemSize, gui.g_grayFocusedSkin)
+                                gui.list_line_add_label(line, "0.1", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
+                                gui.list_line_add_label(line, "0.2", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
                             }
                         }
                         gui.splitter_set_controls(rightTop, order.base, done.base)
