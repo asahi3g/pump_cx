@@ -33,6 +33,11 @@ var g_framebufferCount i32 = 0
 
 var g_sizeofFloat i32 = 4
 
+var g_colorMaskRed bool = true
+var g_colorMaskGreen bool = true
+var g_colorMaskBlue bool = true
+var g_colorMaskAlpha bool = true
+
 var g_blend bool = false
 var g_srcBlend i32 = 0
 var g_dstBlend i32 = 0
@@ -41,22 +46,32 @@ var g_depthTest bool = false
 var g_depthFunc i32 = gl.LESS
 var g_depthMask bool = true
 
+var g_stencilTest bool = false
+var g_stencilWrite i32 = 256
+var g_stencilFunc i32 = gl.ALWAYS
+var g_stencilFuncRef i32 = 0
+var g_stencilFuncMask i32 = 256
+var g_stencilOpFail i32 = gl.KEEP
+var g_stencilOpDepthFail i32 = gl.KEEP
+var g_stencilOpDepthPass i32 = gl.KEEP
+
 var g_clearColor mat.v4
 var g_clearDepth f64
+var g_clearStencil i32
 
 var gfx_width f32 = 0.0
 var gfx_height f32 = 0.0
-var gfx_viewport_size mat.v2 = mat.v2_zero
-var gfx_viewport_bounds mat.v4 = mat.v4_zero
+var gfx_viewportSize mat.v2 = mat.v2_zero
+var gfx_viewportBounds mat.v4 = mat.v4_zero
 var gfx_ratio_x f32 = 1.0
 var gfx_ratio_y  f32 = 1.0
-var red mat.v4
-var green mat.v4
-var blue mat.v4
-var pink mat.v4
-var white mat.v4
-var black mat.v4
-var zero mat.v4
+var gfx_red mat.v4
+var gfx_green mat.v4
+var gfx_blue mat.v4
+var gfx_pink mat.v4
+var gfx_white mat.v4
+var gfx_black mat.v4
+var gfx_zero mat.v4
 
 var gfx_viewportX i32 = 0
 var gfx_viewportY i32 = 0
@@ -71,6 +86,79 @@ var gfx_scissorHeight i32 = 0
 
 var g_scissors[64]mat.v4
 var g_scissorCount i32 = 0
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func glerror() (error bool) {
+    error = false
+    var glerr i32 = -1
+    for glerr != 0  {
+        glerr = gl.GetError()
+        if  glerr != 0 {
+            error = true
+            if glerr == gl.INVALID_ENUM {
+                printf("GL_INVALID_ENUM\n")
+            } else if glerr == gl.INVALID_VALUE {
+                printf("GL_INVALID_VALUE\n")
+            } else if glerr == gl.INVALID_OPERATION {
+                printf("GL_INVALID_OPERATION\n")
+            } else if glerr == gl.STACK_OVERFLOW {
+                printf("GL_STACK_OVERFLOW\n")
+            } else if glerr == gl.STACK_UNDERFLOW {
+                printf("GL_STACK_UNDERFLOW\n")
+            } else if glerr == gl.OUT_OF_MEMORY {
+                printf("GL_OUT_OF_MEMORY\n")
+            } else if glerr != 0 {
+                uti.assert_(false, "invalid glError\n")
+            }
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func no_glerror() (noerror bool) {
+    var error bool = glerror()
+    noerror = error == false // panic if noerror = (glerror() == false)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func glstatus() (error bool) {
+    error = false
+    var glstat i32
+    glstat = gl.CheckFramebufferStatus(gl.FRAMEBUFFER)
+    uti.assert_(no_glerror(), "CheckFramebufferStatus")
+    if (glstat != gl.FRAMEBUFFER_COMPLETE) {
+        error = true;
+        if (glstat == gl.FRAMEBUFFER_UNDEFINED) {
+            printf("GL_FRAMEBUFFER_UNDEFINED\n")
+        } else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT) {
+            printf("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT\n")
+        } else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT) {
+            printf("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT\n")
+        } else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER) {
+            printf("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER\n")
+        } else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_READ_BUFFER) {
+            printf("GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER\n")
+        } else if (glstat == gl.FRAMEBUFFER_UNSUPPORTED) {
+            printf("GL_FRAMEBUFFER_UNSUPPORTED\n")
+        } else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_MULTISAMPLE) {
+            printf("GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE\n")
+        } else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS) {
+            printf("GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS\n")
+        } else {
+            uti.assert_(false, "invalid glFramebufferStatus")
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func no_glstatus() (nostatus bool) {
+    var status bool = glstatus()
+    nostatus = status == false // panic if nostatus = (glstatus() == false)
+}
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -107,6 +195,117 @@ type uniform_s struct {
 func uniform_(location i32, name str) (out uniform_s) {
     out.location = location
     out.name = name
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func create_program(vertex str, pixel str)(program i32) {
+    // vertex shader
+    var vertexShader i32 = gl.CreateShader(gl.VERTEX_SHADER)
+    uti.assert_(no_glerror(), "gl.CreateShader")
+    //shaders = append(shaders, vertexShader) // cache shader creationg
+    //++shaderCount
+
+    gl.ShaderSource(vertexShader, 1, vertex)
+    uti.assert_(no_glerror(), "gl.ShaderSource")
+
+    gl.CompileShader(vertexShader)
+    uti.assert_(no_glerror(), "gl.CompileShader")
+
+    // pixel shader
+    var pixelShader i32 = gl.CreateShader(gl.FRAGMENT_SHADER)
+    uti.assert_(no_glerror(), "gl.CreateShader")
+    //shaders = append(shaders, pixelShader) // cache shader creation
+    //++shaderCount
+
+    gl.ShaderSource(pixelShader, 1, pixel)
+    uti.assert_(no_glerror(), "gl.ShaderSource")
+
+    gl.CompileShader(pixelShader)
+    uti.assert_(no_glerror(), "gl.CompileShader")
+
+    // program
+    program = gl.CreateProgram()
+    uti.assert_(no_glerror(), "gl.CreateProgram")
+    g_programs = append(g_programs, program)
+    g_programCount = g_programCount + 1 // pre increment not working
+
+    gl.AttachShader(program, vertexShader)
+    uti.assert_(no_glerror(), "gl.AttachShader")
+
+    gl.AttachShader(program, pixelShader)
+    uti.assert_(no_glerror(), "gl.AttachShader")
+
+    gl.LinkProgram(program)
+    uti.assert_(no_glerror(), "gl.LinkProgram")
+
+    gl.DetachShader(program, vertexShader)
+    uti.assert_(no_glerror(), "gl.LinkProgram")
+
+    gl.DetachShader(program, pixelShader)
+    uti.assert_(no_glerror(), "gl.DetachShader")
+
+    gl.DeleteShader(vertexShader)
+    uti.assert_(no_glerror(), "gl.DeleteShader")
+
+    gl.DeleteShader(pixelShader)
+    uti.assert_(no_glerror(), "gl.DeleteShader")
+
+    return program
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func use_program(program i32) {
+    //printf("use_program(%d)\n", program)
+    gl.UseProgram(program)
+    uti.assert_(no_glerror(), "gl.UseProgram")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func bind_attribute(program i32, location i32, name str) () {
+
+    gl.BindAttribLocation(program, location, name)
+    uti.assert_(no_glerror(), "gl.BindAttribute")
+
+    var newLocation i32 = gl.GetAttribLocation(program, name)
+    uti.assert_(no_glerror(), "gl.GetAttribLocation")
+    uti.assert_(newLocation == location, "attribute not found\n")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func bind_texture(program i32, name str) (sampler i32) {
+    sampler = bind_uniform(program, name)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func bind_uniform(program i32, name str) (uniform i32) {
+    uniform = gl.GetUniformLocation(program, name) // ##2 crash find a way to test if str is present in gl.Strs
+    uti.assert_(no_glerror(), "gl.GetUniformLocation")
+    uti.assert_(uniform >= 0, "uniform>= 0")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func assign_texture(slot i32, sampler i32, texture i32) () {
+    gl.ActiveTexture(gl.TEXTURE0 + slot)
+    uti.assert_(no_glerror(), "gl.ActiveTexture")
+
+    gl.BindTexture(gl.TEXTURE_2D, texture)
+    uti.assert_(no_glerror(), "gl.BindTexture")
+
+    gl.Uniform1i(sampler, slot)
+    uti.assert_(no_glerror(), "gl.Uniform1i")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func assign_float(slot i32, value f32) {
+    gl.Uniform1f(slot, value)
+    uti.assert_(no_glerror(), "gl.Uniform1f")
 }
 
 //-----------------------------------------------------------------------------
@@ -308,6 +507,15 @@ type mesh_s struct {
     index i32
 }
 
+var g_meshCount i32 = 0
+var g_meshes [32]mesh_s
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_mesh(id mesh_id) (out bool) {
+    out = id.mesh >= 0 && id.mesh < g_meshCount
+}
+
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func mesh_print(message str, id mesh_id) {
@@ -330,8 +538,7 @@ func mesh_print(message str, id mesh_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_meshes [32]mesh_s
-var g_meshCount i32 = 0
+
 var g_freeMeshes [32]mesh_id
 var g_freeMeshCount i32 = 0
 
@@ -339,12 +546,6 @@ var g_freeMeshCount i32 = 0
 //-----------------------------------------------------------------------------
 func invalid_mesh() (out mesh_id) {
     out.mesh = -1
-}
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-func is_valid_mesh(id mesh_id) (out bool) {
-    out = id.mesh >= 0 && id.mesh < g_meshCount
 }
 
 //-----------------------------------------------------------------------------
@@ -549,7 +750,8 @@ func append_line(id mesh_id, line mat.v4, color mat.v4, clip mat.v4, depth f32) 
         var cLeft bool = x0 < clipLeft && x1 < clipLeft
         var cBottom bool = y0  < clipBottom && y1 < clipBottom
         var cTop bool = y0 > clipTop && y1 > clipTop
-        if (cLeft == false && cBottom == false && /*cRight == false &&*/ cTop == false) {
+        if (cLeft == false && cBottom == false && //cRight == false &&
+        cTop == false) {
 
             var r f32 = color.x
             var g f32 = color.y
@@ -763,96 +965,23 @@ func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4, clip mat.v4, 
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
 func invalid_mesh() (out mesh_id) {
     out.mesh = -1
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func glerror() (error bool) {
-    error = false
-    var glerr i32 = -1
-    for glerr != 0  {
-        glerr = gl.GetError()
-        if  glerr != 0 {
-            error = true
-            if glerr == gl.INVALID_ENUM {
-                printf("GL_INVALID_ENUM\n")
-            } else if glerr == gl.INVALID_VALUE {
-                printf("GL_INVALID_VALUE\n")
-            } else if glerr == gl.INVALID_OPERATION {
-                printf("GL_INVALID_OPERATION\n")
-            } else if glerr == gl.STACK_OVERFLOW {
-                printf("GL_STACK_OVERFLOW\n")
-            } else if glerr == gl.STACK_UNDERFLOW {
-                printf("GL_STACK_UNDERFLOW\n")
-            } else if glerr == gl.OUT_OF_MEMORY {
-                printf("GL_OUT_OF_MEMORY\n")
-            } else if glerr != 0 {
-                uti.assert_(false, "invalid glError\n")
-            }
-        }
-    }
-}
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-func no_glerror() (noerror bool) {
-    var error bool = glerror()
-    noerror = error == false // panic if noerror = (glerror() == false)
-}
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-func glstatus() (error bool) {
-    error = false
-    var glstat i32
-    glstat = gl.CheckFramebufferStatus(gl.FRAMEBUFFER)
-    uti.assert_(no_glerror(), "CheckFramebufferStatus")
-    if (glstat != gl.FRAMEBUFFER_COMPLETE) {
-        error = true;
-        if (glstat == gl.FRAMEBUFFER_UNDEFINED) {
-            printf("GL_FRAMEBUFFER_UNDEFINED\n")
-        } else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT) {
-            printf("GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT\n")
-        } else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT) {
-            printf("GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT\n")
-        } else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER) {
-            printf("GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER\n")
-        } else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_READ_BUFFER) {
-            printf("GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER\n")
-        } else if (glstat == gl.FRAMEBUFFER_UNSUPPORTED) {
-            printf("GL_FRAMEBUFFER_UNSUPPORTED\n")
-        } else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_MULTISAMPLE) {
-            printf("GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE\n")
-        } else if (glstat == gl.FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS) {
-            printf("GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS\n")
-        } else {
-            uti.assert_(false, "invalid glFramebufferStatus")
-        }
-    }
-}
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-func no_glstatus() (nostatus bool) {
-    var status bool = glstatus()
-    nostatus = status == false // panic if nostatus = (glstatus() == false)
-}
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
 func enable_blending(srcBlend i32, dstBlend i32) () {
     if (g_blend == false) {
+        g_blend = true
         gl.Enable(gl.BLEND)
         uti.assert_(no_glerror(), "gl.Enable(gl.BLEND)")
         if ((g_srcBlend != srcBlend) || (g_dstBlend != dstBlend)) {
-            gl.BlendFunc(srcBlend, dstBlend)
+            g_srcBlend = srcBlend
+            g_dstBlend = dstBlend
+            gl.BlendFunc(g_srcBlend, g_dstBlend)
             uti.assert_(no_glerror(), "gl.BlendFunc")
         }
-        g_blend = true
     }
 }
 
@@ -860,10 +989,18 @@ func enable_blending(srcBlend i32, dstBlend i32) () {
 //-----------------------------------------------------------------------------
 func disable_blending() () {
     if (g_blend == true) {
+        g_blend = false
         gl.Disable(gl.BLEND)
         uti.assert_(no_glerror(), "gl.Disable(gl.BLEND)")
-        g_blend = false
     }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func depth_state(test bool, compare i32, write bool) {
+    depth_test(test)
+    depth_func(compare)
+    depth_write(write)
 }
 
 //-----------------------------------------------------------------------------
@@ -878,10 +1015,30 @@ func depth_test(value bool) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+func enable_depth() () {
+    if (g_depthTest == false) {
+        g_depthTest = true
+        gl.Enable(gl.DEPTH_TEST)
+        uti.assert_(no_glerror(), "gl.Enable(gl.DEPTH_TEST)")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func disable_depth() () {
+    if (g_depthTest == true) {
+        g_depthTest = false
+        gl.Disable(gl.DEPTH_TEST)
+        uti.assert_(no_glerror(), "gl.Disable(gl.DEPTH_TEST)")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func depth_func(value i32) {
     if (g_depthFunc != value) {
         g_depthFunc = value
-        gl.DepthFunc(value)
+        gl.DepthFunc(g_depthFunc)
         uti.assert_(no_glerror(), "gl.DepthFunc")
     }
 }
@@ -891,34 +1048,91 @@ func depth_func(value i32) {
 func depth_write(value bool) {
     if (g_depthMask != value) {
         g_depthMask = value
-        gl.DepthMask(value)
+        gl.DepthMask(g_depthMask)
         uti.assert_(no_glerror(), "gl.DepthWrite")
     }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func enable_depth() () {
-    if (g_depthTest == false) {
-        gl.Enable(gl.DEPTH_TEST)
-        uti.assert_(no_glerror(), "gl.Enable(gl.DEPTH_TEST)")
-        g_depthTest = true
+func stencil_state(test bool, compare i32, ref i32, mask i32, sfail i32, dpfail i32, dppass i32, write i32) {
+    stencil_test(test)
+    stencil_func(compare, ref, mask)
+    stencil_op(sfail, dpfail, dppass)
+    stencil_write(write)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func stencil_test(value bool) {
+    if (value) {
+        enable_stencil()
+    } else {
+        disable_stencil()
     }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func disable_depth() () {
-    if (g_depthTest == true) {
-        gl.Disable(gl.DEPTH_TEST)
-        uti.assert_(no_glerror(), "gl.Disable(gl.DEPTH_TEST)")
-        g_depthTest = false
+func enable_stencil() () {
+    if (g_stencilTest == false) {
+        g_stencilTest = true
+        gl.Enable(gl.STENCIL_TEST)
+        uti.assert_(no_glerror(), "gl.Enable(gl.STENCIL_TEST)")
     }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func clear(buffers i32, color mat.v4, depth f64) () {
+func disable_stencil() () {
+    if (g_stencilTest == true) {
+        g_stencilTest = false
+        gl.Disable(gl.STENCIL_TEST)
+        uti.assert_(no_glerror(), "gl.Disable(gl.STENCIL_TEST")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func stencil_func(compare i32, ref i32, mask i32) {
+    if (g_stencilFunc != compare ||
+        g_stencilFuncRef != ref ||
+        g_stencilFuncMask != mask) {
+        g_stencilFunc = compare
+        g_stencilFuncRef = ref
+        g_stencilFuncMask = mask
+        gl.StencilFunc(g_stencilFunc, g_stencilFuncRef, g_stencilFuncMask)
+        uti.assert_(no_glerror(), "gl.StencilFunc")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func stencil_op(sfail i32, dpfail i32, dppass i32) {
+    if (g_stencilOpFail != sfail ||
+        g_stencilOpDepthFail != dpfail ||
+        g_stencilOpDepthPass != dppass) {
+        g_stencilOpFail = sfail
+        g_stencilOpDepthFail = dpfail
+        g_stencilOpDepthPass = dppass
+        gl.StencilOp(g_stencilOpFail, g_stencilOpDepthFail, g_stencilOpDepthPass)
+        uti.assert_(no_glerror(), "gl.StencilOp")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func stencil_write(write i32) {
+    if (g_stencilWrite != write) {
+        g_stencilWrite = write
+        gl.StencilMask(g_stencilWrite)
+        uti.assert_(no_glerror(), "gl.StencilMask")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func clear(buffers i32, color mat.v4, depth f64, stencil i32) () {
     if ((g_clearColor.x != color.x) ||
         (g_clearColor.y != color.y) ||
         (g_clearColor.z != color.z) ||
@@ -929,10 +1143,30 @@ func clear(buffers i32, color mat.v4, depth f64) () {
     }
     if (g_clearDepth != depth) {
         g_clearDepth = depth
-        gl.ClearDepth(0.0D)
+        gl.ClearDepth(g_clearDepth)
+    }
+    if (g_clearStencil != stencil) {
+        g_clearStencil = stencil
+        gl.ClearStencil(g_clearStencil)
     }
     gl.Clear(buffers)
     uti.assert_(no_glerror(), "gl.Clear")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func color_write(red bool, green bool, blue bool, alpha bool) {
+    if (g_colorMaskRed != red ||
+        g_colorMaskGreen != green ||
+        g_colorMaskBlue != blue ||
+        g_colorMaskAlpha != alpha) {
+        g_colorMaskRed = red
+        g_colorMaskGreen = green
+        g_colorMaskBlue = blue
+        g_colorMaskAlpha = alpha
+        gl.ColorMask(g_colorMaskRed, g_colorMaskGreen, g_colorMaskBlue, g_colorMaskAlpha)
+        uti.assert_(no_glerror(), "gl.ColorMask")
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -941,20 +1175,20 @@ func init(width i32, height i32)() {
 
     gfx_width = i32.f32(width)
     gfx_height = i32.f32(height)
-    gfx_viewport_size = mat.v2_(gfx_width, gfx_height)
-    gfx_viewport_bounds = mat.v4_(0.0, 0.0, gfx_width, gfx_height)
+    gfx_viewportSize = mat.v2_(gfx_width, gfx_height)
+    gfx_viewportBounds = mat.v4_(0.0, 0.0, gfx_width, gfx_height)
 
     gfx_ratio_y = gfx_width / gfx_height
     gfx_ratio_x = gfx_height / gfx_width
 
-    red   = mat.v4_(1.0, 0.0, 0.0, 1.0)
-    green = mat.v4_(0.0, 1.0, 0.0, 1.0)
-    blue  = mat.v4_(0.0, 0.0, 1.0, 1.0)
-    pink  = mat.v4_(1.0, 0.0, 1.0, 1.0)
-    white = mat.v4_(1.0, 1.0, 1.0, 1.0)
-    zero  = mat.v4_(0.0, 0.0, 0.0, 0.0)
+    gfx_red   = mat.v4_(1.0, 0.0, 0.0, 1.0)
+    gfx_green = mat.v4_(0.0, 1.0, 0.0, 1.0)
+    gfx_blue  = mat.v4_(0.0, 0.0, 1.0, 1.0)
+    gfx_pink  = mat.v4_(1.0, 0.0, 1.0, 1.0)
+    gfx_white = mat.v4_(1.0, 1.0, 1.0, 1.0)
+    gfx_zero  = mat.v4_(0.0, 0.0, 0.0, 0.0)
 
-    g_clearColor = pink
+    g_clearColor = gfx_pink
 
     gl.Strs("i_v3Position", "i_v3Position")
     gl.Strs("i_v4Albedo", "i_v4Albedo")
@@ -1064,7 +1298,6 @@ func init(width i32, height i32)() {
         float alpha = color_1.w;
         float time = u_fTime * alpha;
 
-//        o_v4Color = /*color_0  +*/ vec4(color_0.rgb * (1.0 - alpha), 1.0) + vec4(color_1.rgb * alpha, 1)
         o_v4Color = vec4(mix(color_0.rgb, color_1.rgb, time), 1.0);
     }
     `, "psTransition_1")
@@ -1086,7 +1319,7 @@ func init(width i32, height i32)() {
     gl.ClearColor(g_clearColor.x, g_clearColor.y, g_clearColor.z, g_clearColor.w)
     uti.assert_(no_glerror(), "gl.ClearColor")
 
-    set_viewport(gfx_viewport_bounds)
+    set_viewport(gfx_viewportBounds)
 
     //-----------------------------------------------------------------------------
     //-----------------------------------------------------------------------------
@@ -1434,7 +1667,8 @@ func create_target(w i32, h i32) (target target_s) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func create_depth_buffer(w i32, h i32) (out i32) {
+func create_depth_buffer(format i32, w i32, h i32) (out i32) {
+    //uti.assert_(format == gl.DEPTH24 || format == gl.DEPTH24_STENCIL_8, "create_depth_buffer : untested format")
     var renderbuffer i32 = -1
 
     renderbuffer = gl.GenRenderbuffers(1, renderbuffer)
@@ -1443,7 +1677,7 @@ func create_depth_buffer(w i32, h i32) (out i32) {
     gl.BindRenderbuffer(gl.RENDERBUFFER, renderbuffer)
     uti.assert_(no_glerror(), "gl.BindRenderbuffer")
 
-    gl.RenderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT, w, h)
+    gl.RenderbufferStorage(gl.RENDERBUFFER, format, w, h)
     uti.assert_(no_glerror(), "gl.RenderbufferStorage")
 
     out = renderbuffer
@@ -1451,13 +1685,16 @@ func create_depth_buffer(w i32, h i32) (out i32) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func bind_depthbuffer(depthbuffer i32, test bool, compare i32, write bool) {
+func bind_depthbuffer(depthbuffer i32) {
     gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthbuffer)
     uti.assert_(no_glerror(), "gl.FramebufferRenderbuffer")
+}
 
-    depth_test(test)
-    depth_func(compare)
-    depth_write(write)
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func bind_stencilbuffer(stencilbuffer i32) {
+    gl.FramebufferRenderbuffer(gl.FRAMEBUFFER, gl.STENCIL_ATTACHMENT, gl.RENDERBUFFER, stencilbuffer)
+    uti.assert_(no_glerror(), "glFramebufferRenderbuffer")
 }
 
 //-----------------------------------------------------------------------------
@@ -1465,117 +1702,6 @@ func bind_depthbuffer(depthbuffer i32, test bool, compare i32, write bool) {
 func bind_framebuffer(framebuffer i32) {
     gl.BindFramebuffer(gl.FRAMEBUFFER, framebuffer)
     uti.assert_(no_glerror(), "gl.BindFramebuffer")
-}
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-func create_program(vertex str, pixel str)(program i32) {
-    // vertex shader
-    var vertexShader i32 = gl.CreateShader(gl.VERTEX_SHADER)
-    uti.assert_(no_glerror(), "gl.CreateShader")
-    //shaders = append(shaders, vertexShader) // cache shader creationg
-    //++shaderCount
-
-    gl.ShaderSource(vertexShader, 1, vertex)
-    uti.assert_(no_glerror(), "gl.ShaderSource")
-
-    gl.CompileShader(vertexShader)
-    uti.assert_(no_glerror(), "gl.CompileShader")
-
-    // pixel shader
-    var pixelShader i32 = gl.CreateShader(gl.FRAGMENT_SHADER)
-    uti.assert_(no_glerror(), "gl.CreateShader")
-    //shaders = append(shaders, pixelShader) // cache shader creation
-    //++shaderCount
-
-    gl.ShaderSource(pixelShader, 1, pixel)
-    uti.assert_(no_glerror(), "gl.ShaderSource")
-
-    gl.CompileShader(pixelShader)
-    uti.assert_(no_glerror(), "gl.CompileShader")
-
-    // program
-    program = gl.CreateProgram()
-    uti.assert_(no_glerror(), "gl.CreateProgram")
-    g_programs = append(g_programs, program)
-    g_programCount = g_programCount + 1 // pre increment not working
-
-    gl.AttachShader(program, vertexShader)
-    uti.assert_(no_glerror(), "gl.AttachShader")
-
-    gl.AttachShader(program, pixelShader)
-    uti.assert_(no_glerror(), "gl.AttachShader")
-
-    gl.LinkProgram(program)
-    uti.assert_(no_glerror(), "gl.LinkProgram")
-
-    gl.DetachShader(program, vertexShader)
-    uti.assert_(no_glerror(), "gl.LinkProgram")
-
-    gl.DetachShader(program, pixelShader)
-    uti.assert_(no_glerror(), "gl.DetachShader")
-
-    gl.DeleteShader(vertexShader)
-    uti.assert_(no_glerror(), "gl.DeleteShader")
-
-    gl.DeleteShader(pixelShader)
-    uti.assert_(no_glerror(), "gl.DeleteShader")
-
-    return program
-}
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-func use_program(program i32) {
-    //printf("use_program(%d)\n", program)
-    gl.UseProgram(program)
-    uti.assert_(no_glerror(), "gl.UseProgram")
-}
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-func bind_attribute(program i32, location i32, name str) () {
-
-    gl.BindAttribLocation(program, location, name)
-    uti.assert_(no_glerror(), "gl.BindAttribute")
-
-    var newLocation i32 = gl.GetAttribLocation(program, name)
-    uti.assert_(no_glerror(), "gl.GetAttribLocation")
-    uti.assert_(newLocation == location, "attribute not found\n")
-}
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-func bind_texture(program i32, name str) (sampler i32) {
-    sampler = bind_uniform(program, name)
-}
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-func bind_uniform(program i32, name str) (uniform i32) {
-    uniform = gl.GetUniformLocation(program, name) // ##2 crash find a way to test if str is present in gl.Strs
-    uti.assert_(no_glerror(), "gl.GetUniformLocation")
-    uti.assert_(uniform >= 0, "uniform>= 0")
-}
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-func assign_texture(slot i32, sampler i32, texture i32) () {
-    gl.ActiveTexture(gl.TEXTURE0 + slot)
-    uti.assert_(no_glerror(), "gl.ActiveTexture")
-
-    gl.BindTexture(gl.TEXTURE_2D, texture)
-    uti.assert_(no_glerror(), "gl.BindTexture")
-
-    gl.Uniform1i(sampler, slot)
-    uti.assert_(no_glerror(), "gl.Uniform1i")
-}
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-func assign_float(slot i32, value f32) {
-    gl.Uniform1f(slot, value)
-    uti.assert_(no_glerror(), "gl.Uniform1f")
 }
 
 //-----------------------------------------------------------------------------
@@ -1717,7 +1843,7 @@ func append_text(id mesh_id, texture texture_s, name str, position mat.v2, scale
         var glyphHeight i32
         var glyphAdvance i32
 
-        rune, size, glyphX, glyphY, glyphWidth, glyphHeight, glyphAdvance = gltext.NextRune(name, text, index)
+        rune, size, glyphX, glyphY, glyphWidth, glyphHeight, glyphAdvance = gltext.NextGlyph(name, text, index)
         if (size >= 0) {
 
 //            printf("RUNE\n")
@@ -1756,7 +1882,7 @@ func append_text(id mesh_id, texture texture_s, name str, position mat.v2, scale
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func measure_glyph(name str, glyph i32) (w i32, h i32) {
-    w, h = gltext.MetricsGlyph(name, glyph)
+    w, h = gltext.GlyphMetrics(name, glyph)
 }
 
 //-----------------------------------------------------------------------------

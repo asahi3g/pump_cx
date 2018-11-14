@@ -1,5 +1,5 @@
 //-----------------------------------------------------------------------------
-// pump-cx
+// pumpcx
 //-----------------------------------------------------------------------------
 package main
 import "app"
@@ -187,8 +187,8 @@ func main() {
     gfx.init(app.app_width, app.app_height)
     gui.init()
 
-    var screenBounds mat.v4 = gfx.gfx_viewport_bounds
-    var screenSize mat.v2 = gfx.gfx_viewport_size
+    var screenBounds mat.v4 = gfx.gfx_viewportBounds
+    var screenSize mat.v2 = gfx.gfx_viewportSize
 
     // exit app screen
     {

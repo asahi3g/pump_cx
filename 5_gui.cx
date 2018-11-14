@@ -28,9 +28,7 @@ var g_USTexture gfx.texture_s
 var g_JPTexture gfx.texture_s
 var g_BRTexture gfx.texture_s
 
-var g_depthBuffer_0 i32 = -1
-var g_depthBuffer_1 i32 = -1
-var g_depthBuffer_2 i32 = -1
+var g_depthStencilBuffer i32 = -1
 
 //-----------------------------------------------------------------------------
 // GUI
@@ -597,7 +595,7 @@ var g_gray_5            mat.v4 = mat.rgba_ui8(239, 240, 240, 255)
 var g_gray_6            mat.v4 = mat.rgba_ui8(247, 247, 247, 255)
 var g_gray_7            mat.v4 = mat.rgba_ui8(251, 251, 251, 255)
 
-var g_black_a10 mat.v4 = mat.v4_mul(g_black, mat.v4_(0.7, 0.7, 0.7, 0.6))
+var g_black_a10 mat.v4 = mat.v4_mul(g_black, mat.v4_(0.7, 0.7, 0.7, 0.8))
 var g_black_a50 mat.v4 = mat.v4_mul(g_black, mat.v4_(0.7, 0.7, 0.7, 0.8))
 var g_blue_a50  mat.v4 = alpha(g_blue, 0.5)
 var g_goldA50 mat.v4 = alpha(g_gold, 0.5)
@@ -1775,7 +1773,7 @@ func control_redock(id control_id, padding mat.v4) () {
             w = g_dock.right - g_dock.left - paddingX
             h = g_dock.top - g_dock.bottom - paddingY
             y = g_dock.bottom + paddingBottom
-            uti.assert_(mat.is_nan(y) == false, "control_resize : DOCK_FILL y nan")
+            //uti.assert_(mat.is_nan(y) == false, "control_resize : DOCK_FILL y nan")
             //uti.assert_(autosize == AUTOSIZE_NONE, "control_redock : DOCK_FILL is not compatible with AUTOSIZE")
             /*if (index == 153) {
               control_print("DOCK_FILL : ", id, false)
@@ -1785,7 +1783,7 @@ func control_redock(id control_id, padding mat.v4) () {
             w = size.x
             h = g_dock.top - g_dock.bottom - paddingY
             y = g_dock.top - h - paddingTop
-            uti.assert_(mat.is_nan(y) == false, "control_resize : DOCK_LEFT y nan")
+            //uti.assert_(mat.is_nan(y) == false, "control_resize : DOCK_LEFT y nan")
             g_dock.left = x + w
             //uti.assert_((autosize & AUTOSIZE_Y) == 0, "control_redock : DOCK_LEFT is not compatible with AUTOSIZE_Y")
         } else if (dock == DOCK_RIGHT) {
@@ -1800,7 +1798,7 @@ func control_redock(id control_id, padding mat.v4) () {
             w = g_dock.right - g_dock.left - paddingX
             h = size.y
             y = g_dock.top - h - paddingTop
-            uti.assert_(mat.is_nan(y) == false, "control_resize : DOCK_TOP y nan")
+            //uti.assert_(mat.is_nan(y) == false, "control_resize : DOCK_TOP y nan")
             /*if (index == 29 || index == 30) {
               printf("DOCK_TOP %f, %f, %f, %f\n", g_dock.top, h, paddingTop, y)
               }*/
@@ -1814,7 +1812,7 @@ func control_redock(id control_id, padding mat.v4) () {
             h = size.y
             y = g_dock.bottom + paddingBottom// + h
             g_dock.bottom = y + h
-            uti.assert_(mat.is_nan(y) == false, "control_resize : DOCK_BOTTOM y nan")
+            //uti.assert_(mat.is_nan(y) == false, "control_resize : DOCK_BOTTOM y nan")
             //uti.assert_((autosize & AUTOSIZE_X) == 0, "control_redock : DOCK_BOTTOM is not compatible with AUTOSIZE_X")
             //control_print("DOCK_BOTTOM : ", id, false)
         } else if (dock == DOCK_NONE) {
@@ -1822,7 +1820,7 @@ func control_redock(id control_id, padding mat.v4) () {
             y = position.y
             w = size.x
             h = size.y
-            uti.assert_(mat.is_nan(y) == false, "control_resize : DOCK_NONE y nan")
+            //uti.assert_(mat.is_nan(y) == false, "control_resize : DOCK_NONE y nan")
             /*if (index == 50) {
               control_print("control_redock : ", id, false)
               printf("x %f, y %f, w %f, h %f\n", x, y, w, h)
@@ -1847,7 +1845,7 @@ func control_redock(id control_id, padding mat.v4) () {
           }*/
         push_scope()
 
-        uti.assert_(mat.is_nan(y) == false, "control_resize : y nan")
+        //uti.assert_(mat.is_nan(y) == false, "control_resize : y nan")
         g_offset.x = g_offset.x + x
         g_offset.y = g_offset.y + y
         g_offset.width = w
@@ -1920,7 +1918,7 @@ func control_redock(id control_id, padding mat.v4) () {
         }
 
         g_controls[index].renderPosition = mat.v2_(g_offset.x, g_offset.y)
-        uti.assert_(mat.is_nan(g_offset.y) == false, "control_resize : nan")
+        //uti.assert_(mat.is_nan(g_offset.y) == false, "control_resize : nan")
         //control_print("after control_redock : ", id, false)
         //g_controls[index].renderSize = mat.v2_(g_offset.width, g_offset.height)
         var newWidth f32 = g_offset.width
@@ -2415,7 +2413,7 @@ func screen_render(id screen_id, clip mat.v4, stack i32) () {
     gfx.begin_mesh(g_alphaVertexColoredTriangles)
     begin_batches()
 
-    clip = gfx.push_scissor(g_controls[id.base.control].name, gfx.gfx_viewport_bounds)
+    clip = gfx.push_scissor(g_controls[id.base.control].name, gfx.gfx_viewportBounds)
     //printf("SCREEN CLIP %f, %f, %f, %f\n", clip.x, clip.y, clip.z, clip.w)
     control_render(id.base, clip, stack)
     gfx.pop_scissor()
@@ -2461,6 +2459,26 @@ func screen_render(id screen_id, clip mat.v4, stack i32) () {
         gfx.render_mesh(g_alphaVertexColoredTriangles)
     }
     fps.end_profile(g_profileRenderAlphaVertexColoredTriangles)
+
+
+    gfx.color_write(false, false, false, false)
+    //gfx.disable_depth()
+    gfx.disable_blending()
+    gfx.stencil_state(true, gl.ALWAYS, 256, 256, gl.KEEP, gl.REPLACE, gl.REPLACE, 256)
+
+    var screenPair i32 = get_focus_pair(id)
+    var currentFocus i32 = g_focused[screenPair].currentFocus
+    var focusCount i32 = g_focused[screenPair].focusCount
+    if (focusCount > 0 && currentFocus >= 0 && currentFocus < focusCount) {
+        var focusedId control_id = g_focused[screenPair].focusList[currentFocus]
+        gfx.begin_mesh(g_opaqueVertexColoredTriangles)
+        var renderBounds mat.v4 = mat.v4_v2v2(g_controls[focusedId.control].renderPosition, g_controls[focusedId.control].size)
+        gfx.append_quad(g_opaqueVertexColoredTriangles, renderBounds,
+            mat.v4_(0.0, 0.0, 1.0, 1.0), mat.v4_(1.0, 1.0, 1.0, 1.0), gfx.gfx_viewportBounds, 1.0)
+        gfx.end_mesh(g_opaqueVertexColoredTriangles)
+        gfx.effect_use(gfx.g_fxVertexColor)
+        gfx.render_mesh(g_opaqueVertexColoredTriangles)
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -2689,9 +2707,7 @@ type func_i32_i32_id struct {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func func_i32_i32(packageName str, functionName str) (out func_i32_i32_id) {
-    printf("toto\n")
-        out.index = glfw.func_i32_i32(packageName, functionName)
-        printf("tata\n")
+    out.index = glfw.func_i32_i32(packageName, functionName)
 }
 
 //-----------------------------------------------------------------------------
@@ -2703,9 +2719,7 @@ func invalid_func_i32_i32() (out func_i32_i32_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func call_i32_i32(function func_i32_i32_id, a i32, b i32) {
-    printf("begin_call_i32_i32 %d, %d, %d\n", function.index, a, b)
-        glfw.call_i32_i32(function.index, a, b)
-        printf("end_call_i32_i32\n")
+    glfw.call_i32_i32(function.index, a, b)
 }
 
 //-----------------------------------------------------------------------------
@@ -3209,7 +3223,7 @@ func picture_render(id picture_id, clip mat.v4, stack i32) () {
 
     var controlIndex i32 = id.base.control
 
-    var color mat.v4 = gfx.white
+    var color mat.v4 = gfx.gfx_white
     var skin skin_id = g_controls[controlIndex].skin
     uti.assert_(is_valid_skin(skin) || skin.skin == -1, "picture_render : invalid id")
     if is_valid_skin(skin) {
@@ -5390,7 +5404,7 @@ func combo_create(name str) (out combo_id) {
     var screen screen_id = screen_create(sprintf("combo_screen_%s", name))
     g_combos[g_comboCount].screen = screen
     control_set_skin(screen.base, g_popupSkin)
-    control_set_bounds(screen.base, gfx.gfx_viewport_bounds)
+    control_set_bounds(screen.base, gfx.gfx_viewportBounds)
     screen_set_duration(screen, -2.0D)
     screen_set_modal(screen, true)
 
@@ -5546,7 +5560,7 @@ func init() () {
     g_fullscreenQuad = gfx.create_mesh(gl.TRIANGLES, attributes, 6 * 3)
 
     gfx.begin_mesh(g_fullscreenQuad)
-    gfx.append_quad(g_fullscreenQuad, gfx.gfx_viewport_bounds, mat.v4_(0.0, 1.0, 1.0, 0.0), gfx.white, gfx.gfx_viewport_bounds, 0.0)
+    gfx.append_quad(g_fullscreenQuad, gfx.gfx_viewportBounds, mat.v4_(0.0, 1.0, 1.0, 0.0), gfx.gfx_white, gfx.gfx_viewportBounds, 0.0)
     gfx.end_mesh(g_fullscreenQuad)
 
     // fonts
@@ -5579,42 +5593,40 @@ func init() () {
     font_add_size(g_awesomeBoldFont, g_fontSizeHeader)
 
     // depth
-    g_depthBuffer_0 = gfx.create_depth_buffer(app.app_width, app.app_height)
-    //g_depthBuffer_1 = gfx.create_depth_buffer(app.app_width, app.app_height)
-    //g_depthBuffer_2 = gfx.create_depth_buffer(app.app_width, app.app_height)
+    g_depthStencilBuffer = gfx.create_depth_buffer(gl.DEPTH24_STENCIL8, app.app_width, app.app_height)
+
     // textures
-    
     g_USTexture = gfx.create_texture("textures/flags/us.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
     g_JPTexture = gfx.create_texture("textures/flags/jp.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
     g_BRTexture = gfx.create_texture("textures/flags/br.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
-    
-g_skycoinTexture = gfx.create_texture("textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
+
+    g_skycoinTexture = gfx.create_texture("textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
 
     // layers
     g_blackLayer            = layer_create("black"            , g_black     , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
-    g_bootLayer             = layer_create("boot"             , g_black     , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_popupLayer            = layer_create("popup"            , g_black_a10 , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_modalLayer            = layer_create("modal"            , g_black_a50 , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_bootLayer             = layer_create("boot"             , g_black     , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
+    g_popupLayer            = layer_create("popup"            , g_black_a10 , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
+    g_modalLayer            = layer_create("modal"            , g_black_a50 , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
     g_debugBlueLayer        = layer_create("debugBlue"        , g_blue      , g_gold      , g_gold      , g_gold      , g_gold  )
     g_focusedLayer          = layer_create("focused"          , g_blue      , g_light_blue, g_light_blue, g_light_blue, g_light_blue)
-    g_pageFocusedBack       = layer_create("pageFocusedBack"  , g_blue      , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_blueLayer             = layer_create("blue"             , g_blue      , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_pageFocusedBack       = layer_create("pageFocusedBack"  , g_blue      , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
+    g_blueLayer             = layer_create("blue"             , g_blue      , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
     g_selectedLayer         = layer_create("selected"         , g_darkBlue  , g_blue      , g_blue      , g_blue      , g_blue)
-    g_pageSelectedBack      = layer_create("pageSelectedBack" , g_darkBlue  , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_pageSelectedBack      = layer_create("pageSelectedBack" , g_darkBlue  , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
     g_debugGoldLayer        = layer_create("debugGold"        , g_gold      , g_blue      , g_blue      , g_blue      , g_blue  )
     g_goldLayer             = layer_create("gold"             , g_goldA50   , g_gold      , g_gold      , g_gold      , g_gold)
     g_textboxLayer          = layer_create("textbox"          , g_gray_1    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
     g_stripLayer            = layer_create("strip"            , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2)
     g_headerLayer           = layer_create("header"           , g_gray_2    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
     g_debugGreenLayer       = layer_create("debugGreen"       , g_green     , g_gold      , g_gold      , g_gold      , g_gold  )
-    g_greenLayer            = layer_create("green"            , g_green     , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_greenLayer            = layer_create("green"            , g_green     , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
     g_debugRedLayer         = layer_create("debugRed"         , g_red       , g_gold      , g_gold      , g_gold      , g_gold  )
-    g_redLayer              = layer_create("red"              , g_red       , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
-    g_borderFocusedLayer    = layer_create("borderFocused"    , gfx.zero    , g_blue      , g_blue      , g_blue      , g_blue)
-    g_pageSelectedFront     = layer_create("pageSelectedFront", gfx.zero    , g_gray_3    , g_black     , g_gray_3    , g_gray_3)
-    g_zeroBorderLayer       = layer_create("zeroBorder"       , gfx.zero    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
-    g_pageFocusedFront      = layer_create("pageFocusedFront" , gfx.zero    , g_light_blue, g_light_blue, g_light_blue, g_light_blue)
-    g_blueAlphaLayer        = layer_create("blueA50"          , g_blue_a50  , gfx.zero    , gfx.zero    , gfx.zero    , gfx.zero)
+    g_redLayer              = layer_create("red"              , g_red       , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
+    g_borderFocusedLayer    = layer_create("borderFocused"    , gfx.gfx_zero, g_blue      , g_blue      , g_blue      , g_blue)
+    g_pageSelectedFront     = layer_create("pageSelectedFront", gfx.gfx_zero, g_gray_3    , g_black     , g_gray_3    , g_gray_3)
+    g_zeroBorderLayer       = layer_create("zeroBorder"       , gfx.gfx_zero, g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
+    g_pageFocusedFront      = layer_create("pageFocusedFront" , gfx.gfx_zero, g_light_blue, g_light_blue, g_light_blue, g_light_blue)
+    g_blueAlphaLayer        = layer_create("blueA50"          , g_blue_a50  , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
 
     // skins
 g_blackSkin      =skin_create("black"       , g_blackLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_borderFocusedLayer,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
@@ -6035,11 +6047,12 @@ var g_profileRenderControlFull fps.profile_id
 //-----------------------------------------------------------------------------
 func render() () {
 
-    var clip mat.v4 = gfx.gfx_viewport_bounds
+    var clip mat.v4 = gfx.gfx_viewportBounds
     var depthTest bool = true
     var depthFunc i32 = gl.GEQUAL
     var depthClear f64 = -1.0D
     var depthWrite bool = true
+    var stencilClear i32 = 256
 
     var clearColor mat.v4 = mat.v4_(0.0, 0.0, 0.0, 0.0)
 
@@ -6048,9 +6061,14 @@ func render() () {
     if (is_valid_screen(g_currentScreen)) {
         target_0 = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target_0.framebuffer)
-        gfx.bind_depthbuffer(g_depthBuffer_0, depthTest, depthFunc, depthWrite)
-        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, g_black, depthClear)
+        gfx.bind_depthbuffer(g_depthStencilBuffer)
+        gfx.bind_stencilbuffer(g_depthStencilBuffer)
+        gfx.depth_state(depthTest, depthFunc, depthWrite)
+        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT, g_black, depthClear, stencilClear)
+        gfx.color_write(true, true, true, true)
         screen_render(g_currentScreen, clip, 0)
+        gfx.bind_depthbuffer(0)
+        gfx.bind_stencilbuffer(0)
     }
     fps.end_profile(g_profileRenderCurrentScreen)
 
@@ -6059,9 +6077,14 @@ func render() () {
     if (is_valid_screen(g_nextScreen) && g_nextScreen.screen != g_currentScreen.screen) {
         target_1 = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target_1.framebuffer)
-        gfx.bind_depthbuffer(g_depthBuffer_0, depthTest, depthFunc, depthWrite)
-        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, g_black, depthClear)
+        gfx.bind_depthbuffer(g_depthStencilBuffer)
+        gfx.bind_stencilbuffer(g_depthStencilBuffer)
+        gfx.depth_state(depthTest, depthFunc, depthWrite)
+        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, g_black, depthClear, stencilClear)
+        gfx.color_write(true, true, true, true)
         screen_render(g_nextScreen, clip, 0)
+        gfx.bind_depthbuffer(0)
+        gfx.bind_stencilbuffer(0)
     }
     fps.end_profile(g_profileRenderNextScreen)
 
@@ -6070,8 +6093,10 @@ func render() () {
     //if (gfx.is_valid_target(target_0) && gfx.is_valid_target(target_1)) {
         target_2 = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target_2.framebuffer)
-        gfx.clear(gl.COLOR_BUFFER_BIT, gfx.zero, 0.0D)
+        gfx.clear(gl.COLOR_BUFFER_BIT, gfx.gfx_zero, 0.0D, 0)
+        gfx.color_write(true, true, true, true)
         gfx.disable_depth()
+        gfx.disable_stencil()
         gfx.disable_blending()
         gfx.effect_use(gfx.g_fxTrans_0)
         gfx.effect_assign_texture(gfx.g_fxTrans_0, 0, target_0.texture.name)
@@ -6099,16 +6124,22 @@ func render() () {
     for i = 0; i < g_modalCount; i = i + 1 {
         var target target_s = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target.framebuffer)
-        gfx.bind_depthbuffer(g_depthBuffer_0, depthTest, depthFunc, depthWrite)
-        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, gfx.zero, depthClear)
-        if (is_valid_screen(g_modals[i])) {
-            screen_render(g_modals[i], clip, 0)
-        }
+        gfx.bind_depthbuffer(g_depthStencilBuffer)
+        gfx.bind_stencilbuffer(g_depthStencilBuffer)
+        gfx.depth_state(depthTest, depthFunc, depthWrite)
+        gfx.stencil_state(true, gl.EQUAL, 0, 256, gl.KEEP, gl.KEEP, gl.KEEP, 256)
+        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, gfx.gfx_zero, depthClear, stencilClear)
+        gfx.color_write(true, true, true, true)
+        screen_render(g_modals[i], clip, 0)
+        gfx.bind_depthbuffer(0)
+        gfx.bind_stencilbuffer(0)
 
         var target_3 target_s = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target_3.framebuffer)
-        gfx.clear(gl.COLOR_BUFFER_BIT, gfx.zero, 0.0D)
+        gfx.clear(gl.COLOR_BUFFER_BIT, gfx.gfx_zero, 0.0D, 0)
+        gfx.color_write(true, true, true, true)
         gfx.disable_depth()
+        gfx.disable_stencil()
         gfx.disable_blending()
         gfx.effect_use(gfx.g_fxTrans_1)
         gfx.effect_assign_texture(gfx.g_fxTrans_1, 0, target_2.texture.name)
@@ -6124,8 +6155,10 @@ func render() () {
     fps.begin_profile(g_profileRenderDefaultFramebuffer)
     // ##todo fast path if no modals => render in default framebuffer 0
     gfx.bind_framebuffer(0)
-    gfx.clear(gl.COLOR_BUFFER_BIT, gfx.zero, 0.0D)
+    gfx.clear(gl.COLOR_BUFFER_BIT, gfx.gfx_zero, 0.0D, 0)
+    gfx.color_write(true, true, true, true)
     gfx.disable_depth()
+    gfx.disable_stencil()
     gfx.disable_blending()
     gfx.effect_use(gfx.g_fxTexture)
     gfx.effect_assign_texture(gfx.g_fxTexture, 0, target_2.texture.name)

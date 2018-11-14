@@ -34,7 +34,7 @@ func init(window str, name str, width i32, height i32, targetFps f64, major i32,
         swapInterval = 1 // should be based on targetFps
     }
     glfw.SwapInterval(swapInterval)
-    glfw.SetKeyCallback(window, "process_keyboard", "gui")
+    glfw.SetKeyCallbackEx(window, "process_keyboard", "gui")
     // xPos, yPos := glfw.GetCursorPos("window")
     // glfw.SetMouseButtonCallback("window", "mouseButton") --> Doesn't work yet
 }
