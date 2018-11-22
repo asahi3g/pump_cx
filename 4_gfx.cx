@@ -580,7 +580,7 @@ func unlock_mesh(id mesh_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func create_mesh(primitive i32, attributes [3]i32, vertexCount i32) (out mesh_id) { // make it work with slices
+func create_mesh(primitive i32, Xattributes [3]i32, vertexCount i32) (out mesh_id) { // make it work with slices
     uti.assert_(g_meshCount < len(g_meshes), "create_mesh : overflow") // ##1 use slice
     out.mesh = g_meshCount
 
@@ -594,7 +594,7 @@ func create_mesh(primitive i32, attributes [3]i32, vertexCount i32) (out mesh_id
         uti.assert_((vertexCount % 2) == 0, "(vertexCount % 2) == 0")
     }
 
-    g_meshes[out.mesh].attributes = attributes
+    g_meshes[out.mesh].attributes = Xattributes
     g_meshes[out.mesh].primitive = primitive
     g_meshes[out.mesh].vao = 0
     g_meshes[out.mesh].vbo = 0
@@ -607,11 +607,12 @@ func create_mesh(primitive i32, attributes [3]i32, vertexCount i32) (out mesh_id
 
     // stride
     var i i32 = 0
-    var attributeCount i32 = len(attributes)
+    var attributeCount i32 = len(Xattributes)
     var stride i32 = 0
     printf("attributeCount %d\n", attributeCount)
     for i = 0; i < attributeCount; i = i + 1 {
-        stride = stride + attributes[i]
+        var size i32 = Xattributes[i]
+        stride = stride + size
         //printf("g_meshes[id.mesh].stride %d, stride %d, attributes[i] %d\n", g_meshes[out.mesh].stride, stride, attributes[i])
     }
     g_meshes[out.mesh].stride = stride
@@ -656,15 +657,15 @@ func create_mesh(primitive i32, attributes [3]i32, vertexCount i32) (out mesh_id
     var offset i32 = 0
     for i = 0; i < attributeCount; i = i + 1 {
         var floatStride i32 = stride * g_sizeofFloat
-        printf("VertexAttribPointerI32 %d, %d, %d, %d\n", i, attributes[i], floatStride, offset)
+        printf("VertexAttribPointerI32 %d, %d, %d, %d\n", i, Xattributes[i], floatStride, offset)
 
         gl.EnableVertexAttribArray(i)
         uti.assert_(no_glerror(), "gl.EnableVertexAttribArray")
 
-        gl.VertexAttribPointerI32(i, attributes[i], gl.FLOAT, false, floatStride, offset)
+        gl.VertexAttribPointerI32(i, Xattributes[i], gl.FLOAT, false, floatStride, offset)
         uti.assert_(no_glerror(), "gl.VertexAttribPointerI32")
 
-        offset = offset + g_sizeofFloat * attributes[i]
+        offset = offset + g_sizeofFloat * Xattributes[i]
     }
     g_meshCount = out.mesh + 1
     uti.assert_(is_valid_mesh(out), "create_mesh : invalid id")
@@ -1741,12 +1742,14 @@ func append_glyph(id mesh_id, texture texture_s, name str, position mat.v2, scal
     var maxGlyphW i32 = 0;
     var maxGlyphH i32 = 0;
     maxGlyphW, maxGlyphH = gltext.GlyphBounds(name)
-    var maxGlyphWidth f32 = scale.x * i32.f32(maxGlyphW)
-    var maxGlyphHeight f32 = scale.y * i32.f32(maxGlyphH)
+    var maxGlyphWidth f32 = i32.f32(maxGlyphW)
+    var maxGlyphHeight f32 = i32.f32(maxGlyphH)
+    maxGlyphWidth = scale.x * maxGlyphWidth
+    maxGlyphHeight = scale.y * maxGlyphHeight
 
     var textW i32
     var textH i32
-    textW, textH := measure_glyph(name, glyph)
+    textW, textH = measure_glyph(name, glyph)
 
     var textWidth f32 = scale.x * i32.f32(textW)
     var textHeight f32 = scale.y * i32.f32(textH)
@@ -1814,7 +1817,7 @@ func append_text(id mesh_id, texture texture_s, name str, position mat.v2, scale
 
     var textW i32
     var textH i32
-    textW, textH := measure_text(name, text)
+    textW, textH = measure_text(name, text)
 
     var textWidth f32 = scale.x * i32.f32(textW)
     var textHeight f32 = scale.y * i32.f32(textH)

@@ -72,6 +72,7 @@ var g_pauseScreen    gui.screen_id = gui.invalid_screen()
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func on_exit_app_window_no_state(controlIndex i32, action i32) {
+    var b bool // ##0 padding, something is messed up with callbacks
     var id gui.control_id = gui.control_id_(controlIndex)
 
     // close dialog
@@ -80,16 +81,20 @@ func on_exit_app_window_no_state(controlIndex i32, action i32) {
     } else if (action == gui.KEY_RELEASE) {
         printf("NO RELEASED\n")
         gui.hide_modal(g_exitAppScreen)
+        printf("HERE\n")
     } else if (action == gui.KEY_REPEAT) {
         printf("NO REPEAT\n")
     } else {
         uti.assert_(false, "on_exit_app_window_no_state : invalid action")
     }
+
+    printf("BACK\n")
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func on_exit_app_window_yes_state(controlIndex i32, action i32) {
+    var b bool // ##0 padding, something is messed up with callbacks
     var id gui.control_id = gui.control_id_(controlIndex)
 
     // terminate
@@ -183,7 +188,7 @@ func main() {
 
     var application str // ##pending inline string init
     application = "window"
-    app.init(application, "pumpcx", 1600, 1200, targetFps, 2, 1, "main.keyPressed")
+    app.init(application, "pumpcx", 1600, 1200, targetFps, 2, 1, "process_keyboard", "process_cursor", "process_button")
     gfx.init(app.app_width, app.app_height)
     gui.init()
 
@@ -359,7 +364,7 @@ func main() {
             gui.label_set_size(langLabel, gui.g_fontSizeSmall)
             var langPic gui.label_id = gui.combo_get_pic(lang)
             //gui.label_set_font(langPic, gui.g_awesomeBoldFont)
-            gui.label_set_color(langPic, g_white)
+            gui.label_set_color(langPic, gui.g_white)
             gui.label_set_rune(langPic, 171)
             gui.label_set_size(langPic, gui.g_fontSizeText)
             var langList gui.list_id = gui.combo_get_list(lang)
@@ -453,7 +458,7 @@ func main() {
                     {
                         var rightBottomPlayControl control_id = gui.control_create("rightBottomPlayCtrl")
                         gui.control_set_dock(rightBottomPlayControl, gui.DOCK_BOTTOM)
-                        gui.control_set_autosize(rightBottomPlayControl, AUTOSIZE_Y)
+                        gui.control_set_autosize(rightBottomPlayControl, gui.AUTOSIZE_Y)
                         gui.control_set_padding(rightBottomPlayControl, mat.v4_(10.0, 10.0, 10.0, 10.0))
                         gui.control_set_skin(rightBottomPlayControl, gui.g_blackSkin)
 
@@ -464,7 +469,7 @@ func main() {
                         gui.control_set_dock(playButton.base, gui.DOCK_BOTTOM)
                         gui.control_set_focusable(playButton.base, 1)
                         gui.control_set_padding(playButton.base, mat.v4_(5.0, 5.0, 5.0, 5.0))
-                        gui.control_set_autosize(playButton.base, AUTOSIZE_Y)
+                        gui.control_set_autosize(playButton.base, gui.AUTOSIZE_Y)
                         gui.label_set_font(playButton, gui.g_boldFont)
                         gui.label_set_text(playButton, "Play")
                         gui.label_set_size(playButton, gui.g_fontSizeButton)
@@ -494,7 +499,7 @@ func main() {
                             gui.control_set_focusable(buyButton.base, 1)
                             gui.control_set_focus_index(buyButton.base, 4)
                             gui.control_set_padding(buyButton.base, mat.v4_(5.0, 5.0, 5.0, 5.0))
-                            gui.control_set_autosize(buyButton.base, AUTOSIZE_Y)
+                            gui.control_set_autosize(buyButton.base, gui.AUTOSIZE_Y)
                             gui.label_set_font(buyButton, gui.g_boldFont)
                             gui.label_set_text(buyButton, "Buy CX")
                             gui.label_set_size(buyButton, gui.g_fontSizeButton)
@@ -524,12 +529,12 @@ func main() {
                             gui.control_set_focusable(sellButton.base, 1)
                             gui.control_set_focus_index(sellButton.base, 4)
                             gui.control_set_padding(sellButton.base, mat.v4_(5.0, 5.0, 5.0, 5.0))
-                            gui.control_set_autosize(sellButton.base, AUTOSIZE_Y)
+                            gui.control_set_autosize(sellButton.base, gui.AUTOSIZE_Y)
                             gui.label_set_font(sellButton, gui.g_boldFont)
                             gui.label_set_text(sellButton, "Sell CX")
                             gui.label_set_size(sellButton, gui.g_fontSizeButton)
                             gui.label_set_color(sellButton, gui.g_white)
-                            gui.label_set_align(sellButton, ALIGN_CENTER)
+                            gui.label_set_align(sellButton, gui.ALIGN_CENTER)
 
                             add_label_text(bottomRight , "Total:", "0.000", 3)
                             add_percent(bottomRight, 2)
@@ -770,7 +775,7 @@ func main() {
         {
             var control control_id = gui.control_create("alpha")
             gui.control_add_child(g_debugScreen.base, control)
-            gui.control_set_skin(control, gui.g_blueAlphaSkin)
+            gui.control_set_skin(control, gui.g_hoverSkin)
             gui.control_set_bounds(control, mat.v4_(gfx.gfx_width / 4.0, gfx.gfx_height / 4.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
         }
     }

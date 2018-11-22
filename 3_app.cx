@@ -15,7 +15,7 @@ var app_exit bool = false
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func init(window str, name str, width i32, height i32, targetFps f64, major i32, minor i32, keyPressed str)() {
+func init(window str, name str, width i32, height i32, targetFps f64, major i32, minor i32, processKeyboard str, processCursor str, processButton str)() {
 
     app_width = width
     app_height = height
@@ -34,7 +34,10 @@ func init(window str, name str, width i32, height i32, targetFps f64, major i32,
         swapInterval = 1 // should be based on targetFps
     }
     glfw.SwapInterval(swapInterval)
-    glfw.SetKeyCallbackEx(window, "process_keyboard", "gui")
+    glfw.SetKeyCallbackEx(window, processKeyboard, "gui")
+    glfw.SetMouseButtonCallbackEx(window, processButton, "gui")
+    glfw.SetCursorPosCallbackEx(window, processCursor, "gui")
+
     // xPos, yPos := glfw.GetCursorPos("window")
     // glfw.SetMouseButtonCallback("window", "mouseButton") --> Doesn't work yet
 }

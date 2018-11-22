@@ -487,8 +487,8 @@ type skin_s struct {
     name str
     back layer_id
     front layer_id
-    hover_back layer_id
-    hover_front layer_id
+    hoverBack layer_id
+    hoverFront layer_id
     disabled_back layer_id
     disabled_front layer_id
     focused_back layer_id
@@ -521,8 +521,8 @@ func skin_create(name str, back layer_id, front layer_id, hoverBack layer_id, ho
     skin.id = out
     skin.back = back
     skin.front = front
-    skin.hover_back = hoverBack
-    skin.hover_front = hoverFore
+    skin.hoverBack = hoverBack
+    skin.hoverFront = hoverFore
     skin.disabled_back = disabledBack
     skin.disabled_front = disabledFore
     skin.focused_back = focusedBack
@@ -548,11 +548,11 @@ func skin_print(message str, id skin_id) {
     if (is_valid_layer(g_skins[index].front)) {
         layer_print("skin_print : ", g_skins[index].front)
     }
-    if (is_valid_layer(g_skins[index].hover_back)) {
-        layer_print("skin_print : ", g_skins[index].hover_back)
+    if (is_valid_layer(g_skins[index].hoverBack)) {
+        layer_print("skin_print : ", g_skins[index].hoverBack)
     }
-    if (is_valid_layer(g_skins[index].hover_front)) {
-        layer_print("skin_print : ", g_skins[index].hover_front)
+    if (is_valid_layer(g_skins[index].hoverFront)) {
+        layer_print("skin_print : ", g_skins[index].hoverFront)
     }
     if (is_valid_layer(g_skins[index].disabled_back)) {
         layer_print("skin_print : ", g_skins[index].disabled_back)
@@ -580,7 +580,7 @@ func skin_print(message str, id skin_id) {
 var g_black             mat.v4 = mat.rgba_ui8( 30,  34,  39, 255)
 var g_white             mat.v4 = mat.rgba_ui8(255, 251, 251, 255)
 var g_blue              mat.v4 = mat.rgba_ui8(  0, 114, 255, 255)
-var g_light_blue        mat.v4 = mat.rgba_ui8(  0, 195, 255, 255)
+var g_lightBlue         mat.v4 = mat.rgba_ui8(  0, 195, 255, 255)
 var g_darkBlue          mat.v4 = mat.v4_mul(g_blue, mat.v4_(0.5, 0.5, 0.5, 1.0))
 var g_green             mat.v4 = mat.rgba_ui8(  0, 223, 128, 255)
 var g_red               mat.v4 = mat.rgba_ui8(255,   0,  78, 255)
@@ -611,7 +611,7 @@ var g_zeroBorderLayer layer_id
 var g_redLayer layer_id
 var g_greenLayer layer_id
 var g_blueLayer layer_id
-var g_blueAlphaLayer layer_id
+var g_hoverLayer layer_id
 var g_popupLayer layer_id
 var g_modalLayer layer_id
 var g_headerLayer layer_id
@@ -637,7 +637,7 @@ var g_grayFocusedSkin skin_id
 var g_redSkin skin_id
 var g_greenSkin skin_id
 var g_blueSkin skin_id
-var g_blueAlphaSkin skin_id
+var g_hoverSkin skin_id
 var g_popupSkin skin_id
 var g_modalSkin skin_id
 var g_windowSkin skin_id
@@ -733,6 +733,29 @@ func control_parent_visible(id control_id) (out bool) {
         if (is_valid_control(parent)) {
             out = control_parent_visible(parent)
         }
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var g_cursorPos mat.v2
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func control_hovered(id control_id) (out i32) {
+    uti.assert_(is_valid_control(id), "invalid id")
+    out = 0
+
+    var position mat.v2 = g_controls[id.control].renderPosition
+    var size mat.v2 = g_controls[id.control].size
+
+    var left f32 = position.x
+    var right f32 = left + size.x
+    var bottom f32 = position.y
+    var top f32 = bottom + size.y
+    if (g_cursorPos.x >= left && g_cursorPos.x <= right &&
+        g_cursorPos.y >= bottom && g_cursorPos.y <= top) {
+        out = 1
     }
 }
 
@@ -2010,6 +2033,21 @@ func compute_depth(stack i32) (out f32) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+func layer_render(layer layer_id, renderBounds mat.v4, renderClips mat.v4, depth f32) {
+    if is_valid_layer(layer) {
+        render_surface(g_opaqueVertexColoredTriangles, g_alphaVertexColoredTriangles, renderBounds, g_layers[layer.layer].surface, renderClips, depth)
+        render_border(g_opaqueVertexColoredLines, g_alphaVertexColoredLines,
+                    renderBounds,
+                    g_layers[layer.layer].left,
+                    g_layers[layer.layer].bottom,
+                    g_layers[layer.layer].right,
+                    g_layers[layer.layer].top,
+                    renderClips, depth + 0.00001)
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func control_render(id control_id, clip mat.v4, stack i32) () {
     //fps.begin_profile(g_profileRenderControlFull)
 
@@ -2051,29 +2089,20 @@ func control_render(id control_id, clip mat.v4, stack i32) () {
                 }
             }
 
-            uti.assert_(is_valid_layer(backLayer) || backLayer.layer == -1, "control_render : invalid layer skin")
-            if is_valid_layer(backLayer) {
-                render_surface(g_opaqueVertexColoredTriangles, g_alphaVertexColoredTriangles, renderBounds, g_layers[backLayer.layer].surface, renderClips, depth)
-                render_border(g_opaqueVertexColoredLines, g_alphaVertexColoredLines,
-                            renderBounds,
-                            g_layers[backLayer.layer].left,
-                            g_layers[backLayer.layer].bottom,
-                            g_layers[backLayer.layer].right,
-                            g_layers[backLayer.layer].top,
-                            renderClips, depth + 0.01)
+            var hover i32 = 0
+            var hoverFront layer_id = g_skins[skin.skin].hoverFront
+            var hoverBack layer_id = g_skins[skin.skin].hoverBack
+            if (is_valid_layer(hoverFront) || is_valid_layer(hoverBack)) {
+                hover = control_hovered(id)
             }
 
-            uti.assert_(is_valid_layer(frontLayer) || frontLayer.layer == -1, "control_render : invalid layer skin")
-            if (is_valid_layer(frontLayer)) {
-                var color mat.v4 = g_layers[frontLayer.layer].surface
-                render_surface(g_opaqueVertexColoredTriangles, g_alphaVertexColoredTriangles, renderBounds, g_layers[frontLayer.layer].surface, renderClips, depth + 0.1)
-                render_border(g_opaqueVertexColoredLines, g_alphaVertexColoredLines,
-                            renderBounds,
-                            g_layers[frontLayer].left,
-                            g_layers[frontLayer].bottom,
-                            g_layers[frontLayer].right,
-                            g_layers[frontLayer].top,
-                            renderClips, depth + 0.11)
+            layer_render(backLayer, renderBounds, renderClips, depth)
+            if (hover > 0) {
+                layer_render(hoverBack, renderBounds, renderClips, depth + 0.05)
+            }
+            layer_render(frontLayer, renderBounds, renderClips, depth + 0.1)
+            if (hover > 0) {
+                layer_render(hoverFront, renderBounds, renderClips, depth + 0.15)
             }
         }
         //fps.end_profile(g_profileControlRender)
@@ -2461,8 +2490,8 @@ func screen_render(id screen_id, clip mat.v4, stack i32) () {
     fps.end_profile(g_profileRenderAlphaVertexColoredTriangles)
 
 
-    gfx.color_write(false, false, false, false)
-    //gfx.disable_depth()
+    /*gfx.color_write(false, false, false, false)
+    gfx.disable_depth()
     gfx.disable_blending()
     gfx.stencil_state(true, gl.ALWAYS, 256, 256, gl.KEEP, gl.REPLACE, gl.REPLACE, 256)
 
@@ -2478,7 +2507,7 @@ func screen_render(id screen_id, clip mat.v4, stack i32) () {
         gfx.end_mesh(g_opaqueVertexColoredTriangles)
         gfx.effect_use(gfx.g_fxVertexColor)
         gfx.render_mesh(g_opaqueVertexColoredTriangles)
-    }
+    }*/
 }
 
 //-----------------------------------------------------------------------------
@@ -2719,6 +2748,7 @@ func invalid_func_i32_i32() (out func_i32_i32_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func call_i32_i32(function func_i32_i32_id, a i32, b i32) {
+        printf("FUNCTION_CALL %d\n", function.index)
     glfw.call_i32_i32(function.index, a, b)
 }
 
@@ -2920,27 +2950,51 @@ func get_batch(texture texture_s, alpha bool) (out batch_id) {
 //-----------------------------------------------------------------------------
 func label_process_event(id label_id, event *event_s) (out i32) {
     uti.assert_(is_valid_label(id), "label_process_event : invalid label")
-        out = control_process_event(id.base, event)
+    out = control_process_event(id.base, event)
 
-        if (out == EVENT_UNUSED) {
-            var index i32 = id.base.control
-                var focused i32 = g_controls[index].focused
-                var mods i32 = ((*event).keyboard).mods
-                if (focused > 0 && mods == MOD_NONE) {
-                    var key i32 = ((*event).keyboard).key
-                        var action i32 = ((*event).keyboard).action
-                        if (key == KEYCODE_ENTER || key == KEYCODE_SPACE) {
-                            var function func_i32_i32_id = g_labels[id.label].on_state
-                                var functionIndex i32 = function.index
-                                if functionIndex >= 0 {
-                                    //printf("------------------------------------------------------------>>>>> ON_STATE %d\n", functionIndex)
-                                    call_i32_i32(function, index, action)
-                                        //printf("label_process_event\n")
-                                        out = EVENT_CONSUMED
-                                }
-                        }
+    if (out == EVENT_UNUSED) {
+        var index i32 = id.base.control
+        var focused i32 = g_controls[index].focused
+        var mods i32 = ((*event).keyboard).mods
+
+        if (mods == MOD_NONE) {
+
+            var callAction i32 = 0
+            var call bool = false
+            var button i32 = (*event).mouse.button
+            if (button == BUTTON_LEFT) {
+                var action i32 = (*event).mouse.action
+                if (action == BUTTON_PRESS) {
+                    //printf("BUTTON_PRESS\n")
+                    var hover i32 = control_hovered(id.base)
+                    if (hover > 0) {
+                        call = true
+                        callAction = action
+                    }
                 }
+            } else if (focused > 0) {
+                var key i32 = (*event).keyboard.key
+                if (key == KEYCODE_ENTER || key == KEYCODE_SPACE) {
+                    var action i32 = ((*event).keyboard).action
+                    if (action == KEY_PRESS) {
+                        call = true
+                        callAction = action
+                    }
+                }
+            }
+
+            if (call == true) {
+                var function func_i32_i32_id = g_labels[id.label].on_state
+                var functionIndex i32 = function.index
+                if functionIndex >= 0 {
+                    //printf("------------------------------------------------------------>>>>> ON_STATE %d\n", functionIndex)
+                    call_i32_i32(function, index, callAction)
+                    //printf("label_process_event\n")
+                    out = EVENT_CONSUMED
+                }
+            }
         }
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -2963,11 +3017,13 @@ func label_measure(id label_id) (width f32, height f32) { // ##1 factorize with 
     //printf("fontIndex %d, textureIndex %d\n", fontIndex, textureIndex)
     var fontName str = g_fonts[fontIndex].names[textureIndex] // ##0 auto select best size
 
+    var i32Width i32 = 0
+    var i32Height i32 = 0
     var rune i32 = g_labels[id.label].rune
     if (rune >= 0) {
-        i32Width, i32Height := gfx.measure_glyph(fontName, rune)
+        i32Width, i32Height = gfx.measure_glyph(fontName, rune)
     } else {
-        i32Width, i32Height := gfx.measure_text(fontName, text)
+        i32Width, i32Height = gfx.measure_text(fontName, text)
     }
 
     var pixelBounds mat.v2 = mat.v2_(i32.f32(i32Width), i32.f32(i32Height))
@@ -3001,11 +3057,13 @@ func label_resize(id label_id) () {
 
         //printf("fontIndex %d, textureIndex %d\n", fontIndex, textureIndex)
         var fontName str = g_fonts[fontIndex].names[textureIndex] // ##0 auto select best size
+        var i32Width i32 = 0
+        var i32Height i32 = 0
         var rune i32 = g_labels[id.label].rune
         if (rune >= 0) {
-            i32Width, i32Height := gfx.measure_glyph(fontName, rune)
+            i32Width, i32Height = gfx.measure_glyph(fontName, rune)
         } else {
-            i32Width, i32Height := gfx.measure_text(fontName, text)
+            i32Width, i32Height = gfx.measure_text(fontName, text)
         }
 
 
@@ -3523,7 +3581,7 @@ func keyboard_resize(id keyboard_id) () {
             var kw f32 = keyWidth
             var kh f32 = keyHeight
             gfx.append_quad(g_opaqueVertexColoredTriangles, mat.v4_(kx, ky, kw, kh), mat.v4_(0.0, 0.0, 1.0, 1.0), gui.g_blue)
-            gfx.append_text(g_alphaTexturedTriangles, g_skycoinFontTexture, "skycoin", kx, ky, gui.g_light_blue, "A", false, false)
+            gfx.append_text(g_alphaTexturedTriangles, g_skycoinFontTexture, "skycoin", kx, ky, gui.g_lightBlue, "A", false, false)
             gfx.append_rect(g_opaqueVertexColoredLines, mat.v4_(kx, ky, kw, kh), gui.g_blue, gui.g_blue, gui.g_blue, gui.g_blue)
             count = count + 1
         }
@@ -3834,13 +3892,15 @@ func graph_resize(id graph_id) () {
 
     g_graphs[graphIndex].graphClips = mat.v4_(graphPosition.x, graphPosition.y, size.x - coord.x, size.y - coord.y)
 
+    var graphLine graph_line_s
+    var font font_id
+
     var horzMax i32 = len(g_graphs[graphIndex].horz)
     i = 0
     var labelX f32 = coord.x + offsetX //- stepX / 2.0
     var x f32 = graphPosition.x
     for (x < endX) {
         var color mat.v4 = g_gray_2
-        var font font_id
 
         var labelBounds mat.v4 = mat.v4_(labelX, 0.0, stepX, coord.y)
         var big f32 = labelX - 2.0 * stepX
@@ -3861,7 +3921,7 @@ func graph_resize(id graph_id) () {
         }
 
         if (i < horzMax) {
-            var graphLine graph_line_s
+            //var graphLine graph_line_s
             graphLine.color = color
             graphLine.bounds = mat.v4_(x, graphPosition.y, x, endY)
             g_graphs[graphIndex].horz[i] = graphLine
@@ -3901,7 +3961,7 @@ func graph_resize(id graph_id) () {
     var y f32 = graphPosition.y
     for (y < endY) {
         var color mat.v4 = g_gray_2
-        var font font_id
+        //var font font_id
 
         var fTmp f32 = labelY - stepY / 2.0
         var labelBounds mat.v4 = mat.v4_(0.0, fTmp, coord.x, coord.y)
@@ -3924,7 +3984,7 @@ func graph_resize(id graph_id) () {
         }
 
         if (i < vertMax) {
-            var graphLine graph_line_s
+            //var graphLine graph_line_s
             graphLine.color = color
             graphLine.bounds = mat.v4_(graphPosition.x, y, endX, y)
             g_graphs[graphIndex].vert[i] = graphLine
@@ -5481,16 +5541,36 @@ func combo_process_event(id combo_id, event *event_s) (out i32) {
     var visible i32 = g_controls[id.base.control].visible
 
     if (visible > 0) {
-        var focused i32 = control_focused(id.base)
-        if (focused > 0) {
-            var action i32 = ((*event).keyboard).action
-            var key i32 = ((*event).keyboard).key
-            if (action == KEY_PRESS) {
-                if (key == KEYCODE_SPACE || key == KEYCODE_ENTER) {
-                    out = EVENT_CONSUMED
-                    var screen screen_id = g_combos[id.combo].screen
-                    show_screen(screen)
+        var index i32 = id.base.control
+        var focused i32 = g_controls[index].focused
+        var mods i32 = ((*event).keyboard).mods
+
+        if (mods == MOD_NONE) { // ##1 refactor with label_process_event
+            var call bool = false
+            var button i32 = (*event).mouse.button
+            if (button == BUTTON_LEFT) {
+                var action i32 = (*event).mouse.action
+                if (action == BUTTON_PRESS) {
+                    //printf("BUTTON_PRESS\n")
+                    var hover i32 = control_hovered(id.base)
+                    if (hover > 0) {
+                        call = true
+                    }
                 }
+            } else if (focused > 0) {
+                var key i32 = (*event).keyboard.key
+                if (key == KEYCODE_ENTER || key == KEYCODE_SPACE) {
+                    var action i32 = ((*event).keyboard).action
+                    if (action == KEY_PRESS) {
+                        call = true
+                    }
+                }
+            }
+
+            if (call == true) {
+                var screen screen_id = g_combos[id.combo].screen
+                show_screen(screen)
+                out = EVENT_CONSUMED
             }
         }
     }
@@ -5559,7 +5639,9 @@ func init() () {
     g_alphaVertexColoredLines = gfx.create_mesh(gl.LINES, attributes, 20 * 2024 * 2)
     g_fullscreenQuad = gfx.create_mesh(gl.TRIANGLES, attributes, 6 * 3)
 
+    printf("TOTO %d\n", g_fullscreenQuad.mesh)
     gfx.begin_mesh(g_fullscreenQuad)
+    printf("TATA\n")
     gfx.append_quad(g_fullscreenQuad, gfx.gfx_viewportBounds, mat.v4_(0.0, 1.0, 1.0, 0.0), gfx.gfx_white, gfx.gfx_viewportBounds, 0.0)
     gfx.end_mesh(g_fullscreenQuad)
 
@@ -5593,7 +5675,7 @@ func init() () {
     font_add_size(g_awesomeBoldFont, g_fontSizeHeader)
 
     // depth
-    g_depthStencilBuffer = gfx.create_depth_buffer(gl.DEPTH24_STENCIL8, app.app_width, app.app_height)
+    g_depthStencilBuffer = gfx.create_depth_buffer(gl.DEPTH_COMPONENT, app.app_width, app.app_height)
 
     // textures
     g_USTexture = gfx.create_texture("textures/flags/us.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
@@ -5608,7 +5690,7 @@ func init() () {
     g_popupLayer            = layer_create("popup"            , g_black_a10 , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
     g_modalLayer            = layer_create("modal"            , g_black_a50 , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
     g_debugBlueLayer        = layer_create("debugBlue"        , g_blue      , g_gold      , g_gold      , g_gold      , g_gold  )
-    g_focusedLayer          = layer_create("focused"          , g_blue      , g_light_blue, g_light_blue, g_light_blue, g_light_blue)
+    g_focusedLayer          = layer_create("focused"          , g_blue      , g_lightBlue , g_lightBlue , g_lightBlue , g_lightBlue)
     g_pageFocusedBack       = layer_create("pageFocusedBack"  , g_blue      , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
     g_blueLayer             = layer_create("blue"             , g_blue      , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
     g_selectedLayer         = layer_create("selected"         , g_darkBlue  , g_blue      , g_blue      , g_blue      , g_blue)
@@ -5625,8 +5707,8 @@ func init() () {
     g_borderFocusedLayer    = layer_create("borderFocused"    , gfx.gfx_zero, g_blue      , g_blue      , g_blue      , g_blue)
     g_pageSelectedFront     = layer_create("pageSelectedFront", gfx.gfx_zero, g_gray_3    , g_black     , g_gray_3    , g_gray_3)
     g_zeroBorderLayer       = layer_create("zeroBorder"       , gfx.gfx_zero, g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
-    g_pageFocusedFront      = layer_create("pageFocusedFront" , gfx.gfx_zero, g_light_blue, g_light_blue, g_light_blue, g_light_blue)
-    g_blueAlphaLayer        = layer_create("blueA50"          , g_blue_a50  , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
+    g_pageFocusedFront      = layer_create("pageFocusedFront" , gfx.gfx_zero, g_lightBlue , g_lightBlue , g_lightBlue , g_lightBlue)
+    g_hoverLayer            = layer_create("blueA50"          , g_blue_a50  , g_lightBlue , g_lightBlue , g_lightBlue , g_lightBlue)
 
     // skins
 g_blackSkin      =skin_create("black"       , g_blackLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_borderFocusedLayer,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
@@ -5635,7 +5717,7 @@ g_windowSkin     =skin_create("window"      , g_blackLayer     ,invalid_layer() 
 g_binderSkin     =skin_create("binder"      , g_blackLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
 g_blueSkin       =skin_create("blue"        , g_blueLayer      ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_goldLayer         ,g_goldLayer       ,invalid_layer()   ,invalid_layer())
 g_bootSkin       =skin_create("boot"        , g_bootLayer      ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
-g_zeroSkin       =skin_create("blackFocused", g_bootLayer      ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_zeroSkin       =skin_create("blackFocused", g_bootLayer      ,invalid_layer() ,invalid_layer(),g_hoverLayer   ,invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
 g_debugRedSkin   =skin_create("debugRed"    , g_debugRedLayer  ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
 g_debugGreenSkin =skin_create("debugGreen"  , g_debugGreenLayer,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
 g_debugBlueSkin  =skin_create("debugBlue"   , g_debugBlueLayer ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
@@ -5643,7 +5725,7 @@ g_debugGoldSkin  =skin_create("debugGold"   , g_debugGoldLayer ,invalid_layer() 
 g_greenSkin      =skin_create("green"       , g_greenLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,g_goldLayer       ,invalid_layer()   ,invalid_layer())
 g_headerSkin     =skin_create("header"      , g_headerLayer    ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
 g_buttonSkin     =skin_create("button"      , g_headerLayer    ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
-g_blueAlphaSkin  =skin_create("blueA50"     , invalid_layer()  ,g_blueAlphaLayer,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_hoverSkin      =skin_create("blueA50"     , invalid_layer()  ,g_hoverLayer    ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
 g_modalSkin      =skin_create("popup"       , g_modalLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
 g_popupSkin      =skin_create("modal"       , g_popupLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
 g_redSkin        =skin_create("red"         , g_redLayer       ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,g_goldLayer       ,invalid_layer()   ,invalid_layer())
@@ -5656,7 +5738,7 @@ g_zeroBorderSkin =skin_create("blackFocused", g_zeroBorderLayer,invalid_layer() 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func update(deltaTime f64)() { // ##1 rewrite
-
+    process_events()
     //printf("UPDATE %d, %d\n", g_currentScreen.screen, g_nextScreen.screen)
     if (is_valid_screen(g_currentScreen)) {
         update_screen(g_currentScreen, deltaTime)
@@ -5708,6 +5790,12 @@ func update(deltaTime f64)() { // ##1 rewrite
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+var BUTTON_LEFT  i32 = 0
+var BUTTON_RIGHT i32 = 1
+
+var BUTTON_RELEASE i32 = 0
+var BUTTON_PRESS   i32 = 1
+
 var KEY_RELEASE i32 = 0
 var KEY_PRESS   i32 = 1
 var KEY_REPEAT  i32 = 2
@@ -5722,6 +5810,7 @@ var KEYCODE_DOWN      i32 = 264
 var KEYCODE_UP        i32 = 265
 var KEYCODE_LEFT_CTRL i32 = 341
 var KEYCODE_MENU      i32 = 343
+
 var MOD_NONE  i32 = 0
 var MOD_SHIFT i32 = 1
 var MOD_CTRL  i32 = 2
@@ -5763,6 +5852,10 @@ type keyboard_event_s struct {
 }
 
 type mouse_event_s struct {
+    position mat.v2
+    button i32
+    action i32
+    mods i32
 }
 
 type event_s struct {
@@ -5772,104 +5865,195 @@ type event_s struct {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+func invalid_keyboard_event() (out keyboard_event_s) {
+    out.key = -1
+    out.scancode = -1
+    out.action = 0
+    out.mods = 0
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func invalid_mouse_event() (out mouse_event_s) {
+    out.position = mat.v2_(-1.0, -1.0)
+    out.button = -1
+    out.action = 0
+    out.mods = 0
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func invalid_event() (out event_s) {
+    out.keyboard = invalid_keyboard_event()
+    out.mouse = invalid_mouse_event()
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func control_process_event(id control_id, event *event_s) (out i32) {
     uti.assert_(is_valid_control(id), "control_process_event : invalid id")
-    var visible i32 = g_controls[id.control].visible
-    if (visible > 0) {
-//    control_print("control_process_event : ", id, false)
     out = EVENT_UNUSED
 
-    var index i32 = id.control
-    var count i32 = g_controls[index].childCount
-    for i := 0; i < count; i = i + 1 {
-        var child control_id = g_controls[index].children[i]
-        uti.assert_(is_valid_control(child), "control_process_event : invalid child control")
-        var childVisible i32 = g_controls[child.control].visible
-        if (childVisible > 0) {
-            var guiType i32 = g_controls[child.control].gui_type
-            var guiIndex i32 = g_controls[child.control].gui_index
+    var visible i32 = g_controls[id.control].visible
+    if (visible > 0) {
+        //control_print("control_process_event : ", id, false)
 
-            if (guiType == GUI_INVALID) {
-               uti.assert_(false, "invalid gui type (GUI_INVALID)")
-            } else if (guiType == GUI_CONTROL) {
-                uti.assert_(guiIndex == child.control, "unexpected error")
-                out = control_process_event(control_id_(guiIndex), event)
-            } else if (guiType == GUI_SCREEN) {
-                out = screen_process_event(screen_id_(child, guiIndex), event)
-            } else if (guiType == GUI_PICTURE) {
-                out = picture_process_event(picture_id_(child, guiIndex), event)
-            } else if (guiType == GUI_LABEL) {
-                out = label_process_event(label_id_(child, guiIndex), event)
-            } else if (guiType == GUI_PARTITION) {
-                out = partition_process_event(partition_id_(child, guiIndex), event)
-            } else if (guiType == GUI_KEYBOARD) {
-                out = keyboard_process_event(keyboard_id_(child, guiIndex), event)
-            } else if (guiType == GUI_WINDOW) {
-                out = window_process_event(window_id_(child, guiIndex), event)
-            } else if (guiType == GUI_GRAPH) {
-                out = graph_process_event(graph_id_(child, guiIndex), event)
-            } else if (guiType == GUI_SPLITTER) {
-                out = splitter_process_event(splitter_id_(child, guiIndex), event)
-            } else if (guiType == GUI_LIST) {
-                out = list_process_event(list_id_(child, guiIndex), event)
-            } else if (guiType == GUI_SCROLLER) {
-                out = scroller_process_event(scroller_id_(child, guiIndex), event)
-            } else if (guiType == GUI_LIFTER) {
-                out = lifter_process_event(lifter_id_(child, guiIndex), event)
-            } else if (guiType == GUI_BINDER) {
-                out = binder_process_event(binder_id_(child, guiIndex), event)
-            } else if (guiType == GUI_VECTOR) {
-                out = vector_process_event(vector_id_(child, guiIndex), event)
-            } else if (guiType == GUI_COMBO) {
-                out = combo_process_event(combo_id_(child, guiIndex), event)
-            } else {
-                printf("GUI TYPE %d\n", guiType)
-                uti.assert_(false, "control_process_event : unknown gui type")
+        var index i32 = id.control
+        var count i32 = g_controls[index].childCount
+        for i := 0; i < count; i = i + 1 {
+            var child control_id = g_controls[index].children[i]
+            uti.assert_(is_valid_control(child), "control_process_event : invalid child control")
+            var childVisible i32 = g_controls[child.control].visible
+            if (childVisible > 0) {
+                var guiType i32 = g_controls[child.control].gui_type
+                var guiIndex i32 = g_controls[child.control].gui_index
+
+                if (guiType == GUI_INVALID) {
+                   uti.assert_(false, "invalid gui type (GUI_INVALID)")
+                } else if (guiType == GUI_CONTROL) {
+                    uti.assert_(guiIndex == child.control, "unexpected error")
+                    out = control_process_event(control_id_(guiIndex), event)
+                } else if (guiType == GUI_SCREEN) {
+                    out = screen_process_event(screen_id_(child, guiIndex), event)
+                } else if (guiType == GUI_PICTURE) {
+                    out = picture_process_event(picture_id_(child, guiIndex), event)
+                } else if (guiType == GUI_LABEL) {
+                    out = label_process_event(label_id_(child, guiIndex), event)
+                } else if (guiType == GUI_PARTITION) {
+                    out = partition_process_event(partition_id_(child, guiIndex), event)
+                } else if (guiType == GUI_KEYBOARD) {
+                    out = keyboard_process_event(keyboard_id_(child, guiIndex), event)
+                } else if (guiType == GUI_WINDOW) {
+                    out = window_process_event(window_id_(child, guiIndex), event)
+                } else if (guiType == GUI_GRAPH) {
+                    out = graph_process_event(graph_id_(child, guiIndex), event)
+                } else if (guiType == GUI_SPLITTER) {
+                    out = splitter_process_event(splitter_id_(child, guiIndex), event)
+                } else if (guiType == GUI_LIST) {
+                    out = list_process_event(list_id_(child, guiIndex), event)
+                } else if (guiType == GUI_SCROLLER) {
+                    out = scroller_process_event(scroller_id_(child, guiIndex), event)
+                } else if (guiType == GUI_LIFTER) {
+                    out = lifter_process_event(lifter_id_(child, guiIndex), event)
+                } else if (guiType == GUI_BINDER) {
+                    out = binder_process_event(binder_id_(child, guiIndex), event)
+                } else if (guiType == GUI_VECTOR) {
+                    out = vector_process_event(vector_id_(child, guiIndex), event)
+                } else if (guiType == GUI_COMBO) {
+                    out = combo_process_event(combo_id_(child, guiIndex), event)
+                } else {
+                    printf("GUI TYPE %d\n", guiType)
+                    uti.assert_(false, "control_process_event : unknown gui type")
+                }
+            }
+
+            if (out == EVENT_CONSUMED) {
+                i = count // ##pending issue brue
+            } else if (out == EVENT_ERROR) {
+                uti.assert_(false, "EVENT_ERROR")
+            } else if (out != EVENT_UNUSED) {
+                uti.assert_(false, "invalid EVENT code")
             }
         }
-
-        if (out == EVENT_CONSUMED) {
-            i = count // ##pending issue brue
-        } else if (out == EVENT_ERROR) {
-            uti.assert_(false, "EVENT_ERROR")
-        } else if (out != EVENT_UNUSED) {
-            uti.assert_(false, "invalid EVENT code")
-        }
-    }
-    //control_print("control_process_event : ", id, false)
-    //printf("control_process_event : OUT %d\n", out)
+        //control_print("control_process_event : ", id, false)
+        //printf("control_process_event : OUT %d\n", out)
     }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func hide_modal(id screen_id) {
-    //printf("HIDE_MODAL %d\n", g_modalCount)
+    printf("HIDE_MODAL %d\n", g_modalCount)
     uti.assert_(is_valid_screen(id), "hide_modal : invalid screen")
     uti.assert_(g_modalCount > 0, "hide_modal : invalid count")
     if (g_modalCount > 0) {
         var modalIndex i32 = g_modalCount - 1
+        printf("MODAL_INDEX %d, COUNT %d\n", modalIndex, g_modalCount)
         var modalScreen screen_id = g_modals[modalIndex]
         uti.assert_(modalScreen.screen == id.screen, "hide_modal : invalid screen")
         if (modalScreen.screen == id.screen) {
+            printf("hide_screen\n")
             hide_screen(modalScreen)
             g_modalCount = modalIndex
+            g_hotScreen = invalid_screen()
         }
     }
+    printf("AFTER HIDE_MODEL\n")
 }
 
 var g_hotScreen screen_id
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
+var g_events [128]event_s // ##0 use slice
+var g_eventCount i32 = 0
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func process_cursor(window str, x f64, y f64) {
+ //    printf("----------------------------------------------------------TOTO\n")
+   //  printf("FUCK\n")
+    var b bool // ##0 padding, something is messed up with callbacks
+    var xx f32 = f64.f32(x)
+    var yy f32 = gfx.gfx_height - f64.f32(y)
+    uti.assert_(g_eventCount < 128, "process_cursor : event overflow") // ##0 remove when using event
+    printf("cursor : %f, %f\n", xx, yy)
+    g_cursorPos.x = xx
+    g_cursorPos.y = yy
+
+    g_events[g_eventCount] = invalid_event()
+    g_events[g_eventCount].mouse.position = g_cursorPos
+    g_eventCount = g_eventCount + 1
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func process_button(window str, key i32, action i32, mods i32) {
+    var b bool // ##0 padding, something is messed up with callbacks
+    uti.assert_(g_eventCount < 128, "process_button : event overflow") // ##0 remove when using slice
+    printf("button : %d, %d, %d\n", key, action, mods)
+
+    g_events[g_eventCount] = invalid_event()
+    g_events[g_eventCount].mouse.button = key
+    g_events[g_eventCount].mouse.action = action
+    g_events[g_eventCount].mouse.mods = mods
+    g_events[g_eventCount].mouse.position = g_cursorPos
+    g_eventCount = g_eventCount + 1
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
 func process_keyboard(window str, key i32, scancode i32, action i32, mods i32) () {
+    var b bool // ##0 padding, something is messed up with callbacks
+    uti.assert_(g_eventCount < 128, "process_keyboard : event overflow") // ##0 remove when using slice
     printf("key pressed : %d, scancode %d, action %d, mods %d\n", key, scancode, action, mods)
 
-    var event event_s
-    event.keyboard.key = key
-    event.keyboard.scancode = scancode
-    event.keyboard.action = action
-    event.keyboard.mods = mods
+    g_events[g_eventCount] = invalid_event()
+    g_events[g_eventCount].keyboard.key = key
+    g_events[g_eventCount].keyboard.scancode = scancode
+    g_events[g_eventCount].keyboard.action = action
+    g_events[g_eventCount].keyboard.mods = mods
+    g_eventCount = g_eventCount + 1
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func process_events() () {
+//    printf("EVENT COUNT %d\n", g_eventCount)
+    var i i32 = 0
+    for i = 0; i < g_eventCount; i = i + 1 {
+        process_event(&g_events[i])
+    }
+    g_eventCount = 0
+//    printf("CLEAR EVENTS\n")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func process_event(event *event_s) () {
+    var action i32 = (*event).keyboard.action
+    var key i32 = (*event).keyboard.key
+    var mods i32 = (*event).keyboard.mods
 
     var currentScreen screen_id = invalid_screen()
     if (g_modalCount > 0) {
@@ -5877,7 +6061,7 @@ func process_keyboard(window str, key i32, scancode i32, action i32, mods i32) (
         var modalScreen screen_id = g_modals[modalIndex]
         g_hotScreen = modalScreen
         currentScreen = modalScreen
-        if (control_process_event(modalScreen.base, &event) == EVENT_UNUSED) {
+        if (control_process_event(modalScreen.base, event) == EVENT_UNUSED) {
             if (key == KEYCODE_ESCAPE && action == KEY_PRESS) {
                 hide_modal(modalScreen)
                 g_hotScreen = g_currentScreen
@@ -5889,7 +6073,7 @@ func process_keyboard(window str, key i32, scancode i32, action i32, mods i32) (
     } else if (is_valid_screen(g_currentScreen)) {
     g_hotScreen = g_currentScreen
     //printf("NO MODAL\n")
-    if (control_process_event(g_currentScreen.base, &event) == EVENT_UNUSED) {
+    if (control_process_event(g_currentScreen.base, event) == EVENT_UNUSED) {
     //printf("process_keyboard : EVENT_UNUSED 0\n")
             var screen i32 = g_currentScreen.screen
             var state i32 = g_screens[screen].state
@@ -5953,7 +6137,6 @@ func process_keyboard(window str, key i32, scancode i32, action i32, mods i32) (
 //-----------------------------------------------------------------------------
 func hide_screen(id screen_id) () {
     uti.assert_(is_valid_screen(id), "hide_screen : invalid screen")
-
 }
 
 //-----------------------------------------------------------------------------
@@ -6062,9 +6245,9 @@ func render() () {
         target_0 = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target_0.framebuffer)
         gfx.bind_depthbuffer(g_depthStencilBuffer)
-        gfx.bind_stencilbuffer(g_depthStencilBuffer)
+        //gfx.bind_stencilbuffer(g_depthStencilBuffer)
         gfx.depth_state(depthTest, depthFunc, depthWrite)
-        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT, g_black, depthClear, stencilClear)
+        gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT/* | gl.STENCIL_BUFFER_BIT*/, g_black, depthClear, stencilClear)
         gfx.color_write(true, true, true, true)
         screen_render(g_currentScreen, clip, 0)
         gfx.bind_depthbuffer(0)
@@ -6078,7 +6261,7 @@ func render() () {
         target_1 = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target_1.framebuffer)
         gfx.bind_depthbuffer(g_depthStencilBuffer)
-        gfx.bind_stencilbuffer(g_depthStencilBuffer)
+        //gfx.bind_stencilbuffer(g_depthStencilBuffer)
         gfx.depth_state(depthTest, depthFunc, depthWrite)
         gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, g_black, depthClear, stencilClear)
         gfx.color_write(true, true, true, true)
@@ -6125,9 +6308,9 @@ func render() () {
         var target target_s = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target.framebuffer)
         gfx.bind_depthbuffer(g_depthStencilBuffer)
-        gfx.bind_stencilbuffer(g_depthStencilBuffer)
+        //gfx.bind_stencilbuffer(g_depthStencilBuffer)
         gfx.depth_state(depthTest, depthFunc, depthWrite)
-        gfx.stencil_state(true, gl.EQUAL, 0, 256, gl.KEEP, gl.KEEP, gl.KEEP, 256)
+        //gfx.stencil_state(true, gl.EQUAL, 0, 256, gl.KEEP, gl.KEEP, gl.KEEP, 0)
         gfx.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, gfx.gfx_zero, depthClear, stencilClear)
         gfx.color_write(true, true, true, true)
         screen_render(g_modals[i], clip, 0)
