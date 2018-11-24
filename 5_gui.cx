@@ -2774,7 +2774,7 @@ type label_s struct {
     textPosition mat.v2
     color_0 mat.v4
     color_1 mat.v4
-    on_state func_i32_i32_id
+    onState func_i32_i32_id
 }
 
 //-----------------------------------------------------------------------------
@@ -2809,7 +2809,7 @@ func label_create(name str) (out label_id) {
     label.textPosition = mat.v2_zero
     label.color_0 = g_red
     label.color_1 = g_green
-    label.on_state = invalid_func_i32_i32()
+    label.onState = invalid_func_i32_i32()
     g_labels[out.label] = label
     g_labelCount = out.label + 1
     uti.assert_(is_valid_label(out), "label_create : invalid id")
@@ -2864,8 +2864,8 @@ func label_set_color(id label_id, color mat.v4) {
 //-----------------------------------------------------------------------------
 func label_set_on_state(i_id label_id, packageName str, functionName str) {
     uti.assert_(is_valid_label(i_id), "label_set_on_state : invalid id")
-    g_labels[i_id.label].on_state = func_i32_i32(packageName, functionName)
-    var onState func_i32_i32_id = g_labels[i_id.label].on_state
+    g_labels[i_id.label].onState = func_i32_i32(packageName, functionName)
+    var onState func_i32_i32_id = g_labels[i_id.label].onState
     uti.assert_(onState.index >= 0, "label_set_on_state : invalid function")
 }
 
@@ -2973,7 +2973,7 @@ func label_process_event(id label_id, event *event_s) (out i32) {
             var button i32 = (*event).mouse.button
             if (button == BUTTON_LEFT) {
                 var action i32 = (*event).mouse.action
-                if (action == BUTTON_PRESS) {
+                if (action == BUTTON_PRESS || action == BUTTON_RELEASE) {
                     //printf("BUTTON_PRESS\n")
                     var hovered i32 = g_controls[id.base.control].hovered
                     if (hovered > 0) {
@@ -2985,7 +2985,7 @@ func label_process_event(id label_id, event *event_s) (out i32) {
                 var key i32 = (*event).keyboard.key
                 if (key == KEYCODE_ENTER || key == KEYCODE_SPACE) {
                     var action i32 = ((*event).keyboard).action
-                    if (action == KEY_PRESS) {
+                    if (action == KEY_PRESS || action == KEY_RELEASE) {
                         call = true
                         callAction = action
                     }
@@ -2993,7 +2993,7 @@ func label_process_event(id label_id, event *event_s) (out i32) {
             }
 
             if (call == true) {
-                var function func_i32_i32_id = g_labels[id.label].on_state
+                var function func_i32_i32_id = g_labels[id.label].onState
                 var functionIndex i32 = function.index
                 if functionIndex >= 0 {
                     //printf("------------------------------------------------------------>>>>> ON_STATE %d\n", functionIndex)
@@ -3404,8 +3404,8 @@ func window_create(name str) (out window_id) {
 
     uti.assert_(is_valid_window(out), "window_create : invalid id")
 
-    var padding mat.v4 = mat.v4_(0.01, 0.01, 0.01, 0.01)
-    var padding1 mat.v4 = mat.v4_(0.03, 0.03, 0.03, 0.03)
+    var padding mat.v4 = mat.v4_(5.0, 5.0, 5.0, 5.0)
+    var padding1 mat.v4 = mat.v4_(3.0, 3.0, 3.0, 3.0)
     {
         var header control_id = control_create("header") // ##pending := 
         control_add_child(out.base, header)
@@ -3423,7 +3423,7 @@ func window_create(name str) (out window_id) {
             label_set_align(caption, ALIGN_CENTER)
             label_set_font(caption, g_boldFont) // ##1 skin
             label_set_color(caption, g_white)
-            label_set_size(caption, g_fontSizeHeader)
+            label_set_size(caption, g_fontSizeText)
             window.caption = caption
         }
     }
@@ -3459,16 +3459,16 @@ func window_add_button(id window_id, name str, caption str, packageName str, fun
 
    var button label_id = label_create(name)
    control_set_skin(button.base, g_buttonSkin)
-   control_set_bounds(button.base, mat.v4_(0.0, 0.0, 0.15, 0.1))
+   control_set_bounds(button.base, mat.v4_(0.0, 0.0, 50.0, 0.0))
    control_set_dock(button.base, DOCK_RIGHT)
    control_set_autosize(button.base, AUTOSIZE_Y)
-   control_set_padding(button.base, mat.v4_(0.01, 0.01, 0.01, 0.01))
+   control_set_padding(button.base, mat.v4_(0.0, 0.0, 0.0, 0.0))
    control_set_focusable(button.base, 1)
    label_set_align(button, ALIGN_CENTER)
    label_set_color(button, g_white)
    label_set_font(button, g_boldFont)
    label_set_text(button, caption)
-   label_set_size(button, g_fontSizeButton)
+   label_set_size(button, g_fontSizeSmall)
    label_set_on_state(button, packageName, functionName)
 
    var strip control_id = g_windows[id.window].strip
