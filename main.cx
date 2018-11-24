@@ -368,23 +368,26 @@ func main() {
             gui.label_set_rune(langPic, 171)
             gui.label_set_size(langPic, gui.g_fontSizeText)
             var langList gui.list_id = gui.combo_get_list(lang)
-            gui.list_add_column(langList, "P", gui.g_white, columnSize)
-            gui.list_add_column(langList, "L", gui.g_white, columnSize)
+            gui.list_add_column(langList, "P", gui.g_white, columnSize, gui.g_buttonSkin)
+            gui.list_add_column(langList, "L", gui.g_white, columnSize, gui.g_buttonSkin)
             {
                 var line gui.control_id = gui.list_add_line(langList)
                 //gui.list_line_add_label(line, "E", gui.ALIGN_RIGHT, gui.g_red, itemSize)
+                gui.control_set_skin(line, gui.g_zeroSkin)
                 gui.list_line_add_picture(line, gui.ALIGN_CENTER, gui.g_USTexture)
                 gui.list_line_add_label(line, "US", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.invalid_skin())
             }
             {
                 var line gui.control_id = gui.list_add_line(langList)
                 //gui.list_line_add_label(line, "F", gui.ALIGN_RIGHT, gui.g_green, itemSize)
+                gui.control_set_skin(line, gui.g_zeroSkin)
                 gui.list_line_add_picture(line, gui.ALIGN_CENTER, gui.g_BRTexture)
                 gui.list_line_add_label(line, "BR", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.invalid_skin())
             }
             {
                 var line gui.control_id = gui.list_add_line(langList)
                 //gui.list_line_add_label(line, "F", gui.ALIGN_RIGHT, gui.g_green, itemSize)
+                gui.control_set_skin(line, gui.g_zeroSkin)
                 gui.list_line_add_picture(line, gui.ALIGN_CENTER, gui.g_JPTexture)
                 gui.list_line_add_label(line, "JP", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.invalid_skin())
             }
@@ -610,11 +613,12 @@ func main() {
                             var sell gui.list_id = gui.list_create("sell")
                             gui.control_set_skin(sell.base, gui.g_blackSkin)
                             gui.control_set_dock(sell.base, gui.DOCK_TOP)
-                            gui.list_add_column(sell, "Price", gui.g_white, columnSize)
-                            gui.list_add_column(sell, "Amount", gui.g_white, columnSize)
-                            gui.list_add_column(sell, "Total", gui.g_white, columnSize)
+                            gui.list_add_column(sell, "Price", gui.g_white, columnSize, gui.g_buttonSkin)
+                            gui.list_add_column(sell, "Amount", gui.g_white, columnSize, gui.g_buttonSkin)
+                            gui.list_add_column(sell, "Total", gui.g_white, columnSize, gui.g_buttonSkin)
                             for item = 0; item < 16; item = item + 1 {
                                 var line gui.control_id = gui.list_add_line(sell)
+                                gui.control_set_skin(line, gui.g_zeroSkin)
                                 gui.list_line_add_label(line, "0.3", gui.ALIGN_RIGHT, gui.g_red, itemSize, gui.g_grayFocusedSkin)
                                 gui.list_line_add_label(line, "0.4", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
                                 gui.list_line_add_label(line, "0.5", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
@@ -623,12 +627,13 @@ func main() {
                             var buy gui.list_id = gui.list_create("buy")
                             gui.control_set_skin(buy.base, gui.g_blackSkin)
                             gui.control_set_dock(buy.base, gui.DOCK_BOTTOM)
-                            gui.list_add_column(buy, "Price", gui.g_white, columnSize)
-                            gui.list_add_column(buy, "Amount", gui.g_white, columnSize)
-                            gui.list_add_column(buy, "Total", gui.g_white, columnSize)
+                            gui.list_add_column(buy, "Price", gui.g_white, columnSize, gui.g_buttonSkin)
+                            gui.list_add_column(buy, "Amount", gui.g_white, columnSize, gui.g_buttonSkin)
+                            gui.list_add_column(buy, "Total", gui.g_white, columnSize, gui.g_buttonSkin)
 
                             for item = 0; item < 16; item = item + 1 {
                                 var line gui.control_id = gui.list_add_line(buy)
+                                gui.control_set_skin(line, gui.g_zeroSkin)
                                 gui.list_line_add_label(line, "0.0", gui.ALIGN_RIGHT, gui.g_green, itemSize, gui.g_grayFocusedSkin)
                                 gui.list_line_add_label(line, "0.1", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
                                 gui.list_line_add_label(line, "0.2", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
@@ -641,12 +646,13 @@ func main() {
                         {
                             gui.control_set_skin(done.base, gui.g_blackSkin)
                             gui.control_set_dock(done.base, gui.DOCK_RIGHT)
-                            gui.list_add_column(done, "Price", gui.g_white, columnSize)
-                            gui.list_add_column(done, "Amount", gui.g_white, columnSize)
-                            gui.list_add_column(done, "Total", gui.g_white, columnSize)
+                            gui.list_add_column(done, "Price", gui.g_white, columnSize, gui.g_buttonSkin)
+                            gui.list_add_column(done, "Amount", gui.g_white, columnSize, gui.g_buttonSkin)
+                            gui.list_add_column(done, "Total", gui.g_white, columnSize, gui.g_buttonSkin)
 
                             for item = 0; item < 40; item = item + 1 {
                                 var line gui.control_id = gui.list_add_line(done)
+                                gui.control_set_skin(line, gui.g_zeroSkin)
 
                                 var color mat.v4 = gui.g_green
                                 if ((item % 3) == 0 || (item % 5) == 0) {
