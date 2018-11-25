@@ -63,11 +63,48 @@ var g_bootScreen     gui.screen_id = gui.invalid_screen()
 var g_debugScreen    gui.screen_id = gui.invalid_screen()
 var g_skycoinScreen  gui.screen_id = gui.invalid_screen()
 var g_pumpcxScreen   gui.screen_id = gui.invalid_screen()
+
 var g_mainScreen     gui.screen_id = gui.invalid_screen()
+var g_sellPcxScreen  gui.screen_id = gui.invalid_screen()
+var g_buyPcxScreen   gui.screen_id = gui.invalid_screen()
+
 var g_gameScreen     gui.screen_id = gui.invalid_screen()
 var g_exitAppScreen  gui.screen_id = gui.invalid_screen()
 var g_exitGameScreen gui.screen_id = gui.invalid_screen()
 var g_pauseScreen    gui.screen_id = gui.invalid_screen()
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func on_buy_pcx(controlIndex i32, action i32) {
+    if (action == gui.KEY_PRESS) {
+        printf("SHOW_BUY_PCX PRESS\n")
+        gui.show_screen(g_buyPcxScreen)
+    } else if (action == gui.KEY_RELEASE) {
+        printf("SHOW_BUY_PCX RELEASE\n")
+        //gui.hide_modal(g_buyPcxScreen)
+    } else if (action == gui.KEY_REPEAT) {
+        printf("SHOW_BUY_PCX REPEAT\n")
+        //
+    } else {
+        uti.assert_(false, "on_buy_pcx : invalid action")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func on_sell_pcx(controlIndex i32, action i32) {
+    if (action == gui.KEY_PRESS) {
+        printf("SHOW_SELL_PCX PRESS\n")
+        gui.show_screen(g_sellPcxScreen)
+    } else if (action == gui.KEY_RELEASE) {
+        printf("SHOW_SELL_PCX RELEASE\n")
+        //gui.hide_modal(g_sellPcxScreen)
+    } else if (action == gui.KEY_REPEAT) {
+        printf("SHOW_SELL_PCX REPEAT\n")
+    } else {
+        uti.assert_(false, "on_sell_pcx : invalid action")
+    }
+}
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -296,6 +333,48 @@ func main() {
         }
     }
 
+    // buypcx screen
+    {
+        g_buyPcxScreen = gui.screen_create("buypcx")
+        gui.control_set_skin(g_buyPcxScreen.base, gui.g_modalSkin)
+        gui.control_set_bounds(g_buyPcxScreen.base, screenBounds)
+        gui.screen_set_duration(g_buyPcxScreen, -2.0D)
+        gui.screen_set_modal(g_buyPcxScreen, true)
+        gui.screen_set_floating(g_buyPcxScreen, true)
+
+        {
+            var picture picture_id = gui.picture_create("skycoin")
+            gui.control_add_child(g_buyPcxScreen.base, picture.base)
+            //gui.control_set_skin(picture.base, g_blackSkin) // panic if no skin g_redSkin)
+            gui.control_set_bounds(picture.base, mat.v4_(0.0, 0.0, gfx.gfx_width / 4.0, gfx.gfx_height / 4.0))
+            gui.control_set_align(picture.base, gui.ALIGN_CENTER)
+            gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
+            gui.picture_set_align(picture, gui.ALIGN_CENTER)
+            gui.picture_set_animation(picture, gui.g_skycoinAnim)
+        }
+    }
+
+    // sellpcx screen
+    {
+        g_sellPcxScreen = gui.screen_create("sellpcx")
+        gui.control_set_skin(g_sellPcxScreen.base, gui.g_modalSkin)
+        gui.control_set_bounds(g_sellPcxScreen.base, screenBounds)
+        gui.screen_set_duration(g_sellPcxScreen, -2.0D)
+        gui.screen_set_modal(g_sellPcxScreen, true)
+        gui.screen_set_floating(g_sellPcxScreen, true)
+
+        {
+            var picture picture_id = gui.picture_create("skycoin")
+            gui.control_add_child(g_sellPcxScreen.base, picture.base)
+            gui.control_set_skin(picture.base, gui.g_goldBorderSkin)
+            gui.control_set_bounds(picture.base, mat.v4_(0.0, 0.0, gfx.gfx_width / 4.0, gfx.gfx_height / 4.0))
+            gui.control_set_align(picture.base, gui.ALIGN_CENTER)
+            gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
+            gui.picture_set_align(picture, gui.ALIGN_CENTER)
+            gui.picture_set_animation(picture, gui.g_synthAnim)
+        }
+    }
+
     var columnSize i32 = gui.g_fontSizeSmall
     var itemSize i32 = gui.g_fontSizeSmall
 
@@ -374,21 +453,21 @@ func main() {
                 var line gui.control_id = gui.list_add_line(langList)
                 //gui.list_line_add_label(line, "E", gui.ALIGN_RIGHT, gui.g_red, itemSize)
                 gui.control_set_skin(line, gui.g_zeroSkin)
-                gui.list_line_add_picture(line, gui.ALIGN_CENTER, gui.g_USTexture)
+                gui.list_line_add_picture(line, gui.ALIGN_CENTER, gui.g_USAnim)
                 gui.list_line_add_label(line, "US", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.invalid_skin())
             }
             {
                 var line gui.control_id = gui.list_add_line(langList)
                 //gui.list_line_add_label(line, "F", gui.ALIGN_RIGHT, gui.g_green, itemSize)
                 gui.control_set_skin(line, gui.g_zeroSkin)
-                gui.list_line_add_picture(line, gui.ALIGN_CENTER, gui.g_BRTexture)
+                gui.list_line_add_picture(line, gui.ALIGN_CENTER, gui.g_BRAnim)
                 gui.list_line_add_label(line, "BR", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.invalid_skin())
             }
             {
                 var line gui.control_id = gui.list_add_line(langList)
                 //gui.list_line_add_label(line, "F", gui.ALIGN_RIGHT, gui.g_green, itemSize)
                 gui.control_set_skin(line, gui.g_zeroSkin)
-                gui.list_line_add_picture(line, gui.ALIGN_CENTER, gui.g_JPTexture)
+                gui.list_line_add_picture(line, gui.ALIGN_CENTER, gui.g_JPAnim)
                 gui.list_line_add_label(line, "JP", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.invalid_skin())
             }
 
@@ -504,7 +583,8 @@ func main() {
                             gui.control_set_padding(buyButton.base, mat.v4_(5.0, 5.0, 5.0, 5.0))
                             gui.control_set_autosize(buyButton.base, gui.AUTOSIZE_Y)
                             gui.label_set_font(buyButton, gui.g_boldFont)
-                            gui.label_set_text(buyButton, "Buy CX")
+                            gui.label_set_text(buyButton, "Buy PCX")
+                            gui.label_set_on_state(buyButton, "main", "on_buy_pcx")
                             gui.label_set_size(buyButton, gui.g_fontSizeButton)
                             gui.label_set_color(buyButton, gui.g_white)
                             gui.label_set_align(buyButton, gui.ALIGN_CENTER)
@@ -534,7 +614,8 @@ func main() {
                             gui.control_set_padding(sellButton.base, mat.v4_(5.0, 5.0, 5.0, 5.0))
                             gui.control_set_autosize(sellButton.base, gui.AUTOSIZE_Y)
                             gui.label_set_font(sellButton, gui.g_boldFont)
-                            gui.label_set_text(sellButton, "Sell CX")
+                            gui.label_set_text(sellButton, "Sell PCX")
+                            gui.label_set_on_state(sellButton, "main", "on_sell_pcx")
                             gui.label_set_size(sellButton, gui.g_fontSizeButton)
                             gui.label_set_color(sellButton, gui.g_white)
                             gui.label_set_align(sellButton, gui.ALIGN_CENTER)
@@ -707,7 +788,7 @@ func main() {
         g_skycoinScreen = gui.screen_create("skycoin")
         gui.control_set_skin(g_skycoinScreen.base, gui.g_blackSkin)
         gui.control_set_bounds(g_skycoinScreen.base, screenBounds)
-        gui.screen_set_duration(g_skycoinScreen, -2.0D)
+        gui.screen_set_duration(g_skycoinScreen, 2.0D)
         gui.screen_set_on_next(g_skycoinScreen, g_pumpcxScreen)
         gui.screen_set_on_event(g_skycoinScreen, g_mainScreen)
 
@@ -719,9 +800,7 @@ func main() {
             gui.control_set_align(picture.base, gui.ALIGN_CENTER)
             gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
             gui.picture_set_align(picture, gui.ALIGN_CENTER)
-            gui.picture_set_texture(picture, gui.g_skycoinTexture)
-        var fontTexture texture_s = gui.g_fonts[gui.g_awesomeBoldFont.font].textures[0] // ##0 auto select best size
-    gui.picture_set_texture(picture, fontTexture)
+            gui.picture_set_animation(picture, gui.g_skycoinAnim)
         }
     }
 
@@ -765,7 +844,7 @@ func main() {
             gui.control_add_child(g_debugScreen.base, picture.base)
             gui.control_set_bounds(picture.base, mat.v4_(0.0, 0.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
             gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
-            gui.picture_set_texture(picture, gui.g_skycoinTexture)
+            gui.picture_set_animation(picture, gui.g_skycoinAnim)
             gui.picture_set_align(picture, gui.ALIGN_CENTER)
         }
 
@@ -774,7 +853,7 @@ func main() {
             gui.control_add_child(g_debugScreen.base, picture.base)
             gui.control_set_bounds(picture.base, mat.v4_(gfx.gfx_width / 2.0, gfx.gfx_height / 2.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
             gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
-            gui.picture_set_texture(picture, gui.g_skycoinTexture)
+            gui.picture_set_animation(picture, gui.g_skycoinAnim)
             gui.picture_set_align(picture, gui.ALIGN_CENTER)
         }
 
@@ -796,9 +875,9 @@ func main() {
         gui.screen_set_on_event(g_bootScreen, g_mainScreen)
     }
 
-    //gui.show_screen(g_bootScreen)
+    gui.show_screen(g_bootScreen)
     //gui.show_screen(g_skycoinScreen)
-    gui.show_screen(g_mainScreen)
+    //gui.show_screen(g_mainScreen)
 
     var profileSwap profile_id = fps.create_profile("swap")
     var profileFrame profile_id = fps.create_profile("frame")

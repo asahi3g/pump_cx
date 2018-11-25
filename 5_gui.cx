@@ -24,9 +24,18 @@ var g_alphaVertexColoredTriangles   gfx.mesh_id
 var g_fullscreenQuad                gfx.mesh_id
 
 var g_skycoinTexture gfx.texture_s
+var g_skycoinAnim animation_id
+
 var g_USTexture gfx.texture_s
+var g_USAnim animation_id
+
 var g_JPTexture gfx.texture_s
+var g_JPAnim animation_id
+
 var g_BRTexture gfx.texture_s
+var g_BRAnim animation_id
+
+var g_synthAnim animation_id
 
 var g_depthStencilBuffer i32 = -1
 
@@ -605,6 +614,7 @@ var g_debugGreenLayer layer_id
 var g_debugBlueLayer layer_id
 var g_debugGoldLayer layer_id
 var g_goldLayer layer_id
+var g_goldBorderLayer layer_id
 var g_bootLayer layer_id
 var g_blackLayer layer_id
 var g_zeroBorderLayer layer_id
@@ -649,6 +659,7 @@ var g_stripSkin skin_id
 var g_binderPageSkin skin_id
 var g_binderSkin skin_id
 var g_zeroSkin skin_id
+var g_goldBorderSkin skin_id
 
 var textureLogo str = "textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png"
 
@@ -2393,9 +2404,9 @@ func begin_batches() {
     var i i32 = 0;
     //printf("BEGIN_BATCHES %d\n", g_renderBatchCount)
     for i = 0; i < g_renderBatchCount; i = i + 1 {
-        //printf("BEGIN_BATCH %d/%d\n", i, g_renderBatchCount)
         var batchId batch_id = g_renderBatches[i]
-        uti.assert_(is_valid_batch(batchId), "begin_batch : invaid batch")
+        //printf("BEGIN_BATCH %d/%d BATCH %d\n", i, g_renderBatchCount, batchId.batch)
+        uti.assert_(is_valid_batch(batchId), "begin_batch : invalid batch")
         var meshId gfx.mesh_id = g_batches[batchId.batch].mesh
         uti.assert_(gfx.is_valid_mesh(meshId), "begin_batches : invalid mesh")
         gfx.begin_mesh(meshId)
@@ -2885,10 +2896,10 @@ type batch_s struct {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_batches[64] batch_s
+var g_batches[256] batch_s
 var g_batchCount i32 = 0
 
-var g_renderBatches[64] batch_id
+var g_renderBatches[256] batch_id
 var g_renderBatchCount i32 = 0
 
 //-----------------------------------------------------------------------------
@@ -2928,6 +2939,7 @@ func get_batch(texture texture_s, alpha bool) (out batch_id) {
         g_batches[g_batchCount].mesh = gfx.lock_mesh(gl.TRIANGLES, attributes, 2048 * 3) // ##0 hardcode
         g_batches[g_batchCount].alpha = alpha
         out.batch = g_batchCount
+        uti.assert_(g_batchCount < len(g_batches), "get_batch : batch overflow")
         g_batchCount = g_batchCount + 1
     }
 
@@ -2948,6 +2960,7 @@ func get_batch(texture texture_s, alpha bool) (out batch_id) {
 
     if (found == false) {
         //printf("BATCH_NOT FOUND %d\n", out.batch)
+        uti.assert_(g_renderBatchCount < len(g_renderBatches), "get_batch : render batch overflow")
         g_renderBatches[g_renderBatchCount] = out
         g_renderBatchCount = g_renderBatchCount + 1
     }
@@ -3154,6 +3167,100 @@ func label_render(id label_id, clip mat.v4, stack i32) () {
 }
 
 //-----------------------------------------------------------------------------
+// ANIMATION
+//-----------------------------------------------------------------------------
+type animation_s struct {
+    id animation_id
+    path str
+    textures [] gfx.texture_s
+    delays [] i32
+    disposals []i32
+    frameCount i32
+    loop i32
+    width i32
+    height i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type animation_id struct {
+    index i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func is_valid_animation(id animation_id) (out bool) {
+    out = id.index >= 0 && id.index < g_animationCount
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func invalid_animation() (out animation_id) {
+    out.index = -1
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var g_animations [64]animation_s
+var g_animationCount i32 = 0
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func animation_create_from_path(path str) (out animation_id) {
+    uti.assert_(g_animationCount < len(g_animations), "animation_create : overflow")
+    out.index = g_animationCount
+
+    var frameCount i32 = 0
+    var loopCount i32 = 0
+    var width i32 = 0
+    var height i32 = 0
+    frameCount, loopCount, width, height = gl.NewGIF(path)
+
+    for i := 0; i < frameCount; i++ {
+        var texture gfx.texture_s = gfx.create_texture("", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, width, height)
+        g_animations[g_animationCount].textures = append(g_animations[g_animationCount].textures, texture)
+
+        var delay i32 = 0
+        var disposal i32 = 0
+        delay, disposal = gl.GIFFrameToTexture(path, i, texture.name)
+
+        g_animations[g_animationCount].delays = append(g_animations[g_animationCount].delays, delay)
+        g_animations[g_animationCount].disposals = append(g_animations[g_animationCount].disposals, disposal)
+        printf("FRAME %d/%d, %d, %d, %d, %d\n", i, frameCount, width, height, delay, disposal)
+    }
+
+    gl.FreeGIF(path)
+
+    g_animations[g_animationCount].path = path
+    g_animations[g_animationCount].loop = loopCount
+    g_animations[g_animationCount].width = width
+    g_animations[g_animationCount].height = height
+    g_animations[g_animationCount].frameCount = frameCount
+
+    g_animationCount = g_animationCount + 1
+    uti.assert_(is_valid_animation(out), "animation_create_from_path : invalid id")
+//    uti.assert_(false, "FUCK")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func animation_create_from_texture(texture texture_s) (out animation_id) {
+    uti.assert_(g_animationCount < len(g_animations), "animation_create : overflow")
+    out.index = g_animationCount
+
+    g_animations[g_animationCount].textures = append(g_animations[g_animationCount].textures, texture)
+    g_animations[g_animationCount].delays = append(g_animations[g_animationCount].delays, 0)
+    g_animations[g_animationCount].disposals = append(g_animations[g_animationCount].disposals, 0)
+    g_animations[g_animationCount].path = ""
+    g_animations[g_animationCount].loop = 0
+    g_animations[g_animationCount].width = texture.width
+    g_animations[g_animationCount].height = texture.height
+    g_animations[g_animationCount].frameCount = 1
+    g_animationCount = g_animationCount + 1
+    uti.assert_(is_valid_animation(out), "animation_create_from_texture : invalid_id")
+}
+
+//-----------------------------------------------------------------------------
 // PICTURE
 //-----------------------------------------------------------------------------
 var g_pictures [64]picture_s
@@ -3170,7 +3277,8 @@ type picture_id struct {
 //-----------------------------------------------------------------------------
 type picture_s struct {
     id picture_id
-    texture gfx.texture_s
+    frame i32
+    animation animation_id
     batch batch_id
     pictureAlign i32
     picturePosition mat.v2
@@ -3200,7 +3308,7 @@ func picture_create(name str) (out picture_id) {
 
     var picture picture_s
     picture.id = out
-    picture.texture = gfx.invalid_texture()
+    picture.animation = invalid_animation()
     picture.batch = invalid_batch()
     picture.pictureAlign = ALIGN_NONE
     picture.picturePosition = mat.v2_zero
@@ -3213,9 +3321,9 @@ func picture_create(name str) (out picture_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func picture_set_texture(id picture_id, texture texture_s) {
-    uti.assert_(is_valid_picture(id), "picture_set_texture : invalid id")
-    g_pictures[id.picture].texture = texture
+func picture_set_animation(id picture_id, animation animation_id) {
+    uti.assert_(is_valid_picture(id), "picture_set_animation : invalid id")
+    g_pictures[id.picture].animation = animation
 }
 
 //-----------------------------------------------------------------------------
@@ -3237,8 +3345,11 @@ func picture_process_event(id picture_id, event *event_s) (out i32) {
 func picture_measure(id picture_id) (width f32, height f32) { // ##1 factorize with label_resize
     uti.assert_(is_valid_picture(id), "picture_measure : invalid id")
 
-    var i32Width i32 = g_pictures[id.picture].texture.width
-    var i32Height i32 = g_pictures[id.picture].texture.height
+    var animation animation_id = g_pictures[id.picture].animation
+    uti.assert_(is_valid_animation(animation), "picture_measure : invalid animation")
+
+    var i32Width i32 = g_animations[animation.index].width
+    var i32Height i32 = g_animations[animation.index].height
 
     width = i32.f32(i32Width)
     height = i32.f32(i32Height)
@@ -3258,8 +3369,11 @@ func picture_measure(id picture_id) (width f32, height f32) { // ##1 factorize w
 func picture_resize(id picture_id) () {
     uti.assert_(is_valid_picture(id), "picture_resize : invalid id")
 
-    var i32Width i32 = g_pictures[id.picture].texture.width
-    var i32Height i32 = g_pictures[id.picture].texture.height
+    var animation animation_id = g_pictures[id.picture].animation
+    uti.assert_(is_valid_animation(animation), "picture_resize : invalid animation")
+
+    var i32Width i32 = g_animations[animation.index].width
+    var i32Height i32 = g_animations[animation.index].height
 
     var pixelBounds mat.v2 = mat.v2_(i32.f32(i32Width), i32.f32(i32Height))
 
@@ -3277,7 +3391,10 @@ func picture_resize(id picture_id) () {
     position.x, position.y = align_control(id.base, g_pictures[id.picture].pictureAlign, 0.0, 0.0, newSize.x, newSize.y, position.x, position.y, size.x, size.y, padding)
     //printf("PICTURE_POSITION %f, %f\n", position.x, position.y)
     g_pictures[id.picture].picturePosition = position
-    g_pictures[id.picture].batch = get_batch(g_pictures[id.picture].texture, g_pictures[id.picture].alpha)
+
+    var frame i32 = g_pictures[id.picture].frame
+    var texture gfx.texture_s = g_animations[animation.index].textures[frame]
+    g_pictures[id.picture].batch = get_batch(texture, g_pictures[id.picture].alpha)
     //control_print("picture_resize : AFTER", id.base, false)
 }
 
@@ -3301,16 +3418,28 @@ func picture_render(id picture_id, clip mat.v4, stack i32) () {
         }
     }
 
-    var texture gfx.texture_s = g_pictures[id.picture].texture
+    var animation animation_id = g_pictures[id.picture].animation
+    uti.assert_(is_valid_animation(animation), "picture_render : invalid animation")
+
+    var i32Width i32 = g_animations[animation.index].width
+    var i32Height i32 = g_animations[animation.index].height
+
+    var frameCount i32 = g_animations[animation.index].frameCount
+
+    var frame i32 = g_pictures[id.picture].frame
+    var texture gfx.texture_s = g_animations[animation.index].textures[frame]
+    frame = frame + 5
+    if (frame >= frameCount) {
+        frame = 0
+    }
+    g_pictures[id.picture].frame = frame
+
     if texture.name > 0 {
         //printf("RENDER_BOUNDS %f, %f, %f, %f\n",
         //  g_controls[id.control].renderBounds.x,
         //g_controls[id.control].renderBounds.y,
         //g_controls[id.control].renderBounds.z,
         //g_controls[id.control].renderBounds.w)
-
-        var i32Width i32 = g_pictures[id.picture].texture.width
-        var i32Height i32 = g_pictures[id.picture].texture.height
 
         var scale mat.v2 = g_controls[controlIndex].scale
 
@@ -4249,7 +4378,7 @@ func list_line_add_label(id control_id, text str, align i32, color mat.v4, size 
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func list_line_add_picture(id control_id, align i32, texture texture_s) {
+func list_line_add_picture(id control_id, align i32, animation animation_id) {
     uti.assert_(is_valid_control(id), "list_line_add_picture : invalid id")
 
     var lineName str = g_controls[id.control].name
@@ -4266,7 +4395,7 @@ func list_line_add_picture(id control_id, align i32, texture texture_s) {
     control_set_autoscale(label.base, AUTOSCALE)
     //control_set_align(label, align)
     picture_set_align(label, align)
-    picture_set_texture(label, texture)
+    picture_set_animation(label, animation)
     /*label_set_font(label, g_regularFont)
     label_set_text(label, text)
     label_set_size(label, size)
@@ -5720,7 +5849,14 @@ func init() () {
     g_JPTexture = gfx.create_texture("textures/flags/jp.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
     g_BRTexture = gfx.create_texture("textures/flags/br.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
 
+    g_USAnim = animation_create_from_texture(g_USTexture)
+    g_JPAnim = animation_create_from_texture(g_JPTexture)
+    g_BRAnim = animation_create_from_texture(g_BRTexture)
+
     g_skycoinTexture = gfx.create_texture("textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
+
+    g_synthAnim = animation_create_from_path("textures/synth.gif")
+    g_skycoinAnim = animation_create_from_texture(g_skycoinTexture)
 
     // layers
     g_blackLayer            = layer_create("black"            , g_black     , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
@@ -5735,6 +5871,7 @@ func init() () {
     g_pageSelectedBack      = layer_create("pageSelectedBack" , g_darkBlue  , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
     g_debugGoldLayer        = layer_create("debugGold"        , g_gold      , g_blue      , g_blue      , g_blue      , g_blue  )
     g_goldLayer             = layer_create("gold"             , g_goldA50   , g_gold      , g_gold      , g_gold      , g_gold)
+    g_goldBorderLayer       = layer_create("gold"             , g_white     , g_gold      , g_gold      , g_gold      , g_gold)
     g_textboxLayer          = layer_create("textbox"          , g_gray_1    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
     g_stripLayer            = layer_create("strip"            , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2    , g_gray_2)
     g_headerLayer           = layer_create("header"           , g_gray_2    , g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
@@ -5749,29 +5886,30 @@ func init() () {
     g_hoverLayer            = layer_create("blueA50"          , g_blue_a50  , g_lightBlue , g_lightBlue , g_lightBlue , g_lightBlue)
 
     // skins
-g_blackSkin      =skin_create("black"       , g_blackLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_borderFocusedLayer,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
-g_blackHoverSkin =skin_create("blackHover"  , g_blackLayer     ,invalid_layer() ,invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),g_borderFocusedLayer,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
-g_grayFocusedSkin=skin_create("grayFocused" , g_blackLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
-g_windowSkin     =skin_create("window"      , g_blackLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
-g_binderSkin     =skin_create("binder"      , g_blackLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
-g_blueSkin       =skin_create("blue"        , g_blueLayer      ,invalid_layer() ,invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),g_goldLayer         ,g_goldLayer       ,invalid_layer()   ,invalid_layer())
-g_bootSkin       =skin_create("boot"        , g_bootLayer      ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
-g_zeroSkin       =skin_create("blackFocused", g_bootLayer      ,invalid_layer() ,invalid_layer(),g_goldLayer   ,invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
-g_debugRedSkin   =skin_create("debugRed"    , g_debugRedLayer  ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
-g_debugGreenSkin =skin_create("debugGreen"  , g_debugGreenLayer,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
-g_debugBlueSkin  =skin_create("debugBlue"   , g_debugBlueLayer ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
-g_debugGoldSkin  =skin_create("debugGold"   , g_debugGoldLayer ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
-g_greenSkin      =skin_create("green"       , g_greenLayer     ,invalid_layer() ,invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),invalid_layer()     ,g_goldLayer       ,invalid_layer()   ,invalid_layer())
-g_headerSkin     =skin_create("header"      , g_headerLayer    ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
-g_buttonSkin     =skin_create("button"      , g_headerLayer    ,invalid_layer() ,invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
-g_hoverSkin      =skin_create("blueA50"     , invalid_layer()  ,g_hoverLayer    ,invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
-g_modalSkin      =skin_create("popup"       , g_modalLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
-g_popupSkin      =skin_create("modal"       , g_popupLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
-g_redSkin        =skin_create("red"         , g_redLayer       ,invalid_layer() ,invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),invalid_layer()     ,g_goldLayer       ,invalid_layer()   ,invalid_layer())
-g_stripSkin      =skin_create("strip"       , g_stripLayer     ,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
-g_textboxSkin    =skin_create("textbox"     , g_textboxLayer   ,invalid_layer() ,invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
-g_binderPageSkin =skin_create("binderPage"  , g_textboxLayer   ,invalid_layer() ,invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),g_pageFocusedBack   ,g_pageFocusedFront,g_pageSelectedBack,g_pageSelectedFront)
-g_zeroBorderSkin =skin_create("blackFocused", g_zeroBorderLayer,invalid_layer() ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_blackSkin      =skin_create("black"       , g_blackLayer     ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_borderFocusedLayer,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_blackHoverSkin =skin_create("blackHover"  , g_blackLayer     ,invalid_layer(),invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),g_borderFocusedLayer,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_grayFocusedSkin=skin_create("grayFocused" , g_blackLayer     ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_windowSkin     =skin_create("window"      , g_blackLayer     ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_binderSkin     =skin_create("binder"      , g_blackLayer     ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_blueSkin       =skin_create("blue"        , g_blueLayer      ,invalid_layer(),invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),g_goldLayer         ,g_goldLayer       ,invalid_layer()   ,invalid_layer())
+g_bootSkin       =skin_create("boot"        , g_bootLayer      ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_zeroSkin       =skin_create("blackFocused", g_bootLayer      ,invalid_layer(),invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_debugRedSkin   =skin_create("debugRed"    , g_debugRedLayer  ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_debugGreenSkin =skin_create("debugGreen"  , g_debugGreenLayer,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_debugBlueSkin  =skin_create("debugBlue"   , g_debugBlueLayer ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_debugGoldSkin  =skin_create("debugGold"   , g_debugGoldLayer ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_goldBorderSkin =skin_create("goldBorder"  , g_goldBorderLayer,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_greenSkin      =skin_create("green"       , g_greenLayer     ,invalid_layer(),invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),invalid_layer()     ,g_goldLayer       ,invalid_layer()   ,invalid_layer())
+g_headerSkin     =skin_create("header"      , g_headerLayer    ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_buttonSkin     =skin_create("button"      , g_headerLayer    ,invalid_layer(),invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_hoverSkin      =skin_create("blueA50"     , invalid_layer()  ,g_hoverLayer   ,invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_modalSkin      =skin_create("popup"       , g_modalLayer     ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_popupSkin      =skin_create("modal"       , g_popupLayer     ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_redSkin        =skin_create("red"         , g_redLayer       ,invalid_layer(),invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),invalid_layer()     ,g_goldLayer       ,invalid_layer()   ,invalid_layer())
+g_stripSkin      =skin_create("strip"       , g_stripLayer     ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_textboxSkin    =skin_create("textbox"     , g_textboxLayer   ,invalid_layer(),invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_binderPageSkin =skin_create("binderPage"  , g_textboxLayer   ,invalid_layer(),invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),g_pageFocusedBack   ,g_pageFocusedFront,g_pageSelectedBack,g_pageSelectedFront)
+g_zeroBorderSkin =skin_create("blackFocused", g_zeroBorderLayer,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
 }
 
 //-----------------------------------------------------------------------------
