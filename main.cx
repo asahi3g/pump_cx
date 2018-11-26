@@ -219,8 +219,7 @@ func add_label_text(id control_id, label str, text str, focusIndex i32) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func main() {
-
+func main(args []str) () {
     var targetFps f64 = 60.0D
 
     var application str // ##pending inline string init
@@ -875,9 +874,9 @@ func main() {
         gui.screen_set_on_event(g_bootScreen, g_mainScreen)
     }
 
-    gui.show_screen(g_bootScreen)
+    //gui.show_screen(g_bootScreen)
     //gui.show_screen(g_skycoinScreen)
-    //gui.show_screen(g_mainScreen)
+    gui.show_screen(g_mainScreen)
 
     var profileSwap profile_id = fps.create_profile("swap")
     var profileFrame profile_id = fps.create_profile("frame")
