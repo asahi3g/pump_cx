@@ -35,7 +35,11 @@ var g_JPAnim animation_id
 var g_BRTexture gfx.texture_s
 var g_BRAnim animation_id
 
-var g_synthAnim animation_id
+var g_pumpcxTexture_0 gfx.texture_s
+var g_pumpcxTexture_1 gfx.texture_s
+
+var g_pumpcxAnim animation_id
+var g_dumpcxAnim animation_id
 
 var g_depthStencilBuffer i32 = -1
 
@@ -634,6 +638,7 @@ var g_pageFocusedBack layer_id
 var g_pageFocusedFront layer_id
 var g_pageSelectedBack layer_id
 var g_pageSelectedFront layer_id
+var g_zeroLayer layer_id
 
 var g_debugRedSkin skin_id
 var g_debugGreenSkin skin_id
@@ -660,6 +665,8 @@ var g_binderPageSkin skin_id
 var g_binderSkin skin_id
 var g_zeroSkin skin_id
 var g_goldBorderSkin skin_id
+var g_lineSkin skin_id
+var g_itemSkin skin_id
 
 var textureLogo str = "textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png"
 
@@ -1305,12 +1312,14 @@ func force_focus(id control_id) {
         var focusCount i32 = g_focused[screenPair].focusCount
         if (focusCount > 0 && currentFocus >= 0 && currentFocus < focusCount) {
             var i i32 = 0
-       //printf("FORCE_FOCUS_1\n")
+ //      printf("FORCE_FOCUS_1\n")
+            //control_print("force_focuse TEST : ", id, false)
             for i = 0; i < focusCount; i = i + 1 {
                 var focusedId control_id = g_focused[screenPair].focusList[i]
                 //printf("test_focus %d, %d\n", focusedId.control, id.control)
                 if (focusedId.control == id.control) {
-        //printf("FORCE_FOCUS_2\n")
+//        printf("FORCE_FOCUS_2\n")
+                //control_print("force_focuse DONE : ", focusedId, false)
                     set_current_focus(g_hotScreen, screenPair, id, i, 1)
                     i = focusCount
                 }
@@ -1649,44 +1658,25 @@ func control_resize_(id control_id, pixelBounds mat.v2, autoBounds mat.v2) () {
     /*if (index == 36) {
       printf("MINY %f, MAXY %f, MAXHEIGHT %f, PADDINGY %f\n", minY, maxY, maxHeight, paddingY)
       }*/
-    if (autosize == AUTOSIZE || autosize == AUTOSIZE_X || autosize == AUTOSIZE_Y) {
-        if ((autosize & AUTOSIZE_X) == AUTOSIZE_X) {
-            //uti.assert_(dock == DOCK_NONE || dock == DOCK_LEFT || dock == DOCK_RIGHT, "AUTOSIZE_X is not compatible with DOCK_Y")
-            uti.assert_((autoscale & AUTOSCALE_X) == 0, "AUTOSIZE_X is not compatible with AUTOSCALE_X")
-            newWidth = mat.max(maxWidth + paddingX, autoBounds.x)// - paddingX
-            //if (index == 36) {
-            //    printf("NEW_WIDTH %f, MAX_WIDTH %f, AUTO_BOUNDS_X %f, PADDING %f\n", newWidth, maxWidth, autoBounds.x, paddingX)
-            //}
-        }
-        if ((autosize & AUTOSIZE_Y) == AUTOSIZE_Y) {
-            //uti.assert_(dock == DOCK_NONE || dock == DOCK_BOTTOM || dock == DOCK_TOP, "AUTOSIZE_Y is not compatible with DOCK_X")
-            uti.assert_((autoscale & AUTOSCALE_Y) == 0, "AUTOSIZE_Y is not compatible with AUTOSCALE_Y")
-            newHeight = mat.max(maxHeight +  paddingY, autoBounds.y)// - paddingY
-            /*if (index == 36) {
-              printf("NEW_HEIGHT %f, AUTO_BOUNDS_Y %f\n", maxHeight, autoBounds.y)
-              }*/
-        }
 
-        g_controls[index].size = mat.v2_(newWidth, newHeight)
-        //control_print("NEW_SIZE : ", id, false)
-    } else {
-        uti.assert_(autosize == AUTOSIZE_NONE, "invalid AUTOSIZE value")
-    }
-
+            var scaleW f32 = scale.x
+            var scaleH f32 = scale.y
     if (autoscale == AUTOSCALE || autoscale == AUTOSCALE_X || autoscale == AUTOSCALE_Y) {
         if (autoBounds.x > 0 && autoBounds.y > 0) {
             //control_print("AUTOSCALE : ", id, false)
             //printf("scale %f, %f, newWidth %f, newHeight %f, autoBounds %f, %f\n", scale.x, scale.y, newWidth, newHeight, autoBounds.x, autoBounds.y)
-            var scaleW f32 = scale.x
-            var scaleH f32 = scale.y
             if ((autoscale & AUTOSCALE_X) == AUTOSCALE_X) {
                 uti.assert_((autosize & AUTOSIZE_X) == 0, "AUTOSCALE_X is not compatible with AUTOSIZE_X")
+                var tmp f32 = scaleW
                 scaleW = newWidth / autoBounds.x
+                scaleH = scaleW * scaleH / tmp
             }
 
             if ((autoscale & AUTOSCALE_Y) == AUTOSCALE_Y) {
                 uti.assert_((autosize & AUTOSIZE_Y) == 0, "AUTOSCALE_Y is not compatible with AUTOSCALE_Y")
+                var tmp f32 = scaleH
                 scaleH = newHeight / autoBounds.y
+                scaleW = scaleH * scaleW / tmp
             }
 
             if (autoscale == AUTOSCALE) {
@@ -1710,6 +1700,29 @@ func control_resize_(id control_id, pixelBounds mat.v2, autoBounds mat.v2) () {
         uti.assert_(autoscale == AUTOSCALE_NONE, "invalid AUTOSCALE value")
     }
 
+    if (autosize == AUTOSIZE || autosize == AUTOSIZE_X || autosize == AUTOSIZE_Y) {
+        if ((autosize & AUTOSIZE_X) == AUTOSIZE_X) {
+            //uti.assert_(dock == DOCK_NONE || dock == DOCK_LEFT || dock == DOCK_RIGHT, "AUTOSIZE_X is not compatible with DOCK_Y")
+            uti.assert_((autoscale & AUTOSCALE_X) == 0, "AUTOSIZE_X is not compatible with AUTOSCALE_X")
+            newWidth = mat.max(maxWidth + paddingX, autoBounds.x) * scaleW// - paddingX
+            //if (index == 36) {
+            //    printf("NEW_WIDTH %f, MAX_WIDTH %f, AUTO_BOUNDS_X %f, PADDING %f\n", newWidth, maxWidth, autoBounds.x, paddingX)
+            //}
+        }
+        if ((autosize & AUTOSIZE_Y) == AUTOSIZE_Y) {
+            //uti.assert_(dock == DOCK_NONE || dock == DOCK_BOTTOM || dock == DOCK_TOP, "AUTOSIZE_Y is not compatible with DOCK_X")
+            uti.assert_((autoscale & AUTOSCALE_Y) == 0, "AUTOSIZE_Y is not compatible with AUTOSCALE_Y")
+            newHeight = mat.max(maxHeight +  paddingY, autoBounds.y) * scaleH// - paddingY
+            /*if (index == 36) {
+              printf("NEW_HEIGHT %f, AUTO_BOUNDS_Y %f\n", maxHeight, autoBounds.y)
+              }*/
+        }
+
+        g_controls[index].size = mat.v2_(newWidth, newHeight)
+        //control_print("NEW_SIZE : ", id, false)
+    } else {
+        uti.assert_(autosize == AUTOSIZE_NONE, "invalid AUTOSIZE value")
+    }
     /*if (id.control == 36) {
       control_print("end_control_resize", id, false)
       }*/
@@ -2468,7 +2481,7 @@ func screen_render(id screen_id, clip mat.v4, stack i32) () {
     control_render(id.base, clip, stack)
     gfx.pop_scissor()
 
-    uti.assert_(gfx.g_scissorCount == 0, "screen_render : invalid scissor stack")
+    //uti.assert_(gfx.g_scissorCount == 0, "screen_render : invalid scissor stack")
     end_batches()
     gfx.end_mesh(g_alphaVertexColoredTriangles)
     gfx.end_mesh(g_opaqueVertexColoredLines)
@@ -2934,8 +2947,8 @@ func get_batch(texture texture_s, alpha bool) (out batch_id) {
     }
     if (out.batch < 0) {
         g_batches[g_batchCount].texture = texture
-        var attributes [3]i32 // ##0 harcode
-        attributes = [3]i32{3, 4, 2} // ##0 can't use slice yet
+        var attributes []i32 // ##0 harcode
+        attributes = []i32{3, 4, 2} // ##0 can't use slice yet
         g_batches[g_batchCount].mesh = gfx.lock_mesh(gl.TRIANGLES, attributes, 2048 * 3) // ##0 hardcode
         g_batches[g_batchCount].alpha = alpha
         out.batch = g_batchCount
@@ -2986,8 +2999,8 @@ func label_process_event(id label_id, event *event_s) (out i32) {
             var button i32 = (*event).mouse.button
             if (button == BUTTON_LEFT) {
                 var action i32 = (*event).mouse.action
-                if (action == BUTTON_PRESS || action == BUTTON_RELEASE) {
-                    //printf("BUTTON_PRESS\n")
+                if (action == MOUSE_PRESS || action == MOUSE_RELEASE) {
+                    //printf("MOUSE_PRESS\n")
                     var hovered i32 = g_controls[id.base.control].hovered
                     if (hovered > 0) {
                         call = true
@@ -3206,10 +3219,27 @@ var g_animationCount i32 = 0
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func animation_create_from_path(path str) (out animation_id) {
+func animation_create() (out animation_id) {
     uti.assert_(g_animationCount < len(g_animations), "animation_create : overflow")
     out.index = g_animationCount
 
+    g_animations[g_animationCount].id = out
+    g_animations[g_animationCount].path = ""
+    g_animations[g_animationCount].frameCount = 0
+    g_animations[g_animationCount].loop = 0
+    g_animations[g_animationCount].width = 0
+    g_animations[g_animationCount].height = 0
+
+    g_animationCount = g_animationCount + 1
+    uti.assert_(is_valid_animation(out), "animation_create_from_texture : invalid_id")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func animation_create_from_path(path str) (out animation_id) {
+    out = animation_create()
+
+    var index i32 = out.index
     var frameCount i32 = 0
     var loopCount i32 = 0
     var width i32 = 0
@@ -3218,46 +3248,51 @@ func animation_create_from_path(path str) (out animation_id) {
 
     for i := 0; i < frameCount; i++ {
         var texture gfx.texture_s = gfx.create_texture("", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, width, height)
-        g_animations[g_animationCount].textures = append(g_animations[g_animationCount].textures, texture)
 
         var delay i32 = 0
         var disposal i32 = 0
         delay, disposal = gl.GIFFrameToTexture(path, i, texture.name)
 
-        g_animations[g_animationCount].delays = append(g_animations[g_animationCount].delays, delay)
-        g_animations[g_animationCount].disposals = append(g_animations[g_animationCount].disposals, disposal)
+        animation_add_frame(out, delay, disposal, texture)
         printf("FRAME %d/%d, %d, %d, %d, %d\n", i, frameCount, width, height, delay, disposal)
     }
 
     gl.FreeGIF(path)
 
-    g_animations[g_animationCount].path = path
-    g_animations[g_animationCount].loop = loopCount
-    g_animations[g_animationCount].width = width
-    g_animations[g_animationCount].height = height
-    g_animations[g_animationCount].frameCount = frameCount
-
-    g_animationCount = g_animationCount + 1
-    uti.assert_(is_valid_animation(out), "animation_create_from_path : invalid id")
-//    uti.assert_(false, "FUCK")
+    g_animations[index].path = path
+    g_animations[index].loop = loopCount
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func animation_create_from_texture(texture texture_s) (out animation_id) {
-    uti.assert_(g_animationCount < len(g_animations), "animation_create : overflow")
-    out.index = g_animationCount
+    out = animation_create()
+    animation_add_frame(out, 0, 0, texture)
+}
 
-    g_animations[g_animationCount].textures = append(g_animations[g_animationCount].textures, texture)
-    g_animations[g_animationCount].delays = append(g_animations[g_animationCount].delays, 0)
-    g_animations[g_animationCount].disposals = append(g_animations[g_animationCount].disposals, 0)
-    g_animations[g_animationCount].path = ""
-    g_animations[g_animationCount].loop = 0
-    g_animations[g_animationCount].width = texture.width
-    g_animations[g_animationCount].height = texture.height
-    g_animations[g_animationCount].frameCount = 1
-    g_animationCount = g_animationCount + 1
-    uti.assert_(is_valid_animation(out), "animation_create_from_texture : invalid_id")
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func animation_add_frame(id animation_id, delay i32, disposal i32, texture gfx.texture_s) {
+    uti.assert_(is_valid_animation(id), "animation_add_frame : invalid id")
+
+    var index i32 = id.index
+
+    g_animations[index].textures = append(g_animations[index].textures, texture)
+    g_animations[index].delays = append(g_animations[index].delays, delay)
+    g_animations[index].disposals = append(g_animations[index].disposals, 0)
+
+    var width i32 = g_animations[index].width
+    var height i32 = g_animations[index].height
+
+    if (texture.width > width) {
+        g_animations[index].width = texture.width
+    }
+    if (texture.height > height) {
+        g_animations[index].height = texture.height
+    }
+
+    var frameCount i32 = g_animations[index].frameCount
+    g_animations[index].frameCount = frameCount + 1
 }
 
 //-----------------------------------------------------------------------------
@@ -3428,7 +3463,11 @@ func picture_render(id picture_id, clip mat.v4, stack i32) () {
 
     var frame i32 = g_pictures[id.picture].frame
     var texture gfx.texture_s = g_animations[animation.index].textures[frame]
-    frame = frame + 5
+    var frameDelta i32 = frameCount / 8
+    if (frameDelta <= 0) {
+        frameDelta = 1
+    }
+    frame = frame + frameDelta
     if (frame >= frameCount) {
         frame = 0
     }
@@ -4334,7 +4373,7 @@ func list_clear_lines(id list_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func list_add_line(id list_id) (out control_id) {
+func list_add_line(id list_id, skin skin_id) (out control_id) {
     uti.assert_(is_valid_list(id), "list_add_line")
     var listIndex i32 = id.list
     var lineCount i32 = g_lists[listIndex].lineCount
@@ -4345,7 +4384,9 @@ func list_add_line(id list_id) (out control_id) {
     control_set_size(line, mat.v2_(0.0, 0.0))
     control_set_autosize(line, AUTOSIZE_Y)
     control_add_child(lines, line)
-    //control_set_skin(line, g_grayFocusedSkin)
+    if (is_valid_skin(skin)) {
+        control_set_skin(line, skin)
+    }
     //control_set_focusable(line, 1)
     g_lists[listIndex].lineCount = lineCount + 1
     out = line
@@ -4364,7 +4405,7 @@ func list_line_add_label(id control_id, text str, align i32, color mat.v4, size 
     control_add_child(id, label.base)
     control_set_dock(label.base, DOCK_LEFT)
     if (is_valid_skin(skin)) {
-    control_set_skin(label.base, skin)
+        control_set_skin(label.base, skin)
     }
     control_set_padding(label.base, mat.v4_(3.0, 0.0, 3.0, 0.0))
     control_set_focusable(label.base, 1)
@@ -4407,26 +4448,54 @@ func list_line_add_picture(id control_id, align i32, animation animation_id) {
 //-----------------------------------------------------------------------------
 func list_child_focused(id list_id, child control_id, value i32) {
     uti.assert_(is_valid_list(id), "list_child_focus : invalid id")
-
+    uti.assert_(is_valid_control(child), "list_child_focus : invalid child id")
     if (value > 0) {
-
-        var selectedLine i32 = g_lists[id.list].selectedLine
-        var selectedItem i32 = g_lists[id.list].selectedItem
 
         var header control_id = g_lists[id.list].header
         var panel control_id = g_lists[id.list].lines
-
-        var headerFocused i32 = g_controls[header.control].focused
-        var headerChildFocused i32 = g_controls[header.control].childFocused
-        var headerVisible i32 = g_controls[header.control].visible
-        var headerOffset i32 = 0
-        if (headerVisible <= 0) {
-            headerOffset = 1
-        }
         var panelFocused  i32 = g_controls[panel.control].focused
         var panelChildFocused i32 = g_controls[panel.control].childFocused
+        var headerFocused i32 = g_controls[header.control].focused
+        var headerChildFocused i32 = g_controls[header.control].childFocused
 
         if (panelFocused > 0 || panelChildFocused > 0 || headerFocused > 0 || headerChildFocused > 0) {
+
+            var headerVisible i32 = g_controls[header.control].visible
+            var headerOffset i32 = 0
+            if (headerVisible <= 0) {
+                headerOffset = 1
+            }
+
+            var line control_id = g_controls[child].parent
+
+            var previousSelectedLine i32 = g_lists[id.list].previousSelectedLine
+            var previousSelectedItem i32 = g_lists[id.list].previousSelectedItem
+            var selectedLine i32 = g_lists[id.list].selectedLine
+            var selectedItem i32 = g_lists[id.list].selectedItem
+
+            g_lists[id.list].previousSelectedLine = selectedLine
+            g_lists[id.list].previousSelectedItem = selectedItem
+
+            var lineFocusIndex i32 = g_controls[line.control].focusIndex
+            var itemFocusIndex i32 = g_controls[child.control].focusIndex
+
+            if (line.control != header.control) {
+                lineFocusIndex = lineFocusIndex + headerOffset
+            }
+
+            g_lists[id.list].selectedLine = lineFocusIndex
+            g_lists[id.list].selectedItem = itemFocusIndex
+
+            if (previousSelectedLine != selectedLine &&
+                previousSelectedItem != selectedItem) {
+                control_print("CHILD_FOCUSED : ", line, false)
+            }
+        }
+
+/*        var selectedLine i32 = g_lists[id.list].selectedLine
+        var selectedItem i32 = g_lists[id.list].selectedItem
+
+
             //control_print("list_child_focused panel : ", panel, false)
             var columnCount i32 = g_controls[header.control].childCount
             var lineCount i32 = g_controls[panel.control].childCount
@@ -4464,7 +4533,7 @@ func list_child_focused(id list_id, child control_id, value i32) {
                     force_focus(selectedItemId)
                 }
             }
-        }
+        }*/
     }
 }
 
@@ -4682,7 +4751,7 @@ func list_resize(id list_id) () {
     if (headerVisible <= 0) {
         headerOffset = 1
     }
-    if (lineCount > 0 && columnCount > 0) {
+/*    if (lineCount > 0 && columnCount > 0) {
 
         var selectedLine i32 = g_lists[listIndex].selectedLine
         if (selectedLine < 0) {
@@ -4706,7 +4775,7 @@ func list_resize(id list_id) () {
         var previousSelectedLine i32 = g_lists[listIndex].previousSelectedLine
         var previousSelectedItem i32 = g_lists[listIndex].previousSelectedItem
         if (selectedLine != previousSelectedLine || selectedItem != previousSelectedItem) {
-            //printf("selectedLine child, %d, index %d, selectedItem child %d, index %d\n", selectedLineId.control, selectedLine, selectedItemId.control, selectedItem)
+            printf("selectedLine child, %d, index %d, selectedItem child %d, index %d\n", selectedLineId.control, selectedLine, selectedItemId.control, selectedItem)
             force_focus(selectedItemId)
         }
 
@@ -4717,7 +4786,7 @@ func list_resize(id list_id) () {
 
         //g_controls[selectedLineId.control].selected = 1
         //g_controls[selectedItemId.control].selected = 1
-    }
+    }*/
 
     g_controls[linesIndex].size.x = mat.max(lineWidth, containerWidth)
 
@@ -4771,6 +4840,11 @@ type lifter_s struct {
     direction i32
     offset f32
     size f32
+    dragged bool
+    dragBegin mat.v2
+    dragEnd mat.v2
+    dragDelta mat.v2
+    dragOffset f32
 }
 
 //-----------------------------------------------------------------------------
@@ -4816,7 +4890,7 @@ func lifter_create(name str) (out lifter_id) {
     var lifter lifter_s
     g_lifters[g_lifterCount].id = out
 
-    control_set_skin(out.base, g_blackHoverSkin)
+    control_set_skin(out.base, g_blackSkin)
 
     var carret control_id = control_create("carret")
     g_lifters[g_lifterCount].carret = carret
@@ -4844,6 +4918,25 @@ func lifter_set_direction(id lifter_id, direction i32) {
 func lifter_process_event(id lifter_id, event *event_s) (out i32) {
     uti.assert_(is_valid_lifter(id), "lifter_process_event : invalid id")
     out = control_process_event(id.base, event)
+
+    var mouseAction i32 = (*event).mouse.action
+    var mouseButton i32 = (*event).mouse.button
+    if mouseButton == BUTTON_LEFT {
+        if mouseAction == MOUSE_RELEASE {
+            var dragged bool = g_lifters[id.lifter].dragged
+            if dragged {
+                var begin mat.v2 = g_lifters[id.lifter].dragBegin
+                var end mat.v2 = g_lifters[id.lifter].dragEnd
+                var delta mat.v2 = begin - end
+            }
+            g_lifters[id.lifter].dragged = false
+            g_lifters[id.lifter].dragBegin = mat.v2_(0.0, 0.0)
+            g_lifters[id.lifter].dragEnd = mat.v2_(0.0, 0.0)
+            g_lifters[id.lifter].dragDelta = mat.v2_(0.0, 0.0)
+            g_lifters[id.lifter].dragOffset = lifter_get_offset(id)
+            printf("MOUSE_RELEASE %f, %f\n", (*event).mouse.position.x, (*event).mouse.position.y)
+        }
+    }
 
     //control_print("LIFTER", id.base, false)
     if (out == EVENT_UNUSED) {
@@ -4879,6 +4972,35 @@ func lifter_process_event(id lifter_id, event *event_s) (out i32) {
                         }
                     }
                     lifter_set_offset(id, offset)
+                } else if (mouseAction == MOUSE_PRESS) {
+                    g_lifters[id.lifter].dragged = true
+                    g_lifters[id.lifter].dragBegin = (*event).mouse.position
+                    g_lifters[id.lifter].dragEnd = (*event).mouse.position
+                    g_lifters[id.lifter].dragOffset = lifter_get_offset(id)
+                    g_lifters[id.lifter].dragDelta = mat.v2_(0.0, 0.0)
+                    printf("MOUSE_PRESS %f, %f\n", (*event).mouse.position.x, (*event).mouse.position.y)
+                    out = EVENT_CONSUMED
+                } else if (mouseAction == MOUSE_MOVE) {
+                    var dragged bool = g_lifters[id.lifter].dragged
+                    if dragged {
+                        g_lifters[id.lifter].dragEnd = (*event).mouse.position
+                        var begin mat.v2 = g_lifters[id.lifter].dragBegin
+                        var end mat.v2 = g_lifters[id.lifter].dragEnd
+                        var dragOffset f32 = g_lifters[id.lifter].dragOffset
+                        var delta mat.v2 = mat.v2_sub(begin, end)
+
+                        printf("BEGIN %f, %f, END %f, %f\n", begin.x, begin.y, end.x, end.y)
+                        var dragDelta f32 = 0.0
+                        if (direction == LIFT_HORZ) {
+                            dragDelta = delta.x
+                        } else if (direction == LIFT_VERT) {
+                            dragDelta = delta.y
+                        } else {
+                            panic(false, true, "lifter_process_event : invalid direction")
+                        }
+                        printf("MOUSE_MOVE : %f, %f, %f, %f, %f\n", delta.x, delta.y, dragOffset, dragDelta, dragOffset + dragDelta)
+                        lifter_set_offset(id, dragOffset + dragDelta)
+                    }
                 }
             }
         }
@@ -5717,8 +5839,8 @@ func combo_process_event(id combo_id, event *event_s) (out i32) {
             var button i32 = (*event).mouse.button
             if (button == BUTTON_LEFT) {
                 var action i32 = (*event).mouse.action
-                if (action == BUTTON_PRESS) {
-                    //printf("BUTTON_PRESS\n")
+                if (action == MOUSE_PRESS) {
+                    //printf("MOUSE_PRESS\n")
                     var hovered i32 = g_controls[id.base.control].hovered
                     if (hovered > 0) {
                         call = true
@@ -5798,8 +5920,8 @@ func combo_render(id combo_id, clip mat.v4, stack i32) () {
 //-----------------------------------------------------------------------------
 func init() () {
    // meshes
-    var attributes [3]i32
-    attributes = [3]i32{3, 4, 2} // can't use slice yet
+    var attributes []i32
+    attributes = []i32{3, 4, 2} // can't use slice yet
     g_opaqueVertexColoredTriangles = gfx.create_mesh(gl.TRIANGLES, attributes, 10 * 2048 * 3)
     g_opaqueVertexColoredLines = gfx.create_mesh(gl.LINES, attributes, 20 * 2048 * 2)
     g_alphaVertexColoredTriangles = gfx.create_mesh(gl.TRIANGLES, attributes, 10 * 2048 * 3)
@@ -5855,7 +5977,16 @@ func init() () {
 
     g_skycoinTexture = gfx.create_texture("textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
 
-    g_synthAnim = animation_create_from_path("textures/synth.gif")
+    //g_pumpcxTexture_0 = gfx.create_texture("textures/pumpcx_0.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
+    //g_pumpcxTexture_1 = gfx.create_texture("textures/pumpcx_1.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
+    //g_pumpcxAnim = animation_create()
+    //animation_add_frame(g_pumpcxAnim, 10, 0, g_pumpcxTexture_0)
+    //animation_add_frame(g_pumpcxAnim, 10, 0, g_pumpcxTexture_1)
+
+
+    g_dumpcxAnim = animation_create_from_path("textures/dumpcx.gif")
+    g_pumpcxAnim = g_dumpcxAnim
+    
     g_skycoinAnim = animation_create_from_texture(g_skycoinTexture)
 
     // layers
@@ -5884,7 +6015,8 @@ func init() () {
     g_zeroBorderLayer       = layer_create("zeroBorder"       , gfx.gfx_zero, g_gray_3    , g_gray_3    , g_gray_3    , g_gray_3)
     g_pageFocusedFront      = layer_create("pageFocusedFront" , gfx.gfx_zero, g_lightBlue , g_lightBlue , g_lightBlue , g_lightBlue)
     g_hoverLayer            = layer_create("blueA50"          , g_blue_a50  , g_lightBlue , g_lightBlue , g_lightBlue , g_lightBlue)
-
+    g_zeroLayer             = layer_create("zero"             , gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero, gfx.gfx_zero)
+ 
     // skins
 g_blackSkin      =skin_create("black"       , g_blackLayer     ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_borderFocusedLayer,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
 g_blackHoverSkin =skin_create("blackHover"  , g_blackLayer     ,invalid_layer(),invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),g_borderFocusedLayer,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
@@ -5903,6 +6035,8 @@ g_greenSkin      =skin_create("green"       , g_greenLayer     ,invalid_layer(),
 g_headerSkin     =skin_create("header"      , g_headerLayer    ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
 g_buttonSkin     =skin_create("button"      , g_headerLayer    ,invalid_layer(),invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
 g_hoverSkin      =skin_create("blueA50"     , invalid_layer()  ,g_hoverLayer   ,invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
+g_lineSkin       =skin_create("lineSkin"    , g_bootLayer      ,invalid_layer(),invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
+g_itemSkin       =skin_create("itemSkin"    , g_zeroLayer      ,invalid_layer(),invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),g_focusedLayer      ,invalid_layer()   ,g_selectedLayer   ,invalid_layer())
 g_modalSkin      =skin_create("popup"       , g_modalLayer     ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
 g_popupSkin      =skin_create("modal"       , g_popupLayer     ,invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer(),invalid_layer()     ,invalid_layer()   ,invalid_layer()   ,invalid_layer())
 g_redSkin        =skin_create("red"         , g_redLayer       ,invalid_layer(),invalid_layer(),g_goldLayer    ,invalid_layer(),invalid_layer(),invalid_layer()     ,g_goldLayer       ,invalid_layer()   ,invalid_layer())
@@ -5970,8 +6104,9 @@ func update(deltaTime f64)() { // ##1 rewrite
 var BUTTON_LEFT  i32 = 0
 var BUTTON_RIGHT i32 = 1
 
-var BUTTON_RELEASE i32 = 0
-var BUTTON_PRESS   i32 = 1
+var MOUSE_RELEASE i32 = 0
+var MOUSE_PRESS   i32 = 1
+var MOUSE_MOVE    i32 = 38
 
 var KEY_RELEASE i32 = 0
 var KEY_PRESS   i32 = 1
@@ -6090,6 +6225,17 @@ func control_process_event(id control_id, event *event_s) (out i32) {
     if (visible > 0) {
         //control_print("control_process_event : ", id, false)
 
+        if childHovered > 0 {
+            var focusable i32 = g_controls[id.control].focusable
+            if (focusable > 0) {
+                var action i32 = (*event).mouse.action
+                if (action == MOUSE_PRESS) {
+                   printf("_----------------------------------__FUCK\n")
+                   force_focus(id)
+                }
+            }
+        }
+
         var index i32 = id.control
         var count i32 = g_controls[index].childCount
         for i := 0; i < count; i = i + 1 {
@@ -6195,6 +6341,7 @@ func process_cursor(window str, x f64, y f64) {
 
     g_events[g_eventCount] = invalid_event()
     g_events[g_eventCount].mouse.position = g_cursorPos
+    g_events[g_eventCount].mouse.action = MOUSE_MOVE
     g_eventCount = g_eventCount + 1
 }
 
@@ -6259,7 +6406,7 @@ func process_event(event *event_s) () {
         var floating bool = g_screens[modalScreen.screen].floating
         if (control_process_event(modalScreen.base, event) == EVENT_UNUSED) {
             if ((key == KEYCODE_ESCAPE && action == KEY_PRESS) ||
-                (button == BUTTON_LEFT && buttonAction == BUTTON_PRESS && floating == true)) {
+                (button == BUTTON_LEFT && buttonAction == MOUSE_PRESS && floating == true)) {
                 hide_modal(modalScreen)
                 g_hotScreen = g_currentScreen
             } else {

@@ -3,11 +3,13 @@
 //-----------------------------------------------------------------------------
 package main
 import "app"
+import "cx"
 import "fps"
 import "gfx"
 import "gl"
 import "gltext"
 import "gui"
+import "os"
 import "mat"
 import "uti"
 
@@ -219,12 +221,84 @@ func add_label_text(id control_id, label str, text str, focusIndex i32) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func main(args []str) () {
+func help(message str, exitCode i32) () {
+    printf(message)
+    printf("pumpcx usage:\n")
+    printf("++help        : Prints this message.\n")
+    printf("++fps=ui32    : Set target framerate.\n")
+    printf("++fullscreen  : Set fullscreen.\n")
+    printf("++width=ui32  : Set window width.\n")
+    printf("++height=ui32 : Set window height.\n")
+    printf("++x=ui32      : Set window x position.\n")
+    printf("++y=ui32      : Set window y position.\n")
+    os.Exit(exitCode)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+type pumpcx_args struct {
+    fps i32
+    fullscreen bool
+    centered bool
+    width i32
+    height i32
+    x i32
+    y i32
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func parse_pumpcx_args() (out pumpcx_args) {
+
+    out.fps = 60
+    out.fullscreen = false
+    out.centered = true
+    out.width = 1600
+    out.height = 1200
+    out.x = 0
+    out.y = 0
+
+    var helpMatch bool = false
+    var fpsMatch bool = false
+    var fullscreenMatch bool = false
+    var widthMatch bool = false
+    var heightMatch bool = false
+    var xMatch bool = false
+    var yMatch bool = false
+
+    for a := 0; a < len(os.Args); a++ {
+		var arg str = os.Args[a]
+
+		if uti.getArgValueI32(arg, "++fps=", &out.fps, &fpsMatch) {
+            if (out.fps < 0 || out.fps > 65536) {
+				help(sprintf("invalid value %s\n", arg), cx.PANIC)
+			}
+			continue
+		}
+
+
+		if uti.matchArg(arg, "++help", &helpMatch) {
+            help("", 0)
+		}
+
+		help(sprintf("invalid argument : %s\n", arg), cx.PANIC)
+	}
+
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func main() () {
+
+    var pumpcxArgs pumpcx_args = parse_pumpcx_args()
+ 
     var targetFps f64 = 60.0D
 
     var application str // ##pending inline string init
     application = "window"
-    app.init(application, "pumpcx", 1600, 1200, targetFps, 2, 1, "process_keyboard", "process_cursor", "process_button")
+    app.init(application, "pumpcx",
+        pumpcxArgs.width, pumpcxArgs.height, i32.f64(pumpcxArgs.fps),
+        2, 1, "process_keyboard", "process_cursor", "process_button")
     gfx.init(app.app_width, app.app_height)
     gui.init()
 
@@ -342,14 +416,15 @@ func main(args []str) () {
         gui.screen_set_floating(g_buyPcxScreen, true)
 
         {
-            var picture picture_id = gui.picture_create("skycoin")
+            var picture picture_id = gui.picture_create("pump")
             gui.control_add_child(g_buyPcxScreen.base, picture.base)
-            //gui.control_set_skin(picture.base, g_blackSkin) // panic if no skin g_redSkin)
+            gui.control_set_skin(picture.base, gui.g_goldBorderSkin)
             gui.control_set_bounds(picture.base, mat.v4_(0.0, 0.0, gfx.gfx_width / 4.0, gfx.gfx_height / 4.0))
             gui.control_set_align(picture.base, gui.ALIGN_CENTER)
-            gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
+            gui.control_set_autoscale(picture.base, gui.AUTOSCALE_X)
+            gui.control_set_autosize(picture.base, gui.AUTOSIZE_Y)
             gui.picture_set_align(picture, gui.ALIGN_CENTER)
-            gui.picture_set_animation(picture, gui.g_skycoinAnim)
+            gui.picture_set_animation(picture, gui.g_pumpcxAnim)
         }
     }
 
@@ -363,14 +438,14 @@ func main(args []str) () {
         gui.screen_set_floating(g_sellPcxScreen, true)
 
         {
-            var picture picture_id = gui.picture_create("skycoin")
+            var picture picture_id = gui.picture_create("dumpcx")
             gui.control_add_child(g_sellPcxScreen.base, picture.base)
             gui.control_set_skin(picture.base, gui.g_goldBorderSkin)
             gui.control_set_bounds(picture.base, mat.v4_(0.0, 0.0, gfx.gfx_width / 4.0, gfx.gfx_height / 4.0))
             gui.control_set_align(picture.base, gui.ALIGN_CENTER)
             gui.control_set_autoscale(picture.base, gui.AUTOSCALE)
             gui.picture_set_align(picture, gui.ALIGN_CENTER)
-            gui.picture_set_animation(picture, gui.g_synthAnim)
+            gui.picture_set_animation(picture, gui.g_dumpcxAnim)
         }
     }
 
@@ -449,25 +524,19 @@ func main(args []str) () {
             gui.list_add_column(langList, "P", gui.g_white, columnSize, gui.g_buttonSkin)
             gui.list_add_column(langList, "L", gui.g_white, columnSize, gui.g_buttonSkin)
             {
-                var line gui.control_id = gui.list_add_line(langList)
-                //gui.list_line_add_label(line, "E", gui.ALIGN_RIGHT, gui.g_red, itemSize)
-                gui.control_set_skin(line, gui.g_zeroSkin)
+                var line gui.control_id = gui.list_add_line(langList, gui.invalid_skin())
                 gui.list_line_add_picture(line, gui.ALIGN_CENTER, gui.g_USAnim)
-                gui.list_line_add_label(line, "US", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.invalid_skin())
+                gui.list_line_add_label(line, "US", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.g_zeroSkin)
             }
             {
-                var line gui.control_id = gui.list_add_line(langList)
-                //gui.list_line_add_label(line, "F", gui.ALIGN_RIGHT, gui.g_green, itemSize)
-                gui.control_set_skin(line, gui.g_zeroSkin)
+                var line gui.control_id = gui.list_add_line(langList, gui.invalid_skin())
                 gui.list_line_add_picture(line, gui.ALIGN_CENTER, gui.g_BRAnim)
-                gui.list_line_add_label(line, "BR", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.invalid_skin())
+                gui.list_line_add_label(line, "BR", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.g_zeroSkin)
             }
             {
-                var line gui.control_id = gui.list_add_line(langList)
-                //gui.list_line_add_label(line, "F", gui.ALIGN_RIGHT, gui.g_green, itemSize)
-                gui.control_set_skin(line, gui.g_zeroSkin)
+                var line gui.control_id = gui.list_add_line(langList, gui.invalid_skin())
                 gui.list_line_add_picture(line, gui.ALIGN_CENTER, gui.g_JPAnim)
-                gui.list_line_add_label(line, "JP", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.invalid_skin())
+                gui.list_line_add_label(line, "JP", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.g_zeroSkin)
             }
 
 
@@ -697,11 +766,10 @@ func main(args []str) () {
                             gui.list_add_column(sell, "Amount", gui.g_white, columnSize, gui.g_buttonSkin)
                             gui.list_add_column(sell, "Total", gui.g_white, columnSize, gui.g_buttonSkin)
                             for item = 0; item < 16; item = item + 1 {
-                                var line gui.control_id = gui.list_add_line(sell)
-                                gui.control_set_skin(line, gui.g_zeroSkin)
-                                gui.list_line_add_label(line, "0.3", gui.ALIGN_RIGHT, gui.g_red, itemSize, gui.g_grayFocusedSkin)
-                                gui.list_line_add_label(line, "0.4", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
-                                gui.list_line_add_label(line, "0.5", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
+                                var line gui.control_id = gui.list_add_line(sell, gui.g_lineSkin)
+                                gui.list_line_add_label(line, "0.3", gui.ALIGN_RIGHT, gui.g_red, itemSize, gui.g_itemSkin)
+                                gui.list_line_add_label(line, "0.4", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_itemSkin)
+                                gui.list_line_add_label(line, "0.5", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_itemSkin)
                             }
 
                             var buy gui.list_id = gui.list_create("buy")
@@ -712,11 +780,10 @@ func main(args []str) () {
                             gui.list_add_column(buy, "Total", gui.g_white, columnSize, gui.g_buttonSkin)
 
                             for item = 0; item < 16; item = item + 1 {
-                                var line gui.control_id = gui.list_add_line(buy)
-                                gui.control_set_skin(line, gui.g_zeroSkin)
-                                gui.list_line_add_label(line, "0.0", gui.ALIGN_RIGHT, gui.g_green, itemSize, gui.g_grayFocusedSkin)
-                                gui.list_line_add_label(line, "0.1", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
-                                gui.list_line_add_label(line, "0.2", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
+                                var line gui.control_id = gui.list_add_line(buy, gui.g_lineSkin)
+                                gui.list_line_add_label(line, "0.0", gui.ALIGN_RIGHT, gui.g_green, itemSize, gui.g_itemSkin)
+                                gui.list_line_add_label(line, "0.1", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_itemSkin)
+                                gui.list_line_add_label(line, "0.2", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_itemSkin)
                             }
 
                             gui.splitter_set_controls(order, sell.base, buy.base)
@@ -731,16 +798,15 @@ func main(args []str) () {
                             gui.list_add_column(done, "Total", gui.g_white, columnSize, gui.g_buttonSkin)
 
                             for item = 0; item < 40; item = item + 1 {
-                                var line gui.control_id = gui.list_add_line(done)
-                                gui.control_set_skin(line, gui.g_zeroSkin)
+                                var line gui.control_id = gui.list_add_line(done, gui.g_lineSkin)
 
                                 var color mat.v4 = gui.g_green
                                 if ((item % 3) == 0 || (item % 5) == 0) {
                                     color = gui.g_red
                                 }
-                                gui.list_line_add_label(line, "0.0", gui.ALIGN_RIGHT, color, itemSize, gui.g_grayFocusedSkin)
-                                gui.list_line_add_label(line, "0.1", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
-                                gui.list_line_add_label(line, "0.2", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_grayFocusedSkin)
+                                gui.list_line_add_label(line, "0.0", gui.ALIGN_RIGHT, color, itemSize, gui.g_itemSkin)
+                                gui.list_line_add_label(line, "0.1", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_itemSkin)
+                                gui.list_line_add_label(line, "0.2", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_itemSkin)
                             }
                         }
                         gui.splitter_set_controls(rightTop, order.base, done.base)

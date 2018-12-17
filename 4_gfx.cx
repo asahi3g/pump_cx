@@ -14,22 +14,11 @@ import "uti"
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 var g_vaos []i32
-var g_vaoCount i32 = 0
-
 var g_vbos []i32
-var g_vboCount i32 = 0
-
 //var g_shaders[]i32
-//var g_shaderCount i32 = 0
-
 var g_programs []i32
-var g_programCount i32 = 0
-
 var g_textures []i32
-var g_textureCount i32 = 0
-
 var g_framebuffers []i32
-var g_framebufferCount i32 = 0
 
 var g_sizeofFloat i32 = 4
 
@@ -84,8 +73,7 @@ var gfx_scissorY i32 = 0
 var gfx_scissorWidth i32 = 0
 var gfx_scissorHeight i32 = 0
 
-var g_scissors[64]mat.v4
-var g_scissorCount i32 = 0
+var g_scissors[]mat.v4
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -228,7 +216,6 @@ func create_program(vertex str, pixel str)(program i32) {
     program = gl.CreateProgram()
     uti.assert_(no_glerror(), "gl.CreateProgram")
     g_programs = append(g_programs, program)
-    g_programCount = g_programCount + 1 // pre increment not working
 
     gl.AttachShader(program, vertexShader)
     uti.assert_(no_glerror(), "gl.AttachShader")
@@ -321,18 +308,14 @@ type effect_s struct {
     program i32
     vertex str
     pixel str
-    attributes [8]attribute_s
-    attributeCount i32// ##pending
-    samplers [8]sampler_s
-    samplerCount i32// ##pending
-    uniforms [8]uniform_s
-    uniformCount i32// ##pending
+    attributes []attribute_s
+    samplers []sampler_s
+    uniforms []uniform_s
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_effects[64] effect_s
-var g_effectCount i32 = 0
+var g_effects[] effect_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -343,25 +326,22 @@ func invalid_effect() (out effect_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_effect(id effect_id) (out bool) {
-    out = id.effect >= 0 && id.effect < g_effectCount // && is_valid_program(id.program) ##2 program id ??
+    out = id.effect >= 0 && id.effect < len(g_effects)// && is_valid_program(id.program) ##2 program id ??
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func create_effect(vertex str, pixel str) (out effect_id) {
-    uti.assert_(g_effectCount < len(g_effects), "create_effect : overflow") // ##1 use slice
-    out.effect = g_effectCount
+    out.effect = len(g_effects)
 
     var effect effect_s
     effect.id = out
     effect.program = create_program(vertex, pixel)
     effect.vertex = vertex
     effect.pixel = pixel
-    effect.attributeCount = 0
-    effect.samplerCount = 0
-    effect.uniformCount = 0
-    g_effects[out.effect] = effect
-    g_effectCount = out.effect + 1
+
+    g_effects = append(g_effects, effect)
+
     uti.assert_(is_valid_effect(out), "create_effect : invalid effect id")
 }
 
@@ -369,18 +349,14 @@ func create_effect(vertex str, pixel str) (out effect_id) {
 //-----------------------------------------------------------------------------
 func effect_is_valid_sampler_slot(id effect_id, slot i32) (out bool) {
     uti.assert_(is_valid_effect(id), "effect_is_valid_sampler_slot : invalid effect id")
-    var samplerCount i32 = g_effects[id.effect].samplerCount
-    out = slot >= 0 && slot < samplerCount
-    //out = slot >= 0 && slot < g_effects[id.effect].samplerCount // ##pending
+    out = slot >= 0 && slot < len(g_effects[id.effect].samplers)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func effect_is_valid_uniform_slot(id effect_id, slot i32) (out bool) {
     uti.assert_(is_valid_effect(id), "effect_is_valid_uniform : invalid effect id")
-    var uniformCount i32 = g_effects[id.effect].uniformCount
-    out = slot >= 0 && slot < uniformCount
-    //out = slot >= 0 && slot < g_effects[id.effect].uniformCount // ##pending
+    out = slot >= 0 && slot < len(g_effects[id.effect].uniforms)
 }
 
 //-----------------------------------------------------------------------------
@@ -411,9 +387,7 @@ func effect_assign_float(id effect_id, slot i32, value f32) {
 func effect_bind_attribute(id effect_id, location i32, name str) {
     uti.assert_(is_valid_effect(id), "effect_bind_attribute : invalid id")
     bind_attribute(g_effects[id.effect].program, location, name)
-    var attributeCount i32 = g_effects[id.effect].attributeCount
-    g_effects[id.effect].attributes[attributeCount] = attribute_(location, name)
-    g_effects[id.effect].attributeCount = attributeCount + 1
+    g_effects[id.effect].attributes = append(g_effects[id.effect].attributes, attribute_(location, name))
 }
 
 //-----------------------------------------------------------------------------
@@ -421,9 +395,7 @@ func effect_bind_attribute(id effect_id, location i32, name str) {
 func effect_bind_sampler(id effect_id, name str) {
     uti.assert_(is_valid_effect(id), "effect_bind_sampler : invalid id")
     var location i32 = bind_texture(g_effects[id.effect].program, name)
-    var samplerCount i32 = g_effects[id.effect].samplerCount
-    g_effects[id.effect].samplers[samplerCount] = sampler_(location, name)
-    g_effects[id.effect].samplerCount = samplerCount + 1
+    g_effects[id.effect].samplers = append(g_effects[id.effect].samplers, sampler_(location, name))
 }
 
 //-----------------------------------------------------------------------------
@@ -431,9 +403,7 @@ func effect_bind_sampler(id effect_id, name str) {
 func effect_bind_uniform(id effect_id, name str) {
     uti.assert_(is_valid_effect(id), "effect_bind_uniform : invalid_id")
     var location i32 = bind_uniform(g_effects[id.effect].program, name)
-    var uniformCount i32 = g_effects[id.effect].uniformCount
-    g_effects[id.effect].uniforms[uniformCount] = uniform_(location, name)
-    g_effects[id.effect].uniformCount = uniformCount + 1
+    g_effects[id.effect].uniforms = append(g_effects[id.effect].uniforms, uniform_(location, name))
 }
 
 //-----------------------------------------------------------------------------
@@ -494,8 +464,8 @@ type mesh_id struct {
 //-----------------------------------------------------------------------------
 type mesh_s struct {
     id mesh_id
-    vertices [65536]f32
-    attributes [3]i32
+    vertices [65536]f32 // ##0 use slice
+    attributes []i32
     primitive i32
     vao i32
     vbo i32
@@ -507,13 +477,12 @@ type mesh_s struct {
     index i32
 }
 
-var g_meshCount i32 = 0
-var g_meshes [128]mesh_s
+var g_meshes []mesh_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_mesh(id mesh_id) (out bool) {
-    out = id.mesh >= 0 && id.mesh < g_meshCount
+    out = id.mesh >= 0 && id.mesh < len(g_meshes)
 }
 
 //-----------------------------------------------------------------------------
@@ -538,8 +507,7 @@ func mesh_print(message str, id mesh_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-
-var g_freeMeshes [32]mesh_id
+var g_freeMeshes [32]mesh_id // ##0 use slice
 var g_freeMeshCount i32 = 0
 
 //-----------------------------------------------------------------------------
@@ -559,7 +527,7 @@ func mesh_is_empty(id mesh_id) (out bool) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func lock_mesh(primitive i32, attributes [3]i32, vertexCount i32) (out mesh_id) {
+func lock_mesh(primitive i32, attributes []i32, vertexCount i32) (out mesh_id) {
     if (g_freeMeshCount > 0) {
         g_freeMeshCount = g_freeMeshCount - 1
         out.mesh = g_freeMeshes[g_freeMeshCount].mesh
@@ -580,11 +548,10 @@ func unlock_mesh(id mesh_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func create_mesh(primitive i32, Xattributes [3]i32, vertexCount i32) (out mesh_id) { // make it work with slices
-    uti.assert_(g_meshCount < len(g_meshes), "create_mesh : overflow") // ##1 use slice
-    out.mesh = g_meshCount
+func create_mesh(primitive i32, Xattributes []i32, vertexCount i32) (out mesh_id) { // make it work with slices
+    out.mesh = len(g_meshes)
 
-    printf("create_mesh %d, primitive %d, vertexCount %d\n", g_meshCount, primitive, vertexCount)
+    //printf("create_mesh %d, primitive %d, vertexCount %d\n", out.mesh, primitive, vertexCount)
     uti.assert_((primitive == gl.TRIANGLES || primitive == gl.LINES), "(primitive == gl.TRIANGLES || primitive == gl.LINES)")
     uti.assert_(vertexCount > 0, "vertexCount > 0")
 
@@ -594,16 +561,17 @@ func create_mesh(primitive i32, Xattributes [3]i32, vertexCount i32) (out mesh_i
         uti.assert_((vertexCount % 2) == 0, "(vertexCount % 2) == 0")
     }
 
-    g_meshes[out.mesh].attributes = Xattributes
-    g_meshes[out.mesh].primitive = primitive
-    g_meshes[out.mesh].vao = 0
-    g_meshes[out.mesh].vbo = 0
-    g_meshes[out.mesh].stride = 0
-    g_meshes[out.mesh].floatCount = 0
-    g_meshes[out.mesh].vertexCount = 0
-    g_meshes[out.mesh].dataSize = 0
-    g_meshes[out.mesh].bufferSize = 0
-    g_meshes[out.mesh].index = 0;
+    var mesh mesh_s
+    mesh.attributes = Xattributes
+    mesh.primitive = primitive
+    mesh.vao = 0
+    mesh.vbo = 0
+    mesh.stride = 0
+    mesh.floatCount = 0
+    mesh.vertexCount = 0
+    mesh.dataSize = 0
+    mesh.bufferSize = 0
+    mesh.index = 0;
 
     // stride
     var i i32 = 0
@@ -613,10 +581,10 @@ func create_mesh(primitive i32, Xattributes [3]i32, vertexCount i32) (out mesh_i
     for i = 0; i < attributeCount; i = i + 1 {
         var size i32 = Xattributes[i]
         stride = stride + size
-        //printf("g_meshes[id.mesh].stride %d, stride %d, attributes[i] %d\n", g_meshes[out.mesh].stride, stride, attributes[i])
+        //printf("mesh.stride %d, stride %d, attributes[i] %d\n", mesh.stride, stride, attributes[i])
     }
-    g_meshes[out.mesh].stride = stride
-    uti.assert_(stride > 0, "g_meshes[id.mesh].stride > 0")
+    mesh.stride = stride
+    uti.assert_(stride > 0, "mesh.stride > 0")
 
     var floatCount i32 = stride * vertexCount
     uti.assert_(floatCount > 0, "floatCount > 0")
@@ -625,27 +593,25 @@ func create_mesh(primitive i32, Xattributes [3]i32, vertexCount i32) (out mesh_i
     uti.assert_(bufferSize > 0, "bufferSize > 0")
 
     uti.assert_((floatCount  % stride) == 0, "(floatCount % (*mesh).stride) == 0")
-    g_meshes[out.mesh].bufferSize = bufferSize
+    mesh.bufferSize = bufferSize
 
     // vbo
-    g_meshes[out.mesh].vbo = gl.GenBuffers(1, g_meshes[out.mesh].vbo)
+    mesh.vbo = gl.GenBuffers(1, mesh.vbo)
     uti.assert_(no_glerror(), "gl.GenBuffers")
-    g_vbos = append(g_vbos, g_meshes[out.mesh].vbo)
-    g_vboCount = g_vboCount + 1
+    g_vbos = append(g_vbos, mesh.vbo)
 
-    gl.BindBuffer(gl.ARRAY_BUFFER, g_meshes[out.mesh].vbo)
+    gl.BindBuffer(gl.ARRAY_BUFFER, mesh.vbo)
     uti.assert_(no_glerror(), "gl.BindBuffer")
 
     // vao
-    g_meshes[out.mesh].vao = gl.GenVertexArrays(1, g_meshes[out.mesh].vao)
+    mesh.vao = gl.GenVertexArrays(1, mesh.vao)
     uti.assert_(no_glerror(), "gl.GenVertexArrays")
-    g_vaos = append(g_vaos, g_meshes[out.mesh].vao)
-    g_vaoCount = g_vaoCount + 1;
+    g_vaos = append(g_vaos, mesh.vao)
 
-    gl.BindVertexArray(g_meshes[out.mesh].vao)
+    gl.BindVertexArray(mesh.vao)
     uti.assert_(no_glerror(), "gl.BindVertexArray")
 
-    gl.BindBuffer(gl.ARRAY_BUFFER, g_meshes[out.mesh].vbo)
+    gl.BindBuffer(gl.ARRAY_BUFFER, mesh.vbo)
     uti.assert_(no_glerror(), "gl.BindBuffer")
 
     printf("bufferSize %d\n", bufferSize)
@@ -667,7 +633,8 @@ func create_mesh(primitive i32, Xattributes [3]i32, vertexCount i32) (out mesh_i
 
         offset = offset + g_sizeofFloat * Xattributes[i]
     }
-    g_meshCount = out.mesh + 1
+
+    g_meshes = append(g_meshes, mesh)
     uti.assert_(is_valid_mesh(out), "create_mesh : invalid id")
 }
 
@@ -1378,31 +1345,31 @@ func free()() {
     use_program(0)
 
     var i i32
-    for i = 0; i < g_programCount; i = i + 1 {
+    for i = 0; i < len(g_programs); i = i + 1 {
         printf("gl.DeleteProgram(%d)\n", g_programs[i])
         gl.DeleteProgram(g_programs[i]) // ##0 crash
         uti.assert_(no_glerror(), "gl.DeleteProgram")
     }
 
-    for i = 0; i < g_vboCount; i = i + 1 {
+    for i = 0; i < len(g_vbos); i = i + 1 {
         printf("gl.DeleteBuffers(%d)\n", g_vbos[i])
         gl.DeleteBuffers(1, g_vbos[i])
         uti.assert_(no_glerror(), "glDeleteBuffers")
     }
 
-    for i = 0; i < g_vaoCount; i = i + 1 {
+    for i = 0; i < len(g_vaos); i = i + 1 {
         printf("gl.DeleteVertexArrays(%d)\n", g_vaos[i])
         gl.DeleteVertexArrays(1, g_vaos[i])
         uti.assert_(no_glerror(), "g_DeleteVertexArrays")
     }
 
-    for i = 0; i < g_framebufferCount; i = i + 1 {
+    for i = 0; i < len(g_framebuffers); i = i + 1 {
         printf("gl.DeleteFramebuffers(%d)\n", g_framebuffers[i])
         gl.DeleteFramebuffers(1, g_framebuffers[i])
         uti.assert_(no_glerror(), "g.DeleteFramebuffers")
     }
 
-    for i = 0; i < g_textureCount; i = i + 1 {
+    for i = 0; i < len(g_textures); i = i + 1 {
         printf("gl.DeleteTextures(%d)\n", g_textures[i])
         gl.DeleteTextures(1, g_textures[i])
         uti.assert_(no_glerror(), "g.DeleteTextures")
@@ -1464,11 +1431,11 @@ func set_scissor(bounds mat.v4) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func push_scissor(name str, bounds mat.v4) (out mat.v4) {
-    uti.assert_(g_scissorCount < len(g_scissors), "push_scissor : overflow")
- //   uti.assert_(bounds.z > 0 && bounds.w > 0, "push_scissor : invalid bounds")
+    // uti.assert_(bounds.z > 0 && bounds.w > 0, "push_scissor : invalid bounds")
     out = bounds
-    if (g_scissorCount > 0) {
-        var previousScissor i32 = g_scissorCount - 1
+    var scissorCount i32 = len(g_scissors)
+    if (scissorCount > 0) {
+        var previousScissor i32 = scissorCount - 1
         var scissor mat.v4 = g_scissors[previousScissor]
         var x0 f32 = scissor.x
         var y0 f32 = scissor.y
@@ -1494,25 +1461,25 @@ func push_scissor(name str, bounds mat.v4) (out mat.v4) {
         out.z = mat.max(0.0, width)
         out.w = mat.max(0.0, height)
         var i i32 = 0
-        //for i = 0; i < g_scissorCount; i = i + 1 {
+        //for i = 0; i < scissorCount; i = i + 1 {
         //    printf("----")
         //}
         //printf("x0 %f, y0 %f, x1 %f, y1 %f, x2 %f, y2 %f, x3 %f, y3 %f\n", x0, y0, x1, y1, x2, y2, x3, y3)
-        //for i = 0; i < g_scissorCount; i = i + 1 {
+        //for i = 0; i < scissorCount; i = i + 1 {
         //    printf("----")
         //}
         //printf("max %f, %f, min %f, %f\n", maxX, maxY, minX, minY)
-        //for i = 0; i < g_scissorCount; i = i + 1 {
+        //for i = 0; i < scissorCount; i = i + 1 {
         //    printf("----")
         //}
         var scissorW f32 = scissor.x + scissor.z
         var scissorH f32 = scissor.y + scissor.w
         //printf("%s old scissor %f, %f, %f, %f\n", name, scissor.x, scissor.y, scissorW, scissorH)
-        //for i = 0; i < g_scissorCount; i = i + 1 {
+        //for i = 0; i < scissorCount; i = i + 1 {
         //    printf("----")
         //}
 //        printf("%s bounds  %f, %f, %f, %f\n", name, bounds.x, bounds.y, bounds.z, bounds.w)
-//        for i = 0; i < g_scissorCount; i = i + 1 {
+//        for i = 0; i < scissorCount; i = i + 1 {
   //          printf("----")
         //}
         var outW f32 = out.x + out.z
@@ -1521,36 +1488,36 @@ func push_scissor(name str, bounds mat.v4) (out mat.v4) {
     } else {
         out = bounds
         //var i i32 = 0
-        //for i = 0; i < g_scissorCount; i = i + 1 {
+        //for i = 0; i < scissorCount; i = i + 1 {
         //    printf("----")
         //}
         //printf("%s bounds %f, %f, %f, %f\n", name, bounds.x, bounds.y, bounds.z, bounds.w)
-        //for i = 0; i < g_scissorCount; i = i + 1 {
+        //for i = 0; i < scissorCount; i = i + 1 {
         //    printf("----")
         //}
         //printf("%s out first %f, %f, %f, %f\n", name, out.x, out.y, out.z, out.w)
 
     }
-    g_scissors[g_scissorCount] = out
+    g_scissors = append(g_scissors, out)
     //if (out.x == 0.0 && out.y == 0.0 && out.z == 0 && out.w == 0) {
     //    printf("%s thostuhsth \n", name)
     //    uti.assert_(false, "fuck")
     //}
 
-    //var tmp mat.v4 =  g_scissors[g_scissorCount]
-    //printf("%d, tmp readback %f, %f, %f, %f\n", g_scissorCount, tmp.x, tmp.y, tmp.z, tmp.w)
+    //var tmp mat.v4 =  g_scissors[scissorCount]
+    //printf("%d, tmp readback %f, %f, %f, %f\n", scissorCount, tmp.x, tmp.y, tmp.z, tmp.w)
 
-    g_scissorCount = g_scissorCount + 1
     //set_scissor(bounds)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func pop_scissor() {
-    uti.assert_(g_scissorCount > 0, "pop_scissor : underflow")
-    g_scissorCount = g_scissorCount - 1
-    //if (g_scissorCount > 0) {
-    //    var scissor i32 = g_scissorCount - 1
+    var scissorCount i32 = len(g_scissors)
+    uti.assert_(scissorCount > 0, "pop_scissor : underflow")
+    resize(g_scissors, scissorCount - 1)
+    //if (scissorCount > 0) {
+    //    var scissor i32 = scissorCount - 1
         //set_scissor(g_scissors[scissor])
     //}
 }
@@ -1567,7 +1534,6 @@ func create_texture(path str, mag i32, min i32, s i32, t i32, r i32, w i32, h i3
     }
 
     g_textures = append(g_textures, texture.name)
-    g_textureCount= g_textureCount + 1 // pre increment not working
 
     gl.BindTexture(gl.TEXTURE_2D, texture.name)
     uti.assert_(no_glerror(), "gl.BindTexture")
@@ -1597,6 +1563,8 @@ func create_texture(path str, mag i32, min i32, s i32, t i32, r i32, w i32, h i3
 
     texture.height = gl.GetTexLevelParameteriv(gl.TEXTURE_2D, 0, gl.TEXTURE_HEIGHT);
     uti.assert_(no_glerror(), "gl.GetTexLevelParameteriv")
+
+    printf("TEXTURE W %d, H %d\n", texture.width, texture.height)
 }
 
 //-----------------------------------------------------------------------------
@@ -1649,7 +1617,6 @@ func create_target(w i32, h i32) (target target_s) {
     uti.assert_(no_glerror(), "gl.GenFramebuffers")
 
     g_framebuffers = append(g_framebuffers, framebuffer)
-    g_framebufferCount = g_framebufferCount + 1 // pre increment not working
 
     bind_framebuffer(framebuffer)
     target.texture = create_texture("", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, w, h)
