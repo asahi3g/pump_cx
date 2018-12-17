@@ -614,7 +614,7 @@ func create_mesh(primitive i32, Xattributes []i32, vertexCount i32) (out mesh_id
 
     printf("bufferSize %d\n", bufferSize)
     //var null *i32 = 0
-    var null []f32
+    var null []f32 // ##0 dubious
     gl.BufferData(gl.ARRAY_BUFFER, bufferSize, null, gl.DYNAMIC_DRAW)
     uti.assert_(no_glerror(), "gl.BufferData")
 
