@@ -34,12 +34,10 @@ type profile_s struct {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_profiles[256]profile_s
-var g_profileCount i32 = 0
+var g_profiles []profile_s
 var g_profileStack i32 = 0
 
-var g_profileTree[2048]profile_id
-var g_profileTreeCount i32 = 0
+var g_profileTree []profile_id
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -95,7 +93,7 @@ func begin_update(in fps_s) (out fps_s) {
         printf("fps : %d\n", f64.i32(out.fps / elapsed))
         out.fps = 0.0D
         full = true
-        for i = 0; i < g_profileTreeCount; i = i + 1 {
+        for i = 0; i < len(g_profileTree); i = i + 1 {
             print_profile(g_profileTree[i])
         }
 
@@ -104,8 +102,10 @@ func begin_update(in fps_s) (out fps_s) {
     }
 
 
-    g_profileTreeCount = 0
-   for i = 0; i < g_profileCount; i = i + 1 {
+    resize(g_profileTree, 0)
+
+    var profileCount i32 = len(g_profiles)
+    for i = 0; i < profileCount; i = i + 1 {
         clear_profile(g_profiles[i].id, full)
     }
 }
@@ -130,30 +130,34 @@ func end_update(in fps_s) (out fps_s) {
 //-----------------------------------------------------------------------------
 func create_profile(name str) (out profile_id) {
     printf("create_profile %s\n", name)
- out.profile = g_profileCount
+
+    var profileCount i32 = len(g_profiles)
+    out.profile = profileCount
+
     var i i32 = 0
-    for i = 0; i < g_profileCount; i = i + 1 {
+    for i = 0; i < profileCount; i = i + 1 {
         var profileName str = g_profiles[i].name
         //printf("comparing %s -> %s\n", name, profileName)
         if (name == profileName) {
             //printf("duplicate entry\n")
             out.profile = -1
-            i = g_profileCount
+            i = profileCount
             uti.assert_(false, "create_profile : duplicate entry")
         }
     }
 
     if (out.profile >= 0) {
-        g_profiles[g_profileCount].id = out
-        g_profiles[g_profileCount].name = name
-        g_profileCount = g_profileCount + 1
+        var profile profile_s
+        profile.id = out
+        profile.name = name
+        g_profiles = append(g_profiles, profile)
     }
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_profile(id profile_id) (out bool) {
-    out = id.profile >= 0 && id.profile < g_profileCount
+    out = id.profile >= 0 && id.profile < len(g_profiles)
 }
 
 //-----------------------------------------------------------------------------
@@ -217,9 +221,8 @@ func begin_profile(id profile_id) () {
 
     var treeIndex i32 = g_profiles[id.profile].slot
     if (treeIndex <= -1) {
-        g_profileTree[g_profileTreeCount] = id
-        g_profiles[id.profile].slot = g_profileTreeCount
-        g_profileTreeCount = g_profileTreeCount + 1
+        g_profiles[id.profile].slot = len(g_profileTree)
+        g_profileTree = append(g_profileTree, id)
     }
 }
 
