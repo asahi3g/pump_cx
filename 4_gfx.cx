@@ -451,8 +451,7 @@ func is_valid_target(t target_s) (out bool) {
 //var g_targets [64]target_s
 //var g_targetCount i32 = 0
 
-var g_freeTargets [64]target_s
-var g_freeTargetCount i32 = 0
+var g_freeTargets []target_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -507,8 +506,7 @@ func mesh_print(message str, id mesh_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_freeMeshes [32]mesh_id // ##0 use slice
-var g_freeMeshCount i32 = 0
+var g_freeMeshes []mesh_id
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -528,9 +526,11 @@ func mesh_is_empty(id mesh_id) (out bool) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func lock_mesh(primitive i32, attributes []i32, vertexCount i32) (out mesh_id) {
-    if (g_freeMeshCount > 0) {
-        g_freeMeshCount = g_freeMeshCount - 1
-        out.mesh = g_freeMeshes[g_freeMeshCount].mesh
+    var freeMeshCount i32 = len(g_freeMeshes)
+    if (freeMeshCount > 0) {
+        var newFreeMeshCount i32 = freeMeshCount - 1
+        out.mesh = g_freeMeshes[newFreeMeshCount].mesh
+        resize(g_freeMeshes, newFreeMeshCount)
     } else {
         out.mesh = create_mesh(primitive, attributes, vertexCount)
     }
@@ -541,9 +541,7 @@ func lock_mesh(primitive i32, attributes []i32, vertexCount i32) (out mesh_id) {
 //-----------------------------------------------------------------------------
 func unlock_mesh(id mesh_id) {
     uti.assert_(is_valid_mesh(id), "unlock_mesh : invalid id")
-    uti.assert_(g_freeMeshCount < len(g_freeMeshes), "unlock_mesh : overflow") // ##1 use slice
-    g_freeMeshes[g_freeMeshCount] = id
-    g_freeMeshCount = g_freeMeshCount + 1
+    g_freeMeshes = append(g_freeMeshes, id)
 }
 
 //-----------------------------------------------------------------------------
@@ -1570,17 +1568,18 @@ func create_texture(path str, mag i32, min i32, s i32, t i32, r i32, w i32, h i3
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func lock_target(w i32, h i32) (target target_s) {
-    if (g_freeTargetCount > 0) {
+    var freeTargetCount i32 = len(g_freeTargets)
+    if (freeTargetCount > 0) {
         var i i32 = 0
-        for i = 0; i < g_freeTargetCount; i = i + 1 {
+        for i = 0; i < freeTargetCount; i = i + 1 {
             var t target_s = g_freeTargets[i]
             if (t.texture.width == w &&
                 t.texture.height == h) {
                 target = t
-                if ((i + 1) < g_freeTargetCount) {
-                    g_freeTargets[i] = g_freeTargets[g_freeTargetCount - 1]
+                if ((i + 1) < freeTargetCount) {
+                    g_freeTargets[i] = g_freeTargets[freeTargetCount - 1]
                 }
-                g_freeTargetCount = g_freeTargetCount - 1
+                resize(g_freeTargets, freeTargetCount - 1)
                 return;
             }
         }
@@ -1593,9 +1592,9 @@ func lock_target(w i32, h i32) (target target_s) {
 //-----------------------------------------------------------------------------
 func unlock_target(target target_s) {
     uti.assert_(is_valid_target(target), "unlock_target : invalid target")
-    uti.assert_(g_freeTargetCount < len(g_freeTargets), "unlock_target : overflow") // ##1 use slice
     var i i32 = 0
-    for i = 0; i < g_freeTargetCount; i = i + 1 {
+    var freeTargetCount i32 = len(g_freeTargets)
+    for i = 0; i < freeTargetCount; i = i + 1 {
         var t target_s = g_freeTargets[i]
         uti.assert_(t.framebuffer != target.framebuffer, "target unlocked twice")
         if (t.framebuffer == target.framebuffer) {
@@ -1603,8 +1602,7 @@ func unlock_target(target target_s) {
         }
     }
 
-    g_freeTargets[g_freeTargetCount] = target
-    g_freeTargetCount = g_freeTargetCount + 1
+    g_freeTargets = append(g_freeTargets, target)
 }
 
 
