@@ -143,7 +143,6 @@ type template_s struct {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func template_id_(base control_id, template i32) (out template_id) {
-    uti.assert_(g_templateCount < len(g_templates), "template_create : overflow") // ##1 use slice
     out.base = base
     out.template = template
     uti.assert_(is_valid_template(out), "template_id_: invalid id")
@@ -164,19 +163,18 @@ func is_valid_template(id template_id) (out bool) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_templates[8] template_s
-var g_templateCount i32
+var g_templates[] template_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func template_create(name str) (out template_id) {
-    out.template = g_templateCount
-    out.base = control_create_(name, GUI_TEMPLATE, g_templateCount)
+    out.template = len(g_templates)
+    out.base = control_create_(name, GUI_TEMPLATE, out.template)
 
     var template template_s
-    g_templates[g_templateCount].id = out
+    template.id = out
 
-    g_templateCount = g_templateCount + 1
+    g_templates = append(g_templates, template)
     uti.assert_(is_valid_template(out), "create_template : invalid id")
 }
 
@@ -230,15 +228,14 @@ type font_s struct {
     max i32
     direction i32
     textureCount i32
-    textures [8]texture_s
-    names [8]str
-    sizes [8]i32
+    textures []gfx.texture_s
+    names []str
+    sizes []i32
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_fonts [8]font_s
-var g_fontCount i32 = 0
+var g_fonts []font_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -249,14 +246,13 @@ func invalid_font()(out font_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_font(id font_id) (out bool) {
-    out = id.font >= 0 && id.font < g_fontCount
+    out = id.font >= 0 && id.font < len(g_fonts)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func create_font(name str, path str, min i32, max i32, direction i32) (out font_id) {
-    uti.assert_(g_fontCount < len(g_fonts), "create_font : overflow") // ##1 use slice
-    out.font = g_fontCount
+    out.font = len(g_fonts)
 
     var font font_s
     font.id = out
@@ -270,8 +266,7 @@ func create_font(name str, path str, min i32, max i32, direction i32) (out font_
     font.direction = direction
     font.textureCount = 0
 
-    g_fonts[out.font] = font
-    g_fontCount = out.font + 1
+    g_fonts = append(g_fonts, font)
 }
 
 
@@ -297,9 +292,9 @@ func font_add_size(id font_id, size i32) {
     textureName = sprintf("%s_%d", name, size)
 
     var textureCount i32 = g_fonts[index].textureCount
-    g_fonts[index].textures[textureCount] = gfx.create_font_texture(textureName, path, size, min, max, dir)
-    g_fonts[index].names[textureCount] = textureName
-    g_fonts[index].sizes[textureCount] = size
+    g_fonts[index].textures = append(g_fonts[index].textures, gfx.create_font_texture(textureName, path, size, min, max, dir))
+    g_fonts[index].names = append(g_fonts[index].names, textureName)
+    g_fonts[index].sizes = append(g_fonts[index].sizes, size)
 
     g_fonts[index].textureCount = textureCount + 1
 }
@@ -309,7 +304,7 @@ func font_add_size(id font_id, size i32) {
 func font_get_texture_index(id font_id, size i32) (out i32) {
     uti.assert_(is_valid_font(id), "font_get_texture_index : invalid id")
 
-    var textureCount i32 = g_fonts[id.font].textureCount
+    var textureCount i32 = len(g_fonts[id.font].sizes)
 
     out = -1
     if (textureCount > 0) {
@@ -332,8 +327,8 @@ func font_get_texture_index(id font_id, size i32) (out i32) {
 //-----------------------------------------------------------------------------
 // SCOPE
 //-----------------------------------------------------------------------------
-var g_docks [32]bound_s
-var g_offsets [32]rectangle_s
+var g_docks []bound_s
+var g_offsets []rectangle_s
 var g_scopeIndex i32 = 0
 
 //-----------------------------------------------------------------------------
@@ -362,8 +357,11 @@ var g_offset rectangle_s
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func reset_scope()() {
-    uti.assert_(g_scopeIndex == 0, "invalid scope")
-    g_scopeIndex = 0
+    uti.assert_(len(g_docks) == 0, "invalid scope")
+    uti.assert_(len(g_offsets) == 0, "invalid scope")
+
+    resize(g_docks, 0)
+    resize(g_offsets, 0)
 
     g_dock.left = 0.0
     g_dock.bottom = 0.0
@@ -379,25 +377,30 @@ func reset_scope()() {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func push_scope()() {
-    g_docks[g_scopeIndex] = g_dock
-    g_offsets[g_scopeIndex] = g_offset
-    g_scopeIndex = g_scopeIndex + 1
+    g_docks = append(g_docks, g_dock)
+    g_offsets = append(g_offsets, g_offset)
+    uti.assert_(len(g_docks) == len(g_offsets), "invalid scope")
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func pop_scope() () {
-    uti.assert_(g_scopeIndex > 0, "stack underflow")
-    g_scopeIndex = g_scopeIndex - 1
-    g_dock = g_docks[g_scopeIndex]
-    g_offset = g_offsets[g_scopeIndex]
+func pop_scope() (){
+    var scopeCount i32 = len(g_docks)
+    uti.assert_(scopeCount > 0, "stack underflow")
+    uti.assert_(scopeCount == len(g_offsets), "stack underflow")
+
+    var newScopeCount i32 = scopeCount - 1
+    g_dock = g_docks[newScopeCount]
+    g_offset = g_offsets[newScopeCount]
+
+    resize(g_docks, newScopeCount)
+    resize(g_offsets, newScopeCount)
 }
 
 //-----------------------------------------------------------------------------
 // LAYER_SKIN
 //-----------------------------------------------------------------------------
-var g_layers [256]layer_s
-var g_layerCount i32 = 0
+var g_layers []layer_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -427,14 +430,13 @@ type layer_s struct {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_layer(id layer_id) (out bool) {
-    out = id.layer >= 0 && id.layer < g_layerCount
+    out = id.layer >= 0 && id.layer < len(g_layers)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func layer_create(name str, surface mat.v4, left mat.v4, bottom mat.v4, right mat.v4, top mat.v4) (out layer_id) {
-    uti.assert_(g_layerCount < len(g_layers), "layer_create : overflow") // ##1 use slice
-    out.layer = g_layerCount
+    out.layer = len(g_layers)
 
     var layer layer_s
     layer.id  = out
@@ -445,8 +447,7 @@ func layer_create(name str, surface mat.v4, left mat.v4, bottom mat.v4, right ma
     layer.right   = right
     layer.top     = top
 
-    g_layers[out.layer] = layer
-    g_layerCount = out.layer + 1
+    g_layers = append(g_layers, layer)
     uti.assert_(is_valid_layer(out), "layer_create : invalid id")
 }
 
@@ -484,8 +485,7 @@ func layer_print(message str, id layer_id) {
 //-----------------------------------------------------------------------------
 // CONTROL_SKIN
 //-----------------------------------------------------------------------------
-var g_skins [512]skin_s
-var g_skinCount i32 = 0
+var g_skins []skin_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -518,16 +518,13 @@ func invalid_skin() (out skin_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_skin(id skin_id) (out bool) {
-    //printf("id.skin %d, %d\n", id.skin, g_skinCount)
-    out = (id.skin >= 0) && (id.skin < g_skinCount)
+    out = (id.skin >= 0) && (id.skin < len(g_skins))
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func skin_create(name str, back layer_id, front layer_id, hoverBack layer_id, hoverFore layer_id, disabledBack layer_id, disabledFore layer_id, focusedBack layer_id, focusedFore layer_id, selectedBack layer_id, selectedFore layer_id)  (out skin_id) {
-    //printf("EVENT_UNUSED %d\n", EVENT_UNUSED)
-    uti.assert_(g_skinCount < len(g_skins), "skin_create : overflow") // ##1 use slice
-    out.skin = g_skinCount
+    out.skin = len(g_skins)
 
     var skin skin_s
     skin.name = name
@@ -543,10 +540,9 @@ func skin_create(name str, back layer_id, front layer_id, hoverBack layer_id, ho
     skin.selected_back = selectedBack
     skin.selected_front = selectedFore
 
-    g_skins[out.skin] = skin
-    g_skinCount = out.skin + 1
+    g_skins = append(g_skins, skin)
     uti.assert_(is_valid_skin(out), "skin_create : invalid id")
-    skin_print("skin_create : ", out)
+    //skin_print("skin_create : ", out)
 }
 
 //-----------------------------------------------------------------------------
@@ -695,8 +691,7 @@ func alpha(color mat.v4, a f32) (out mat.v4) {
 //-----------------------------------------------------------------------------
 // CONTROL
 //-----------------------------------------------------------------------------
-var g_controls [2048]control_s
-var g_controlCount i32 = 0
+var g_controls []control_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -737,8 +732,7 @@ type control_s struct {
     spacing mat.v2
 
     renderPosition mat.v2
-    children [256]control_id // can't make it work with slices
-    childCount i32
+    children []control_id
 }
 
 //-----------------------------------------------------------------------------
@@ -816,51 +810,51 @@ func control_id_(control i32) (out control_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_control(id control_id) (out bool) {
-    //printf("control : %d, %d\n", id.control, g_controlCount)
-    out = id.control >= 0 && id.control < g_controlCount
+    out = id.control >= 0 && id.control < len(g_controls)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func control_create(name str) (out control_id) {
-    out = control_create_(name, GUI_CONTROL, g_controlCount)
+    out = control_create_(name, GUI_CONTROL, len(g_controls))
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func control_create_(name str, gui_type i32, gui_index i32) (out control_id) {
-    uti.assert_(g_controlCount < len(g_controls), "control_create : overflow") // ##1 use slice
-    out.control = g_controlCount
+    out.control = len(g_controls)
 
-    g_controls[g_controlCount].id = out
-    g_controls[g_controlCount].parent = invalid_control()
-    g_controls[g_controlCount].name = name
-    g_controls[g_controlCount].gui_type  = gui_type
-    g_controls[g_controlCount].gui_index = gui_index
+    var control control_s
 
-    g_controls[g_controlCount].skin = invalid_skin()
+    control.id = out
+    control.parent = invalid_control()
+    control.name = name
+    control.gui_type  = gui_type
+    control.gui_index = gui_index
 
-    g_controls[g_controlCount].focusIndex = -1
-    g_controls[g_controlCount].focusable = 0
-    g_controls[g_controlCount].focused = 0
+    control.skin = invalid_skin()
 
-    g_controls[g_controlCount].visible = 1
+    control.focusIndex = -1
+    control.focusable = 0
+    control.focused = 0
 
-    g_controls[g_controlCount].dock      = DOCK_NONE
-    g_controls[g_controlCount].align     = ALIGN_NONE
-    g_controls[g_controlCount].autosize  = AUTOSIZE_NONE
-    g_controls[g_controlCount].autoscale = AUTOSCALE_NONE
+    control.visible = 1
 
-    g_controls[g_controlCount].position = mat.v2_zero
-    g_controls[g_controlCount].size     = mat.v2_zero
-    g_controls[g_controlCount].scale    = mat.v2_one
-    g_controls[g_controlCount].padding  = mat.v4_zero
-    g_controls[g_controlCount].spacing  = mat.v2_zero
+    control.dock      = DOCK_NONE
+    control.align     = ALIGN_NONE
+    control.autosize  = AUTOSIZE_NONE
+    control.autoscale = AUTOSCALE_NONE
 
-    g_controls[g_controlCount].childCount = 0
-    g_controlCount = g_controlCount + 1
+    control.position = mat.v2_zero
+    control.size     = mat.v2_zero
+    control.scale    = mat.v2_one
+    control.padding  = mat.v4_zero
+    control.spacing  = mat.v2_zero
+
+    g_controls = append(g_controls, control)
+
     uti.assert_(is_valid_control(out), "control_create : invalid control")
-    control_print("control_create : ", out, true)
+    //control_print("control_create : ", out, true)
 }
 
 //-----------------------------------------------------------------------------
@@ -898,7 +892,7 @@ func control_print(message str, id control_id, printSkin bool) {
         g_controls[index].size.y,
         g_controls[index].scale.x,
         g_controls[index].scale.y,
-        g_controls[index].childCount)
+        len(g_controls[index].children))
 
     if (printSkin == true && is_valid_skin(g_controls[index].skin)) {
         skin_print("control_print : ", g_controls[index].skin)
@@ -990,21 +984,17 @@ func control_set_selected(id control_id, selected i32) {
 func control_add_child(parent control_id, child control_id) {
     uti.assert_(is_valid_control(parent), "control_add_child : invalid parent")
     uti.assert_(is_valid_control(child), "control_add_child : invalid child")
-    var count i32 = g_controls[parent.control].childCount
-    var size i32 = len(g_controls[parent.control].children)
-    uti.assert_(count < size, "control_add_child : overflow") // ##1 use slice
+    var count i32 = len(g_controls[parent.control].children)
     g_controls[child.control].focusIndex = count
     g_controls[child.control].parent = parent
-    g_controls[parent.control].children[count] = child
-    g_controls[parent.control].childCount = count + 1
+    g_controls[parent.control].children = append(g_controls[parent.control].children, child)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func control_clear_children(id control_id) {
     uti.assert_(is_valid_control(id), "control_clear_children : invalid id")
-    var controlIndex i32 = id.control
-    g_controls[controlIndex].childCount = 0
+    resize(g_controls[id.control].children, 0)
 }
 
 //-----------------------------------------------------------------------------
@@ -1107,13 +1097,11 @@ func control_set_parent_focus(id control_id, child control_id, value i32) {
 type control_pair_s struct {
     key screen_id
     value control_id
-    focusList [128]control_id
-    focusCount i32
+    focusList []control_id
     currentFocus i32
 }
 
-var g_focused[64]control_pair_s
-var g_focusedCount i32 = 0
+var g_focused []control_pair_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -1129,11 +1117,10 @@ func build_focus_list(focusedScreenIndex i32, parent control_id) {
     //control_print("build_focus_list : ", parent, false)
     var index i32 = parent.control
 
-    var unsortedList [64]focus_s
-    var unsortedCount i32 = 0
+    var unsortedList []focus_s
 
     var i i32 = 0
-    var childCount i32 = g_controls[index].childCount
+    var childCount i32 = len(g_controls[index].children)
     for i = 0; i < childCount; i = i + 1 {
         var child control_id = g_controls[index].children[i]
         uti.assert_(is_valid_control(child), "build_focus_list : invalid child")
@@ -1141,18 +1128,20 @@ func build_focus_list(focusedScreenIndex i32, parent control_id) {
         var focusIndex i32 = g_controls[childIndex].focusIndex
         if (focusIndex >= 0) {
                 //control_print("FOCUSABLE : ", child, false)
-                unsortedList[unsortedCount].focusIndex = focusIndex
-                unsortedList[unsortedCount].control = child
-                unsortedCount = unsortedCount + 1
+                var focus focus_s
+                focus.focusIndex = focusIndex
+                focus.control = child
+                unsortedList = append(unsortedList, focus)
             //}
         }
     }
 
     //printf("UNORDERED COUNT %d\n", unsortedCount)
     //sort
+    var unsortedCount i32 = len(unsortedList)
     var unsorted i32 = 0
     for unsorted = 0; unsorted < unsortedCount; unsorted = unsorted + 1 {
-        var focusCount i32 = g_focused[focusedScreenIndex].focusCount
+        var focusCount i32 = len(g_focused[focusedScreenIndex].focusList)
         var focusIndex i32 = unsortedList[unsorted].focusIndex
         var focusControl control_id = unsortedList[unsorted].control
     }
@@ -1182,15 +1171,13 @@ func build_focus_list(focusedScreenIndex i32, parent control_id) {
 
     var sorted i32 = 0;
     for sorted = 0; sorted < unsortedCount; sorted = sorted + 1 {
-        var focusCount i32 = g_focused[focusedScreenIndex].focusCount
+        var focusCount i32 = len(g_focused[focusedScreenIndex].focusList)
         //printf("BUILD_SORTED INDEX %d, %d, FOCUS_COUNT %d\n", sorted, unsortedList[sorted].control.control, focusCount)
         var control control_id = unsortedList[sorted].control
         var focusable i32 = g_controls[control.control].focusable
         build_focus_list(focusedScreenIndex, control)
         if (focusable > 0) {
-            g_focused[focusedScreenIndex].focusList[focusCount] = control
-            focusCount = focusCount + 1
-            g_focused[focusedScreenIndex].focusCount = focusCount
+            g_focused[focusedScreenIndex].focusList = append(g_focused[focusedScreenIndex].focusList, control)
         }
     }
 }
@@ -1202,15 +1189,16 @@ func rebuild_focus(id screen_id) {
     //control_print("rebuild_focus : ", id.base, false)
     var i i32 = 0
 
+    var focusedCount i32 = len(g_focused)
     var lookup screen_id = invalid_screen()
     var lookupIndex i32 = -1
-    for i = 0; i < g_focusedCount; i = i + 1 {
+    for i = 0; i < focusedCount; i = i + 1 {
         var key screen_id = g_focused[i].key
         if (key.screen == id.screen) {
             printf("LOOKUP FOUND %d\n", i)
             lookup = key
             lookupIndex = i
-            i = g_focusedCount // ##pending issue break
+            i = focusedCount // ##pending issue break
         }
     }
 
@@ -1221,7 +1209,7 @@ func rebuild_focus(id screen_id) {
     if (is_valid_screen(lookup)) {
         //printf("VALID LOOKUP SCREEN\n")
             oldFocusIndex = g_focused[lookupIndex].currentFocus
-            oldFocusCount = g_focused[lookupIndex].focusCount
+            oldFocusCount = len(g_focused[lookupIndex].focusList)
             oldFocus = invalid_control()
          //   printf("oldFocusIndex %d, oldFocusCount %d\n", oldFocusIndex, oldFocusCount)
             if (oldFocusIndex >= 0 && oldFocusIndex < oldFocusCount) {
@@ -1231,9 +1219,10 @@ func rebuild_focus(id screen_id) {
             }
     } else {
         lookup = id
-        lookupIndex = g_focusedCount
-        g_focused[lookupIndex].key = lookup
-        g_focusedCount = g_focusedCount + 1
+        lookupIndex = focusedCount
+        var pair control_pair_s
+        pair.key = lookup
+        g_focused = append(g_focused, pair)
     }
 
 //    printf("lookup %d, %d, id %d, %d\n", lookup.screen, lookup.base.control, id.screen, id.base.control)
@@ -1242,14 +1231,15 @@ func rebuild_focus(id screen_id) {
   //  printf("HERE %d\n", lookupIndex)
     g_focused[lookupIndex].currentFocus = -1
     //printf("HERE %d\n", lookupIndex)
-    g_focused[lookupIndex].focusCount = 0
+    
+    resize(g_focused[lookupIndex].focusList, 0)
     //printf("---------------------------> BEFORE BUILD_FOCUS_LIST %d, %d\n", lookupIndex, g_focused[lookupIndex].focusCount)
     build_focus_list(lookupIndex, lookup.base)
     //printf("---------------------------> AFTER BUILD_FOCUS_LIST %d, %d\n", lookupIndex, g_focused[lookupIndex].focusCount)
 
     var newFocusIndex i32 = -1
     var newFocus control_id = invalid_control()
-    var newFocusCount i32 = g_focused[lookupIndex].focusCount
+    var newFocusCount i32 = len(g_focused[lookupIndex].focusList)
     if (is_valid_control(oldFocus)) {
         newFocusIndex = oldFocusIndex
         newFocus = oldFocus
@@ -1264,7 +1254,7 @@ func rebuild_focus(id screen_id) {
 
     set_current_focus(lookup, lookupIndex, newFocus, newFocusIndex, remove)
     var focus i32 = 0
-    var focusCount i32 = g_focused[lookupIndex].focusCount
+    var focusCount i32 = len(g_focused[lookupIndex].focusList)
     //control_print("---- rebuild_focus : ", id.base, false)
     for focus = 0; focus < focusCount; focus = focus + 1 {
         var focused control_id = g_focused[lookupIndex].focusList[focus]
@@ -1278,7 +1268,7 @@ func set_current_focus(key screen_id, screenIndex i32, value control_id, control
     uti.assert_(is_valid_screen(key), "set_current_focus : invalid key")
 
     var currentFocus i32 = g_focused[screenIndex].currentFocus
-    var focusCount i32 = g_focused[screenIndex].focusCount
+    var focusCount i32 = len(g_focused[screenIndex].focusList)
     printf("REMOVE REMOVE %d\n", remove)
     if (currentFocus >= 0 && currentFocus < focusCount) {
         if (remove > 0) {
@@ -1309,7 +1299,7 @@ func force_focus(id control_id) {
         //printf("FORCE_FOCUS_0\n")
         var screenPair i32 = get_focus_pair(g_hotScreen)
         var currentFocus i32 = g_focused[screenPair].currentFocus
-        var focusCount i32 = g_focused[screenPair].focusCount
+        var focusCount i32 = len(g_focused[screenPair].focusList)
         if (focusCount > 0 && currentFocus >= 0 && currentFocus < focusCount) {
             var i i32 = 0
  //      printf("FORCE_FOCUS_1\n")
@@ -1334,12 +1324,13 @@ func get_focus_pair(id screen_id) (out i32) {
     out = -1
     uti.assert_(is_valid_screen(id), "get_focus_pair: invalid id")
     //control_print("get_focus_pair : ", id.base, false)
+    var focusedCount i32 = len(g_focused)
     var i i32 = 0
-    for i = 0; i < g_focusedCount; i = i + 1 {
+    for i = 0; i < focusedCount; i = i + 1 {
         var key screen_id = g_focused[i].key
         if (key.screen == id.screen) {
             out = i
-            i = g_focusedCount // ##pending issue break
+            i = focusedCount // ##pending issue break
         }
     }
 }
@@ -1350,9 +1341,10 @@ func set_next_focus(id screen_id) {
     uti.assert_(is_valid_screen(id), "screen_next_focus : invalid id")
     control_print("set_next_focus : ", id.base, false)
     var pair i32 = get_focus_pair(id)
-    if (pair >= 0 && pair < g_focusedCount) {
+    var focusedCount i32 = len(g_focused)
+    if (pair >= 0 && pair < focusedCount) {
         var current i32 = g_focused[pair].currentFocus
-        var count i32 = g_focused[pair].focusCount
+        var count i32 = len(g_focused[pair].focusList)
         var next i32 = current
         var nextId control_id = invalid_control()
         var i i32 = 0
@@ -1376,9 +1368,10 @@ func set_previous_focus(id screen_id) {
     uti.assert_(is_valid_screen(id), "screen_previous_focus : invalid id")
     control_print("set_previous_focus : ", id.base, false)
     var pair i32 = get_focus_pair(id)
-    if (pair >= 0 && pair < g_focusedCount) {
+    var focusedCount i32 = len(g_focused)
+    if (pair >= 0 && pair < focusedCount) {
         var current i32 = g_focused[pair].currentFocus
-        var count i32 = g_focused[pair].focusCount
+        var count i32 = len(g_focused[pair].focusList)
         var previous i32 = current
         var previousId control_id = invalid_control()
         var i i32 = 0
@@ -1432,7 +1425,8 @@ func get_current_focus(id control_id) (out control_id) {
     /*out = invalid_control()
 
     var i i32 = 0
-    for i = 0; i < g_focusedCount; i = i + 1 {
+    var focusedCount i32 = len(g_focused)
+    for i = 0; i < focusedCount; i = i + 1 {
         if (g_focused[i].key.control == id.control) {
             var currrentFocus i32 = g_focused[i].currentFocus
             out = g_focused[i].focusedList[currentFocus]
@@ -1584,7 +1578,7 @@ func control_resize_(id control_id, pixelBounds mat.v2, autoBounds mat.v2) () {
     var maxX f32 = mat.FLOAT_MIN
     var maxY f32 = mat.FLOAT_MIN
 
-    var count i32 = g_controls[index].childCount
+    var count i32 = len(g_controls[index].children)
     for i := 0; i < count; i = i + 1 {
         var child control_id = g_controls[index].children[i]
         var childIndex i32 = child.control
@@ -1911,7 +1905,7 @@ func control_redock(id control_id, padding mat.v4) () {
         g_dock.top = h
 
         //control_print(index, "child")
-        var count i32 = g_controls[index].childCount
+        var count i32 = len(g_controls[index].children)
         for i := 0; i < count; i = i + 1 {
             var child control_id = g_controls[index].children[i]
             uti.assert_(is_valid_control(child), "control_redock : invalid child control")
@@ -2134,7 +2128,7 @@ func control_render(id control_id, clip mat.v4, stack i32) () {
 
         //fps.begin_profile(g_profileControlRenderChild)
         var childStack i32 = stack + 1
-        var count i32 = g_controls[index].childCount
+        var count i32 = len(g_controls[index].children)
         for i := 0; i < count; i = i + 1 {
             var child control_id = g_controls[index].children[i]
             uti.assert_(is_valid_control(child), "control_render : invalid child control")
@@ -2193,11 +2187,8 @@ func control_render(id control_id, clip mat.v4, stack i32) () {
 //-----------------------------------------------------------------------------
 // SCREEN
 //-----------------------------------------------------------------------------
-var g_screens [64]screen_s
-var g_screenCount i32
-
-var g_modals [64]screen_id
-var g_modalCount i32 = 0
+var g_screens []screen_s
+var g_modals []screen_id
 
 var g_currentScreen screen_id = invalid_screen()
 var g_nextScreen    screen_id = invalid_screen()
@@ -2240,8 +2231,7 @@ func screen_id_(base control_id, screen i32) (out screen_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func screen_create(name str) (out screen_id) {
-    uti.assert_(g_screenCount < len(g_screens), "screen_create : overflow") // ##1 use slice
-    out.screen = g_screenCount
+    out.screen = len(g_screens)
     out.base = control_create_(name, GUI_SCREEN, out.screen)
 
     control_set_focus_index(out.base, 0)
@@ -2260,8 +2250,7 @@ func screen_create(name str) (out screen_id) {
     screen.paused    = false
     screen.floating  = false
 
-    g_screens[out.screen] = screen
-    g_screenCount = out.screen + 1
+    g_screens = append(g_screens, screen)
     uti.assert_(is_valid_screen(out), "screen_create : invalid id")
 }
 
@@ -2276,7 +2265,7 @@ func invalid_screen() (out screen_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_screen(id screen_id) (out bool) {
-    out = id.screen >= 0 && id.screen < g_screenCount && is_valid_control(id.base)
+    out = id.screen >= 0 && id.screen < len(g_screens) && is_valid_control(id.base)
 }
 
 //-----------------------------------------------------------------------------
@@ -2408,17 +2397,18 @@ func screen_resize(id screen_id) () {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func clear_batches() {
-    g_renderBatchCount = 0
+    resize(g_renderBatches, 0)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func begin_batches() {
+    var renderBatchCount i32 = len(g_renderBatches)
     var i i32 = 0;
-    //printf("BEGIN_BATCHES %d\n", g_renderBatchCount)
-    for i = 0; i < g_renderBatchCount; i = i + 1 {
+    //printf("BEGIN_BATCHES %d\n", renderBatchCount)
+    for i = 0; i < renderBatchCount; i = i + 1 {
         var batchId batch_id = g_renderBatches[i]
-        //printf("BEGIN_BATCH %d/%d BATCH %d\n", i, g_renderBatchCount, batchId.batch)
+        //printf("BEGIN_BATCH %d/%d BATCH %d\n", i, renderBatchCount, batchId.batch)
         uti.assert_(is_valid_batch(batchId), "begin_batch : invalid batch")
         var meshId gfx.mesh_id = g_batches[batchId.batch].mesh
         uti.assert_(gfx.is_valid_mesh(meshId), "begin_batches : invalid mesh")
@@ -2429,8 +2419,9 @@ func begin_batches() {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func end_batches() {
+    var renderBatchCount i32 = len(g_renderBatches)
     var i i32 = 0;
-    for i = 0; i < g_renderBatchCount; i = i + 1 {
+    for i = 0; i < renderBatchCount; i = i + 1 {
         var batchId batch_id = g_renderBatches[i]
         uti.assert_(is_valid_batch(batchId), "end_batch : invalid batch")
         var meshId gfx.mesh_id = g_batches[batchId.batch].mesh
@@ -2442,8 +2433,9 @@ func end_batches() {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func render_batches(alpha bool) {
+    var renderBatchCount i32 = len(g_renderBatches)
     var i i32 = 0
-    for i = 0; i < g_renderBatchCount; i = i + 1 {
+    for i = 0; i < renderBatchCount; i = i + 1 {
         var batchId batch_id = g_renderBatches[i]
         uti.assert_(is_valid_batch(batchId), "render_batches : invalid batch")
         var batch i32 = batchId.batch
@@ -2583,7 +2575,7 @@ func splitter_id_(base control_id, splitter i32) (out splitter_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_splitter(id splitter_id) (out bool) {
-    out = id.splitter >= 0 && id.splitter < g_splitterCount && is_valid_control(id.base)
+    out = id.splitter >= 0 && id.splitter < len(g_splitters) && is_valid_control(id.base)
 }
 
 //-----------------------------------------------------------------------------
@@ -2607,23 +2599,21 @@ func splitter_set_controls(id splitter_id, master control_id, slave control_id) 
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_splitters[16] splitter_s
-var g_splitterCount i32
+var g_splitters[] splitter_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func splitter_create(name str) (out splitter_id) {
-    uti.assert_(g_splitterCount < len(g_splitters), "splitter_create : overflow")
-    out.splitter = g_splitterCount
+    out.splitter = len(g_splitters)
     out.base = control_create_(name, GUI_SPLITTER, out.splitter)
-    //printf("SPLITTER_CREATE %s, %d, %d\n", name, out.splitter, g_splitterCount)
 
-    g_splitters[g_splitterCount].id = out
-    g_splitters[g_splitterCount].direction = SPLIT_NONE
-    g_splitters[g_splitterCount].master = invalid_control()
-    g_splitters[g_splitterCount].slave = invalid_control()
+    var splitter splitter_s
 
-    g_splitterCount = g_splitterCount + 1
+    splitter.direction = SPLIT_NONE
+    splitter.master = invalid_control()
+    splitter.slave = invalid_control()
+
+    g_splitters = append(g_splitters, splitter)
     uti.assert_(is_valid_splitter(out), "splitter_create : invalid id")
 }
 
@@ -2751,8 +2741,7 @@ func splitter_render(id splitter_id, clip mat.v4, stack i32) () {
 //-----------------------------------------------------------------------------
 // LABEL
 //-----------------------------------------------------------------------------
-var g_labels [1024]label_s
-var g_labelCount i32
+var g_labels []label_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -2812,14 +2801,13 @@ func label_id_(base control_id, label i32) (out label_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_label(id label_id) (out bool) {
-    out = id.label >= 0 && id.label < g_labelCount && is_valid_control(id.base)
+    out = id.label >= 0 && id.label < len(g_labels) && is_valid_control(id.base)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func label_create(name str) (out label_id) {
-    uti.assert_(g_labelCount < len(g_labels), "label_create : overflow") // ##1 use slice
-    out.label = g_labelCount
+    out.label = len(g_labels)
     out.base = control_create_(name, GUI_LABEL, out.label)
 
     var label label_s
@@ -2834,8 +2822,8 @@ func label_create(name str) (out label_id) {
     label.color_0 = g_red
     label.color_1 = g_green
     label.onState = invalid_func_i32_i32()
-    g_labels[out.label] = label
-    g_labelCount = out.label + 1
+
+    g_labels = append(g_labels, label)
     uti.assert_(is_valid_label(out), "label_create : invalid id")
 }
 
@@ -2902,18 +2890,15 @@ type batch_id struct {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 type batch_s struct {
-    texture texture_s
+    texture gfx.texture_s
     mesh mesh_id
     alpha bool
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_batches[256] batch_s
-var g_batchCount i32 = 0
-
-var g_renderBatches[256] batch_id
-var g_renderBatchCount i32 = 0
+var g_batches[] batch_s
+var g_renderBatches[] batch_id
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -2924,17 +2909,19 @@ func invalid_batch() (out batch_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_batch(id batch_id) (out bool) {
-    out = id.batch >= 0 && id.batch < g_batchCount
+    out = id.batch >= 0 && id.batch < len(g_batches)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func get_batch(texture texture_s, alpha bool) (out batch_id) {
+func get_batch(texture gfx.texture_s, alpha bool) (out batch_id) {
 
     out.batch = -1
     var i i32 = 0
+    var batchCount i32 = len(g_batches)
     for i >= 0 {
-        if (i < g_batchCount) {
+
+        if (i < batchCount) {
             var textureName i32 = g_batches[i].texture.name
             var textureAlpha bool = g_batches[i].alpha
             if (textureName == texture.name && textureAlpha == alpha) {
@@ -2946,20 +2933,24 @@ func get_batch(texture texture_s, alpha bool) (out batch_id) {
         }
     }
     if (out.batch < 0) {
-        g_batches[g_batchCount].texture = texture
+
         var attributes []i32 // ##0 harcode
-        attributes = []i32{3, 4, 2} // ##0 can't use slice yet
-        g_batches[g_batchCount].mesh = gfx.lock_mesh(gl.TRIANGLES, attributes, 2048 * 3) // ##0 hardcode
-        g_batches[g_batchCount].alpha = alpha
-        out.batch = g_batchCount
-        uti.assert_(g_batchCount < len(g_batches), "get_batch : batch overflow")
-        g_batchCount = g_batchCount + 1
+        attributes = []i32{3, 4, 2}
+
+        out.batch = batchCount
+
+        var batch batch_s
+        batch.texture = texture
+        batch.mesh = gfx.lock_mesh(gl.TRIANGLES, attributes, 2048 * 3) // ##0 hardcode
+        batch.alpha = alpha
+        g_batches = append(g_batches, batch)
     }
 
+    var renderBatchCount i32 = len(g_renderBatches)
     i = 0
     var found bool = false
     for i >= 0 {
-        if (i < g_renderBatchCount) {
+        if (i < renderBatchCount) {
             if (g_renderBatches[i].batch == out.batch) {
                 found = true
                 i = -1
@@ -2973,9 +2964,7 @@ func get_batch(texture texture_s, alpha bool) (out batch_id) {
 
     if (found == false) {
         //printf("BATCH_NOT FOUND %d\n", out.batch)
-        uti.assert_(g_renderBatchCount < len(g_renderBatches), "get_batch : render batch overflow")
-        g_renderBatches[g_renderBatchCount] = out
-        g_renderBatchCount = g_renderBatchCount + 1
+        g_renderBatches = append(g_renderBatches, out)
     }
 
     uti.assert_(is_valid_batch(out), "get_batch : invalid index")
@@ -3131,7 +3120,8 @@ func label_resize(id label_id) () {
     //position.y = position.y - newSize.y / 2.0
     g_labels[id.label].textPosition = position
     //printf("LABEL_TEXT_POSITION %f, %f\n", position.x, position.y)
-    g_labels[id.label].batch = get_batch(g_fonts[fontIndex].textures[textureIndex], true)
+    var fontTexture gfx.texture_s = g_fonts[fontIndex].textures[textureIndex]
+    g_labels[id.label].batch = get_batch(fontTexture, true) // ##0 panic if g_fonts[fontIndex].textures[textureIndex] is used as arg0
     //control_print("label_resize :", id.base, false)
 }
 
@@ -3148,7 +3138,7 @@ func label_render(id label_id, clip mat.v4, stack i32) () {
     var fontSize i32 = g_labels[id.label].textSize
     var textureIndex i32 = font_get_texture_index(fontId, fontSize)
 
-    var fontTexture texture_s = g_fonts[fontId.font].textures[textureIndex] // ##0 auto select best size
+    var fontTexture gfx.texture_s = g_fonts[fontId.font].textures[textureIndex] // ##0 auto select best size
     var fontName str = g_fonts[fontId.font].names[textureIndex]
 
     //printf("label_render : using font %s - %d, %d, %d\n", fontName, fontTexture.name, fontTexture.width, fontTexture.height)
@@ -3203,7 +3193,7 @@ type animation_id struct {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_animation(id animation_id) (out bool) {
-    out = id.index >= 0 && id.index < g_animationCount
+    out = id.index >= 0 && id.index < len(g_animations)
 }
 
 //-----------------------------------------------------------------------------
@@ -3214,23 +3204,23 @@ func invalid_animation() (out animation_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_animations [64]animation_s
-var g_animationCount i32 = 0
+var g_animations []animation_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func animation_create() (out animation_id) {
-    uti.assert_(g_animationCount < len(g_animations), "animation_create : overflow")
-    out.index = g_animationCount
+    out.index = len(g_animations)
 
-    g_animations[g_animationCount].id = out
-    g_animations[g_animationCount].path = ""
-    g_animations[g_animationCount].frameCount = 0
-    g_animations[g_animationCount].loop = 0
-    g_animations[g_animationCount].width = 0
-    g_animations[g_animationCount].height = 0
+    var animation animation_s
 
-    g_animationCount = g_animationCount + 1
+    animation.id = out
+    animation.path = ""
+    animation.frameCount = 0
+    animation.loop = 0
+    animation.width = 0
+    animation.height = 0
+
+    g_animations = append(g_animations, animation)
     uti.assert_(is_valid_animation(out), "animation_create_from_texture : invalid_id")
 }
 
@@ -3265,7 +3255,7 @@ func animation_create_from_path(path str) (out animation_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-func animation_create_from_texture(texture texture_s) (out animation_id) {
+func animation_create_from_texture(texture gfx.texture_s) (out animation_id) {
     out = animation_create()
     animation_add_frame(out, 0, 0, texture)
 }
@@ -3298,8 +3288,7 @@ func animation_add_frame(id animation_id, delay i32, disposal i32, texture gfx.t
 //-----------------------------------------------------------------------------
 // PICTURE
 //-----------------------------------------------------------------------------
-var g_pictures [64]picture_s
-var g_pictureCount i32
+var g_pictures []picture_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -3331,14 +3320,13 @@ func picture_id_(base control_id, picture i32) (out picture_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_picture(id picture_id) (out bool) {
-    out = id.picture >= 0 && id.picture < g_pictureCount && is_valid_control(id.base)
+    out = id.picture >= 0 && id.picture < len(g_pictures) && is_valid_control(id.base)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func picture_create(name str) (out picture_id) {
-    uti.assert_(g_pictureCount < len(g_pictures), "picture_create : overflow") // ##1 use slice
-    out.picture = g_pictureCount
+    out.picture = len(g_pictures)
     out.base = control_create_(name, GUI_PICTURE, out.picture)
 
     var picture picture_s
@@ -3349,8 +3337,7 @@ func picture_create(name str) (out picture_id) {
     picture.picturePosition = mat.v2_zero
     picture.alpha = false
 
-    g_pictures[out.picture] = picture
-    g_pictureCount = out.picture + 1
+    g_pictures = append(g_pictures, picture)
     uti.assert_(is_valid_picture(out), "picture_create : invalid id")
 }
 
@@ -3505,8 +3492,7 @@ func picture_render(id picture_id, clip mat.v4, stack i32) () {
 //-----------------------------------------------------------------------------
 // WINDOW
 //-----------------------------------------------------------------------------
-var g_windows[8] window_s
-var g_windowCount i32
+var g_windows[] window_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -3536,7 +3522,7 @@ func window_id_(base control_id, window i32) (out window_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_window(id window_id) (out bool) {
-    out = id.window >= 0 && id.window < g_windowCount && is_valid_control(id.base)
+    out = id.window >= 0 && id.window < len(g_windows) && is_valid_control(id.base)
 }
 
 //-----------------------------------------------------------------------------
@@ -3561,16 +3547,11 @@ func window_set_containee(id window_id, containee control_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func window_create(name str) (out window_id) {
-    uti.assert_(g_windowCount < len(g_windows), "window_create : overflow") // ##1 use slice
     out.base = control_create_(name, GUI_WINDOW, out.window)
-    out.window = g_windowCount
+    out.window = len(g_windows)
 
     var window window_s
     window.id = out
-
-    g_windowCount = out.window + 1
-
-    uti.assert_(is_valid_window(out), "window_create : invalid id")
 
     var padding mat.v4 = mat.v4_(5.0, 5.0, 5.0, 5.0)
     var padding1 mat.v4 = mat.v4_(3.0, 3.0, 3.0, 3.0)
@@ -3617,7 +3598,8 @@ func window_create(name str) (out window_id) {
         window.strip = strip
     }
 
-    g_windows[out.window] = window
+    g_windows = append(g_windows, window)
+    uti.assert_(is_valid_window(out), "window_create : invalid id")
 }
 
 //-----------------------------------------------------------------------------
@@ -3667,8 +3649,7 @@ func window_render(id window_id, clip mat.v4, stack i32) () {
 //-----------------------------------------------------------------------------
 // KEYBOARD
 //-----------------------------------------------------------------------------
-var g_keyboards[8] keyboard_s
-var g_keyboardCount i32
+var g_keyboards[] keyboard_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -3694,21 +3675,19 @@ func keyboard_id_(base control_id, keyboard i32) (out keyboard_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_keyboard(id keyboard_id) (out bool) {
-    out = id.keyboard >= 0 && id.keyboard < g_keyboardCount && is_valid_control(id.base)
+    out = id.keyboard >= 0 && id.keyboard < len(g_keyboards) && is_valid_control(id.base)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func create_keyboard(name str) (out keyboard_id) {
-    uti.assert_(g_keyboardCount < len(g_keyboards), "create_keyboard : overflow") // ##1 use slice
-    out.keyboard = g_keyboardCount
+    out.keyboard = len(g_keyboards)
     out.base = control_create_(name, GUI_KEYBOARD, out.keyboard)
 
     var keyboard keyboard_s
     keyboard.id = out
 
-    g_keyboards[out.keyboard] = keyboard
-    g_keyboardCount = out.keyboard + 1
+    g_keyboards = append(g_keyboards, keyboard)
     uti.assert_(is_valid_keyboard(out), "create_keyboard : invalid id")
 }
 
@@ -3773,8 +3752,7 @@ func keyboard_render(id keyboard_id, clip mat.v4, stack i32) () {
 //-----------------------------------------------------------------------------
 // PARTITION
 //-----------------------------------------------------------------------------
-var g_partitions[8] partition_s
-var g_partitionCount i32
+var g_partitions [] partition_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -3800,21 +3778,19 @@ func partition_id_(base control_id, partition i32) (out partition_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_partition(id partition_id) (out bool) {
-    out = id.partition >= 0 && id.partition < g_partitionCount && is_valid_control(id.base)
+    out = id.partition >= 0 && id.partition < len(g_partitions) && is_valid_control(id.base)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func create_partition(name str) (out partition_id) {
-    uti.assert_(g_partitionCount < len(g_partitions), "create_partition : overflow") // ##1 use slice
-    out.partition = g_partitionCount
+    out.partition = len(g_partitions)
     out.base = control_create_(name, GUI_PARTITION, out.partition)
 
     var partition partition_s
     partition.id = out
 
-    g_partitions[out.partition] = partition
-    g_partitionCount = out.partition + 1
+    g_partitions = append(g_partitions, partition)
     uti.assert_(is_valid_partition(out), "create_partition : invalid id")
 }
 
@@ -3857,12 +3833,10 @@ type graph_s struct {
     expX i32
     expY i32
     coord mat.v2
-    labels [256] label_id
+    labels [] label_id
     labelCount i32
-    horz [128] graph_line_s
-    horzCount i32
-    vert [128] graph_line_s
-    vertCount i32
+    horz [] graph_line_s
+    vert [] graph_line_s
     graphClips mat.v4
 }
 
@@ -3877,13 +3851,12 @@ func graph_id_(base control_id, graph i32) (out graph_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_graph(id graph_id) (out bool) {
-    out = id.graph >= 0 && id.graph < g_graphCount && is_valid_control(id.base)
+    out = id.graph >= 0 && id.graph < len(g_graphs) && is_valid_control(id.base)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_graphs[8] graph_s
-var g_graphCount i32 = 0
+var g_graphs []graph_s
 
 type graph_line_s struct {
     color mat.v4
@@ -3896,27 +3869,35 @@ func graph_create(name str) (out graph_id) {
     out.base = control_create_(name, GUI_GRAPH, out.graph)
     control_set_focusable(out.base, 1)
 
-    out.graph = g_graphCount
+    out.graph = len(g_graphs)
 
-    g_graphs[g_graphCount].id = out
-    g_graphs[g_graphCount].unit = mat.v2_(50.0, 50.0)
-    g_graphs[g_graphCount].scale = mat.v2_(1.0, 1.0)
-    g_graphs[g_graphCount].offset = mat.v2_(0.0, 0.0)
-    g_graphs[g_graphCount].expX = 0
-    g_graphs[g_graphCount].expY = 0
-    g_graphs[g_graphCount].vertCount = 0
-    g_graphs[g_graphCount].horzCount = 0
-    var labelCount i32 = 0
-    for (labelCount < 256) {
-        var label label_id = label_create(sprintf("graphLabel_%d", labelCount))
-        g_graphs[g_graphCount].labels[labelCount] = label
-        labelCount = labelCount + 1
-    }
+    var graph graph_s
+    graph.id = out
+    graph.unit = mat.v2_(50.0, 50.0)
+    graph.scale = mat.v2_(1.0, 1.0)
+    graph.offset = mat.v2_(0.0, 0.0)
+    graph.expX = 0
+    graph.expY = 0
+    graph.labelCount = 0
 
-    g_graphs[g_graphCount].labelCount = labelCount
-    g_graphCount = out.graph + 1
-
+    g_graphs = append(g_graphs, graph)
     uti.assert_(is_valid_graph(out), "graph_create : invalid id")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func graph_get_label(id graph_id) (label label_id) {
+    uti.assert_(is_valid_graph(id), "graph_get_label : invalid id")
+    var size i32 = len(g_graphs[id.graph].labels)
+    var count i32 = g_graphs[id.graph].labelCount
+    if count < size {
+        var l label_id = g_graphs[id.graph].labels[count] // ##0 memory garbage in count if assigning the out value
+        label = l
+    } else {
+        label = label_create(sprintf("graphLabel_%d", count))
+        g_graphs[id.graph].labels = append(g_graphs[id.graph].labels, label)
+    }
+    g_graphs[id.graph].labelCount = count + 1
 }
 
 //-----------------------------------------------------------------------------
@@ -4007,8 +3988,8 @@ func graph_resize(id graph_id) () {
 
     var controlIndex i32 = id.base.control
 
-    g_graphs[graphIndex].horzCount = 0
-    g_graphs[graphIndex].vertCount = 0
+    resize(g_graphs[graphIndex].horz, 0)
+    resize(g_graphs[graphIndex].vert, 0)
     g_graphs[graphIndex].labelCount = 0
 
     var graphIndex i32 = id.graph
@@ -4072,7 +4053,6 @@ func graph_resize(id graph_id) () {
     var graphLine graph_line_s
     var font font_id
 
-    var horzMax i32 = len(g_graphs[graphIndex].horz)
     i = 0
     var labelX f32 = coord.x + offsetX //- stepX / 2.0
     var x f32 = graphPosition.x
@@ -4097,34 +4077,21 @@ func graph_resize(id graph_id) () {
             labelBounds = mat.v4_(fTmp, 0.0, stepX, coord.y)
         }
 
-        if (i < horzMax) {
-            //var graphLine graph_line_s
-            graphLine.color = color
-            graphLine.bounds = mat.v4_(x, graphPosition.y, x, endY)
-            g_graphs[graphIndex].horz[i] = graphLine
-            g_graphs[graphIndex].horzCount = i + 1
-        }
+        graphLine.color = color
+        graphLine.bounds = mat.v4_(x, graphPosition.y, x, endY)
+        g_graphs[graphIndex].horz = append(g_graphs[graphIndex].horz, graphLine)
 
-        var labelCount i32 = g_graphs[graphIndex].labelCount
-        if (labelCount < 256) { // ##1 use slice
-            var label label_id = g_graphs[graphIndex].labels[labelCount]
-            control_add_child(id.base, label.base)
-            control_set_bounds(label.base, labelBounds)
-            control_set_autoscale(label.base, AUTOSCALE)
-            /*if ((ix % 2) == 0) {
-              control_set_skin(label.base, g_redSkin)
-              } else {
-              control_set_skin(label.base, g_greenSkin)
-              }*/
-            label_set_font(label, g_regularFont)
-            label_set_color(label, color)
-            label_set_text(label, "0")
-            label_set_align(label, ALIGN_CENTER)
-            label_set_size(label, 10)
-            label_resize(label)
-            control_set_bounds(label.base, labelBounds)
-            g_graphs[graphIndex].labelCount = labelCount + 1
-        }
+        var label label_id = graph_get_label(id)
+        control_add_child(id.base, label.base)
+        control_set_bounds(label.base, labelBounds)
+        control_set_autoscale(label.base, AUTOSCALE)
+        label_set_font(label, g_regularFont)
+        label_set_color(label, color)
+        label_set_text(label, "0")
+        label_set_align(label, ALIGN_CENTER)
+        label_set_size(label, 10)
+        label_resize(label)
+        control_set_bounds(label.base, labelBounds)
 
         labelX = labelX + stepX
         x = x + stepX
@@ -4132,7 +4099,6 @@ func graph_resize(id graph_id) () {
         i = i + 1
     }
 
-    var vertMax i32 = len(g_graphs[graphIndex].vert)
     i = 0
     var labelY f32 = coord.y + offsetY// - stepY / 2.0
     var y f32 = graphPosition.y
@@ -4160,34 +4126,21 @@ func graph_resize(id graph_id) () {
             labelBounds = mat.v4_(0.0, fTmp, coord.x, stepY)
         }
 
-        if (i < vertMax) {
-            //var graphLine graph_line_s
-            graphLine.color = color
-            graphLine.bounds = mat.v4_(graphPosition.x, y, endX, y)
-            g_graphs[graphIndex].vert[i] = graphLine
-            g_graphs[graphIndex].vertCount = i + 1
-        }
+        graphLine.color = color
+        graphLine.bounds = mat.v4_(graphPosition.x, y, endX, y)
+        g_graphs[graphIndex].vert = append(g_graphs[graphIndex].vert, graphLine)
 
-        var labelCount i32 = g_graphs[graphIndex].labelCount
-        if (labelCount < 256) { // ##1 use slice
-            var label label_id = g_graphs[graphIndex].labels[labelCount]
-            control_add_child(id.base, label.base)
-            control_set_bounds(label.base, labelBounds)
-            control_set_autoscale(label.base, AUTOSCALE)
-            /*if ((iy % 2) == 0) {
-              control_set_skin(label.base, g_redSkin)
-              } else {
-              control_set_skin(label.base, g_greenSkin)
-              }*/
-            label_set_font(label, g_regularFont)
-            label_set_color(label, color)
-            label_set_text(label, "0")
-            label_set_align(label, ALIGN_CENTER)
-            label_set_size(label, 50)
-            label_resize(label)
-            control_set_bounds(label.base, labelBounds)
-            g_graphs[graphIndex].labelCount = labelCount + 1
-        }
+        var label label_id = graph_get_label(id)
+        control_add_child(id.base, label.base)
+        control_set_bounds(label.base, labelBounds)
+        control_set_autoscale(label.base, AUTOSCALE)
+        label_set_font(label, g_regularFont)
+        label_set_color(label, color)
+        label_set_text(label, "0")
+        label_set_align(label, ALIGN_CENTER)
+        label_set_size(label, 50)
+        label_resize(label)
+        control_set_bounds(label.base, labelBounds)
 
         labelY = labelY + stepY
         y = y + stepY
@@ -4217,14 +4170,14 @@ func graph_render(id graph_id, clip mat.v4, stack i32) () {
     renderClips = gfx.push_scissor(g_controls[controlIndex].name, graphClips)
 
     var i i32 = 0
-    var horzCount i32 = g_graphs[graphIndex].horzCount
+    var horzCount i32 = len(g_graphs[graphIndex].horz)
     for i = 0; i < horzCount; i = i + 1 {
         var bounds mat.v4 = g_graphs[graphIndex].horz[i].bounds
         var color mat.v4 = g_graphs[graphIndex].horz[i].color
         gfx.append_line(g_opaqueVertexColoredLines, bounds, color, renderClips, compute_depth(stack))
     }
 
-    var vertCount i32 = g_graphs[graphIndex].vertCount
+    var vertCount i32 = len(g_graphs[graphIndex].vert)
     for i = 0; i < vertCount; i = i + 1 {
         var bounds mat.v4 = g_graphs[graphIndex].vert[i].bounds
         var color mat.v4 = g_graphs[graphIndex].vert[i].color
@@ -4277,23 +4230,21 @@ func list_id_(base control_id, list i32) (out list_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_list(id list_id) (out bool) {
-    out = id.list >= 0 && id.list < g_listCount && is_valid_control(id.base)
+    out = id.list >= 0 && id.list < len(g_lists) && is_valid_control(id.base)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_lists[8] list_s
-var g_listCount i32
+var g_lists[] list_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func list_create(name str) (out list_id) {
-    uti.assert_(g_listCount < len(g_lists), "list_create : overflow") // ##1 use slice
-    out.list = g_listCount
-    out.base = control_create_(name, GUI_LIST, g_listCount)
+    out.list = len(g_lists)
+    out.base = control_create_(name, GUI_LIST, out.list)
 
     var list list_s
-    g_lists[g_listCount].id = out
+    list.id = out
 
     var controlIndex i32 = out.base.control
     //control_set_padding(out.base, mat.v4_(0.01, 0.01, 0.01, 0.01))
@@ -4304,7 +4255,7 @@ func list_create(name str) (out list_id) {
     //control_set_size(header, mat.v2_(0.0, 28.0))
     control_set_autosize(header, AUTOSIZE_Y)
     control_set_skin(header, g_blackSkin)
-    g_lists[g_listCount].header = header
+    list.header = header
 
     {
         var scroller scroller_id = scroller_create("scroller")
@@ -4316,19 +4267,19 @@ func list_create(name str) (out list_id) {
         //control_set_dock(lines, DOCK_FILL)
         control_set_autosize(lines, AUTOSIZE_Y)
         control_set_skin(lines, g_blackSkin)
-        g_lists[g_listCount].lines = lines
+        list.lines = lines
 
         scroller_set_containee(scroller, lines)
-        g_lists[g_listCount].scroller = scroller
+        list.scroller = scroller
     }
 
-    g_lists[g_listCount].columnCount = 0
-    g_lists[g_listCount].lineCount = 0
-    g_lists[g_listCount].selectedItem = -1
-    g_lists[g_listCount].selectedLine = -1
-    g_lists[g_listCount].previousSelectedItem = -1
-    g_lists[g_listCount].previousSelectedLine = -1
-    g_listCount = g_listCount + 1
+    list.columnCount = 0
+    list.lineCount = 0
+    list.selectedItem = -1
+    list.selectedLine = -1
+    list.previousSelectedItem = -1
+    list.previousSelectedLine = -1
+    g_lists = append(g_lists, list)
     uti.assert_(is_valid_list(out), "list_create : invalid id")
 }
 
@@ -4354,11 +4305,11 @@ func list_add_column(id list_id, name str, color mat.v4, size i32, skin skin_id)
     label_set_color(column, color)
     label_set_align(column, ALIGN_CENTER)
 
-    control_print("list_add_column : ", column.base, false)
+    //control_print("list_add_column : ", column.base, false)
     g_lists[listIndex].columnCount = columnCount + 1
     var header control_id = g_lists[listIndex].header
     control_add_child(header, column.base)
-    printf("childCount %d\n", g_controls[header.control].childCount)
+    //printf("childCount %d\n", g_controls[header.control].childCount)
     //uti.assert_(false, "fuck")
 }
 
@@ -4398,7 +4349,7 @@ func list_line_add_label(id control_id, text str, align i32, color mat.v4, size 
     uti.assert_(is_valid_control(id), "list_line_add_label : invalid id")
 
     var lineName str = g_controls[id.control].name
-    var itemCount i32 = g_controls[id.control].childCount
+    var itemCount i32 = len(g_controls[id.control].children)
     var itemName str = sprintf("%s_item_%d", lineName, itemCount)
     var label label_id = label_create(itemName)
 
@@ -4423,7 +4374,7 @@ func list_line_add_picture(id control_id, align i32, animation animation_id) {
     uti.assert_(is_valid_control(id), "list_line_add_picture : invalid id")
 
     var lineName str = g_controls[id.control].name
-    var itemCount i32 = g_controls[id.control].childCount
+    var itemCount i32 = len(g_controls[id.control].children)
     var itemName str = sprintf("%s_item_%d", lineName, itemCount)
     var label picture_id = picture_create(itemName)
 
@@ -4555,8 +4506,8 @@ func list_process_event(id list_id, event *event_s) (out i32) {
         var focused i32 = g_controls[linesIndex].childFocused
         var mods i32 = ((*event).keyboard).mods
         var action i32 = ((*event).keyboard).action
-        var lineCount i32 = g_controls[linesIndex].childCount
-        var itemCount i32 = g_controls[columnsIndex].childCount
+        var lineCount i32 = len(g_controls[linesIndex].children)
+        var itemCount i32 = len(g_controls[columnsIndex].children)
         if (lineCount > 0) {
             if ((headerFocused > 0 || focused > 0) && action == KEY_PRESS) {
                 var key i32 = ((*event).keyboard).key
@@ -4661,8 +4612,8 @@ func list_resize(id list_id) () {
 
     var lines control_id = g_lists[listIndex].lines
     var linesIndex i32 = lines.control
-    var columnCount i32 = g_controls[headerIndex].childCount
-    var lineCount i32 = g_controls[linesIndex].childCount
+    var columnCount i32 = len(g_controls[headerIndex].children)
+    var lineCount i32 = len(g_controls[linesIndex].children)
     var i i32 = 0
 
     /*if (id.base.control == 36) {
@@ -4850,7 +4801,6 @@ type lifter_s struct {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func lifter_id_(base control_id, lifter i32) (out lifter_id) {
-    uti.assert_(g_lifterCount < len(g_lifters), "lifter_create : overflow") // ##1 use slice
     out.base = base
     out.lifter = lifter
     uti.assert_(is_valid_lifter(out), "lifter_id_: invalid id")
@@ -4859,7 +4809,7 @@ func lifter_id_(base control_id, lifter i32) (out lifter_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_lifter(id lifter_id) (out bool) {
-    out = id.lifter >= 0 && id.lifter < g_lifterCount && is_valid_control(id.base)
+    out = id.lifter >= 0 && id.lifter < len(g_lifters) && is_valid_control(id.base)
 }
 
 //-----------------------------------------------------------------------------
@@ -4878,22 +4828,23 @@ func lifter_set_size(id lifter_id, value f32) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_lifters[16] lifter_s
-var g_lifterCount i32
+var g_lifters[] lifter_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func lifter_create(name str) (out lifter_id) {
-    out.lifter = g_lifterCount
-    out.base = control_create_(name, GUI_LIFTER, g_lifterCount)
+    out.lifter = len(g_lifters)
+    out.base = control_create_(name, GUI_LIFTER, out.lifter)
 
     var lifter lifter_s
-    g_lifters[g_lifterCount].id = out
+
 
     control_set_skin(out.base, g_blackSkin)
 
     var carret control_id = control_create("carret")
-    g_lifters[g_lifterCount].carret = carret
+
+    lifter.id = out
+    lifter.carret = carret
 
     control_add_child(out.base, carret)
     //control_set_dock(carret, DOCK_TOP)
@@ -4901,7 +4852,7 @@ func lifter_create(name str) (out lifter_id) {
     control_set_skin(carret, g_buttonSkin)
     control_set_focusable(carret, 1)
 
-    g_lifterCount = g_lifterCount + 1
+    g_lifters = append(g_lifters, lifter)
     uti.assert_(is_valid_lifter(out), "create_lifter : invalid id")
 }
 
@@ -5185,7 +5136,6 @@ type scroller_s struct {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func scroller_id_(base control_id, scroller i32) (out scroller_id) {
-    uti.assert_(g_scrollerCount < len(g_scrollers), "scroller_create : overflow") // ##1 use slice
     out.base = base
     out.scroller = scroller
     uti.assert_(is_valid_scroller(out), "scroller_id_: invalid id")
@@ -5194,7 +5144,7 @@ func scroller_id_(base control_id, scroller i32) (out scroller_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_scroller(id scroller_id) (out bool) {
-    out = id.scroller >= 0 && id.scroller < g_scrollerCount && is_valid_control(id.base)
+    out = id.scroller >= 0 && id.scroller < len(g_scrollers) && is_valid_control(id.base)
 }
 
 //-----------------------------------------------------------------------------
@@ -5210,19 +5160,18 @@ func scroller_set_containee(id scroller_id, containee control_id) {
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_scrollers[8] scroller_s
-var g_scrollerCount i32
+var g_scrollers[] scroller_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func scroller_create(name str) (out scroller_id) {
-    out.scroller = g_scrollerCount
-    out.base = control_create_(name, GUI_SCROLLER, g_scrollerCount)
+    out.scroller = len(g_scrollers)
+    out.base = control_create_(name, GUI_SCROLLER, out.scroller)
 
     var lifterSize f32 = 8.0
 
     var scroller scroller_s
-    g_scrollers[g_scrollerCount].id = out
+    scroller.id = out
 
     var vlift lifter_id = lifter_create("vlift")
     control_add_child(out.base, vlift.base)
@@ -5232,14 +5181,14 @@ func scroller_create(name str) (out scroller_id) {
     //control_set_skin(vlift.base, g_debugBlueSkin)
     lifter_set_direction(vlift, LIFT_VERT)
     lifter_set_size(vlift, lifterSize)
-    g_scrollers[g_scrollerCount].vlift = vlift
+    scroller.vlift = vlift
 
     var panel control_id = control_create("panel")
     control_add_child(out.base, panel)
     control_set_dock(panel, DOCK_FILL)
  //   control_set_autosize(panel, AUTOSIZE_Y)
     control_set_focus_index(panel, 0)
-    g_scrollers[g_scrollerCount].panel = panel
+    scroller.panel = panel
 
     var hlift lifter_id = lifter_create("hlift")
     control_add_child(panel, hlift.base)
@@ -5249,7 +5198,7 @@ func scroller_create(name str) (out scroller_id) {
     //control_set_skin(hlift.base, g_greenSkin)
     lifter_set_direction(hlift, LIFT_HORZ)
     lifter_set_size(hlift, lifterSize)
-    g_scrollers[g_scrollerCount].hlift = hlift
+    scroller.hlift = hlift
 
     var container control_id = control_create("container")
     control_add_child(panel, container)
@@ -5257,9 +5206,9 @@ func scroller_create(name str) (out scroller_id) {
     //control_set_autosize(container, AUTOSIZE_Y)
     //control_set_skin(container, g_blueSkin)
     control_set_focus_index(container, 0)
-    g_scrollers[g_scrollerCount].container = container
+    scroller.container = container
 
-    g_scrollerCount = g_scrollerCount + 1
+    g_scrollers = append(g_scrollers, scroller)
     uti.assert_(is_valid_scroller(out), "create_scroller : invalid id")
 }
 
@@ -5428,7 +5377,6 @@ type binder_s struct {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func binder_id_(base control_id, binder i32) (out binder_id) {
-    uti.assert_(g_binderCount < len(g_binders), "binder_create : overflow") // ##1 use slice
     out.base = base
     out.binder = binder
     uti.assert_(is_valid_binder(out), "binder_id_: invalid id")
@@ -5444,22 +5392,21 @@ func invalid_binder() (out binder_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_binder(id binder_id) (out bool) {
-    out = id.binder >= 0 && id.binder < g_binderCount && is_valid_control(id.base)
+    out = id.binder >= 0 && id.binder < len(g_binders) && is_valid_control(id.base)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_binders[8] binder_s
-var g_binderCount i32
+var g_binders[] binder_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func binder_create(name str) (out binder_id) {
-    out.binder = g_binderCount
-    out.base = control_create_(name, GUI_BINDER, g_binderCount)
+    out.binder = len(g_binders)
+    out.base = control_create_(name, GUI_BINDER, out.binder)
 
     var binder binder_s
-    g_binders[g_binderCount].id = out
+    binder.id = out
 
     var header control_id = control_create("binder.header")
     control_add_child(out.base, header)
@@ -5467,18 +5414,18 @@ func binder_create(name str) (out binder_id) {
     //control_set_skin(header, g_debugRedSkin)
     //control_set_size(header, mat.v2_(0.0, 0.08))
     control_set_autosize(header, AUTOSIZE_Y)
-    g_binders[g_binderCount].header = header
-    g_binders[g_binderCount].selected = -1
+    binder.header = header
+    binder.selected = -1
     var container control_id = control_create("binder.container")
     control_add_child(out.base, container)
     control_set_skin(container, g_blackSkin)
     control_set_padding(container, mat.v4_(3.0, 3.0, 3.0, 0.0))
     control_set_dock(container, DOCK_FILL)
-    g_binders[g_binderCount].container = container
+    binder.container = container
 
-    g_binders[g_binderCount].selected = -1
+    binder.selected = -1
 
-    g_binderCount = g_binderCount + 1
+    g_binders = append(g_binders, binder)
     uti.assert_(is_valid_binder(out), "create_binder : invalid id")
 }
 
@@ -5494,7 +5441,7 @@ func binder_on_page(page i32, state i32) {
     uti.assert_(is_valid_control(binderControl), "internal error")
     uti.assert_(g_controls[binderControl.control].gui_type == GUI_BINDER, "internal error")
 
-    var pageCount i32 = g_controls[headerControl.control].childCount
+    var pageCount i32 = len(g_controls[headerControl.control].children)
     var i i32 = 0
     for i = 0; i < pageCount; i = i + 1 {
         var child control_id = g_controls[headerControl.control].children[i]
@@ -5512,7 +5459,7 @@ func binder_on_page(page i32, state i32) {
 func binder_add_page(id binder_id, name str, color mat.v4, size i32, control control_id) {
     uti.assert_(is_valid_binder(id), "binder_add_page : invalid id")
     var header control_id = g_binders[id.binder].header
-    var pageCount i32 = g_controls[header.control].childCount
+    var pageCount i32 = len(g_controls[header.control].children)
 
     var page label_id = label_create(sprintf("binder.page_%d", pageCount))
     control_add_child(header, page.base)
@@ -5557,7 +5504,7 @@ func binder_resize(id binder_id) () {
         var header control_id = g_binders[id.binder].header
         var container control_id = g_binders[id.binder].container
 
-        var pageCount i32 = g_controls[header.control].childCount
+        var pageCount i32 = len(g_controls[header.control].children)
 
         var i i32 = 0
         for i = 0; i < pageCount; i = i + 1 {
@@ -5604,7 +5551,6 @@ type vector_s struct {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func vector_id_(base control_id, vector i32) (out vector_id) {
-    uti.assert_(g_vectorCount < len(g_vectors), "vector_create : overflow") // ##1 use slice
     out.base = base
     out.vector = vector
     uti.assert_(is_valid_vector(out), "vector_id_: invalid id")
@@ -5620,24 +5566,23 @@ func invalid_vector() (out vector_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_vector(id vector_id) (out bool) {
-    out = id.vector >= 0 && id.vector < g_vectorCount && is_valid_control(id.base)
+    out = id.vector >= 0 && id.vector < len(g_vectors) && is_valid_control(id.base)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_vectors[8] vector_s
-var g_vectorCount i32
+var g_vectors[] vector_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func vector_create(name str) (out vector_id) {
-    out.vector = g_vectorCount
-    out.base = control_create_(name, GUI_VECTOR, g_vectorCount)
+    out.vector = len(g_vectors)
+    out.base = control_create_(name, GUI_VECTOR, out.vector)
 
     var vector vector_s
-    g_vectors[g_vectorCount].id = out
+    vector.id = out
 
-    g_vectorCount = g_vectorCount + 1
+    g_vectors = append(g_vectors, vector)
     uti.assert_(is_valid_vector(out), "create_vector : invalid id")
 }
 
@@ -5695,7 +5640,6 @@ type combo_s struct {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func combo_id_(base control_id, combo i32) (out combo_id) {
-    uti.assert_(g_comboCount < len(g_combos), "combo_create : overflow") // ##1 use slice
     out.base = base
     out.combo = combo
     uti.assert_(is_valid_combo(out), "combo_id_: invalid id")
@@ -5711,13 +5655,12 @@ func invalid_combo() (out combo_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func is_valid_combo(id combo_id) (out bool) {
-    out = id.combo >= 0 && id.combo < g_comboCount && is_valid_control(id.base)
+    out = id.combo >= 0 && id.combo < len(g_combos) && is_valid_control(id.base)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_combos[8] combo_s
-var g_comboCount i32
+var g_combos[] combo_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -5743,14 +5686,16 @@ func combo_get_list(id combo_id) (out list_id) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func combo_create(name str) (out combo_id) {
-    out.combo = g_comboCount
-    out.base = control_create_(name, GUI_COMBO, g_comboCount)
+    out.combo = len(g_combos)
+    out.base = control_create_(name, GUI_COMBO, out.combo)
 
     control_set_padding(out.base, g_padding)
-    g_combos[g_comboCount].id = out
+
+    var combo combo_s
+    combo.id = out
 
     var screen screen_id = screen_create(sprintf("combo_screen_%s", name))
-    g_combos[g_comboCount].screen = screen
+    combo.screen = screen
     control_set_skin(screen.base, g_popupSkin)
     control_set_bounds(screen.base, gfx.gfx_viewportBounds)
     screen_set_duration(screen, -2.0D)
@@ -5772,18 +5717,18 @@ func combo_create(name str) (out combo_id) {
      //       gui.window_add_button(window, "yes", "Yes", "main", "on_exit_app_window_yes_state")
 
 
-    g_combos[g_comboCount].window = window
+    combo.window = window
 
     var list list_id = list_create(sprintf("combo_list_%s", name))
     control_set_dock(list.base, DOCK_TOP)
     control_set_autosize(list.base, AUTOSIZE_Y)
     var listHeader control_id = g_lists[list.list].header
     g_controls[listHeader.control].visible = 0
-    g_combos[g_comboCount].list = list
+    combo.list = list
     window_set_containee(window, list.base)
 
     var expand label_id = label_create(sprintf("combo_expand_%s", name))
-    g_combos[g_comboCount].expand = expand
+    combo.expand = expand
     control_add_child(out.base, expand.base)
     control_set_autosize(expand.base, AUTOSIZE_X)
   //  control_set_size(expand.base, mat.v2_(32.0, 32.0))
@@ -5795,7 +5740,7 @@ func combo_create(name str) (out combo_id) {
     label_set_size(expand, g_fontSizeSmall)
 
     var picture label_id = label_create(sprintf("combo_picture_%s", name))
-    g_combos[g_comboCount].picture = picture
+    combo.picture = picture
     control_set_autosize(picture.base, AUTOSIZE_X)
 //    control_set_size(picture.base, mat.v2_(32.0, 32.0))
     control_set_dock(picture.base, DOCK_LEFT)
@@ -5803,13 +5748,13 @@ func combo_create(name str) (out combo_id) {
     label_set_font(picture, g_awesomeBoldFont)
 
     var label label_id = label_create(sprintf("combo_label_%s", name))
-    g_combos[g_comboCount].label = label
+    combo.label = label
     control_set_autosize(label.base, AUTOSIZE_X)
     control_set_dock(label.base, DOCK_LEFT)
     label_set_align(label, ALIGN_CENTER)
 
     var splitter splitter_id = splitter_create(sprintf("combo_splitter_%s", name))
-    g_combos[g_comboCount].splitter = splitter
+    combo.splitter = splitter
     control_add_child(out.base, splitter.base)
     control_set_dock(splitter.base, DOCK_RIGHT)
     control_set_autosize(splitter.base, AUTOSIZE_X)
@@ -5818,7 +5763,7 @@ func combo_create(name str) (out combo_id) {
     splitter_set_direction(splitter, SPLIT_LEFT)
     splitter_set_controls(splitter, picture.base, label.base)
 
-    g_comboCount = g_comboCount + 1
+    g_combos = append(g_combos, combo)
     uti.assert_(is_valid_combo(out), "create_combo : invalid id")
 }
 
@@ -5921,7 +5866,7 @@ func combo_render(id combo_id, clip mat.v4, stack i32) () {
 func init() () {
    // meshes
     var attributes []i32
-    attributes = []i32{3, 4, 2} // can't use slice yet
+    attributes = []i32{3, 4, 2}
     g_opaqueVertexColoredTriangles = gfx.create_mesh(gl.TRIANGLES, attributes, 10 * 2048 * 3)
     g_opaqueVertexColoredLines = gfx.create_mesh(gl.LINES, attributes, 20 * 2048 * 2)
     g_alphaVertexColoredTriangles = gfx.create_mesh(gl.TRIANGLES, attributes, 10 * 2048 * 3)
@@ -6237,7 +6182,7 @@ func control_process_event(id control_id, event *event_s) (out i32) {
         }
 
         var index i32 = id.control
-        var count i32 = g_controls[index].childCount
+        var count i32 = len(g_controls[index].children)
         for i := 0; i < count; i = i + 1 {
             var child control_id = g_controls[index].children[i]
             uti.assert_(is_valid_control(child), "control_process_event : invalid child control")
@@ -6301,18 +6246,18 @@ func control_process_event(id control_id, event *event_s) (out i32) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func hide_modal(id screen_id) {
-    printf("HIDE_MODAL %d\n", g_modalCount)
     uti.assert_(is_valid_screen(id), "hide_modal : invalid screen")
-    uti.assert_(g_modalCount > 0, "hide_modal : invalid count")
-    if (g_modalCount > 0) {
-        var modalIndex i32 = g_modalCount - 1
-        printf("MODAL_INDEX %d, COUNT %d\n", modalIndex, g_modalCount)
+    var modalCount i32 = len(g_modals)
+    uti.assert_(modalCount > 0, "hide_modal : invalid count")
+    if (modalCount > 0) {
+        var modalIndex i32 = modalCount - 1
+        printf("MODAL_INDEX %d, COUNT %d\n", modalIndex, modalCount)
         var modalScreen screen_id = g_modals[modalIndex]
         uti.assert_(modalScreen.screen == id.screen, "hide_modal : invalid screen")
         if (modalScreen.screen == id.screen) {
             printf("hide_screen\n")
             hide_screen(modalScreen)
-            g_modalCount = modalIndex
+            resize(g_modals, modalIndex)
             g_hotScreen = invalid_screen()
         }
     }
@@ -6323,68 +6268,63 @@ var g_hotScreen screen_id
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-var g_events [128]event_s // ##0 use slice
-var g_eventCount i32 = 0
+var g_events []event_s
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func process_cursor(window str, x f64, y f64) {
- //    printf("----------------------------------------------------------TOTO\n")
-   //  printf("FUCK\n")
-    var b bool // ##0 padding, something is messed up with callbacks
     var xx f32 = f64.f32(x)
     var yy f32 = gfx.gfx_height - f64.f32(y)
-    uti.assert_(g_eventCount < 128, "process_cursor : event overflow") // ##0 remove when using event
+
     //printf("cursor : %f, %f\n", xx, yy)
     g_cursorPos.x = xx
     g_cursorPos.y = yy
 
-    g_events[g_eventCount] = invalid_event()
-    g_events[g_eventCount].mouse.position = g_cursorPos
-    g_events[g_eventCount].mouse.action = MOUSE_MOVE
-    g_eventCount = g_eventCount + 1
+    var event event_s = invalid_event()
+    event.mouse.position = g_cursorPos
+    event.mouse.action = MOUSE_MOVE
+
+    g_events = append(g_events, event)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func process_button(window str, key i32, action i32, mods i32) {
-    var b bool // ##0 padding, something is messed up with callbacks
-    uti.assert_(g_eventCount < 128, "process_button : event overflow") // ##0 remove when using slice
     printf("button : %d, %d, %d\n", key, action, mods)
 
-    g_events[g_eventCount] = invalid_event()
-    g_events[g_eventCount].mouse.button = key
-    g_events[g_eventCount].mouse.action = action
-    g_events[g_eventCount].mouse.mods = mods
-    g_events[g_eventCount].mouse.position = g_cursorPos
-    g_eventCount = g_eventCount + 1
+    var event event_s = invalid_event()
+    event.mouse.button = key
+    event.mouse.action = action
+    event.mouse.mods = mods
+    event.mouse.position = g_cursorPos
+
+    g_events = append(g_events, event)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func process_keyboard(window str, key i32, scancode i32, action i32, mods i32) () {
-    var b bool // ##0 padding, something is messed up with callbacks
-    uti.assert_(g_eventCount < 128, "process_keyboard : event overflow") // ##0 remove when using slice
     printf("key pressed : %d, scancode %d, action %d, mods %d\n", key, scancode, action, mods)
 
-    g_events[g_eventCount] = invalid_event()
-    g_events[g_eventCount].keyboard.key = key
-    g_events[g_eventCount].keyboard.scancode = scancode
-    g_events[g_eventCount].keyboard.action = action
-    g_events[g_eventCount].keyboard.mods = mods
-    g_eventCount = g_eventCount + 1
+    var event event_s = invalid_event()
+    event.keyboard.key = key
+    event.keyboard.scancode = scancode
+    event.keyboard.action = action
+    event.keyboard.mods = mods
+
+    g_events = append(g_events, event)
 }
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func process_events() () {
-//    printf("EVENT COUNT %d\n", g_eventCount)
     var i i32 = 0
-    for i = 0; i < g_eventCount; i = i + 1 {
-        process_event(&g_events[i])
+    var eventCount i32 = len(g_events)
+    for i = 0; i < eventCount; i = i + 1 {
+        var event event_s = g_events[i]
+        process_event(&event)
     }
-    g_eventCount = 0
-//    printf("CLEAR EVENTS\n")
+    resize(g_events, 0)
 }
 
 //-----------------------------------------------------------------------------
@@ -6398,8 +6338,9 @@ func process_event(event *event_s) () {
     var buttonAction i32 = (*event).mouse.action
 
     var currentScreen screen_id = invalid_screen()
-    if (g_modalCount > 0) {
-        var modalIndex i32 = g_modalCount - 1
+    var modalCount i32 = len(g_modals)
+    if (modalCount > 0) {
+        var modalIndex i32 = modalCount - 1
         var modalScreen screen_id = g_modals[modalIndex]
         g_hotScreen = modalScreen
         currentScreen = modalScreen
@@ -6490,8 +6431,9 @@ func modal_is_visible(id screen_id) (out bool) {
     uti.assert_(is_valid_screen(id), "modal_is_visible : invalid id")
     var modal bool = g_screens[id.screen].modal
     if (modal == true) {
-        if (g_modalCount > 0) {
-            var lastIndex i32 = g_modalCount - 1
+        var modalCount i32 = len(g_modals)
+        if (modalCount > 0) {
+            var lastIndex i32 = modalCount - 1
             var left i32 = g_modals[lastIndex].screen
             var right i32 = id.screen
             //printf("left %d, right %d\n", left, right)
@@ -6512,8 +6454,8 @@ func show_screen(id screen_id) () {
 
     var modal bool = g_screens[id.screen].modal
     if (modal == true) {
-        g_modals[g_modalCount] = id
-        g_modalCount = g_modalCount + 1
+        var modalCount i32 = len(g_modals)
+        g_modals = append(g_modals, id)
     } else {
         g_nextScreen = id
         g_transitionTime = 0.0D
@@ -6542,7 +6484,8 @@ func resize() () {
     }
 
     var i i32 = 0
-    for i = 0; i < g_modalCount; i = i + 1 {
+    var modalCount i32 = len(g_modals)
+    for i = 0; i < modalCount; i = i + 1 {
         //control_print("before resize : ", g_modals[i].base, false)
         //printf("_-------------------------------------------------------------------------------->>>>\n")
         reset_scope()
@@ -6648,7 +6591,8 @@ func render() () {
 
     fps.begin_profile(g_profileRenderModals)
     var i i32 = 0
-    for i = 0; i < g_modalCount; i = i + 1 {
+    var modalCount i32 = len(g_modals)
+    for i = 0; i < modalCount; i = i + 1 {
         var target target_s = gfx.lock_target(app.app_width, app.app_height)
         gfx.bind_framebuffer(target.framebuffer)
         gfx.bind_depthbuffer(g_depthStencilBuffer)
