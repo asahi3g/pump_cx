@@ -5038,7 +5038,18 @@ func lifter_get_offset(id lifter_id) (out f32) {
 //-----------------------------------------------------------------------------
 func lifter_set_offset(id lifter_id, value f32) {
     uti.assert_(is_valid_lifter(id), "lifter_set_amount : invalid id")
-    g_lifters[id.lifter].offset = value
+
+    var offset f32 = value
+    var maxAmount f32 = lifter_get_max_amount(id)
+    var amount f32 = lifter_get_amount(id)
+    if (offset + amount > maxAmount) {
+        offset = maxAmount - amount
+    }
+    if (offset < 0.0) {
+        offset = 0.0
+    }
+
+    g_lifters[id.lifter].offset = offset
     /*var direction i32 = g_lifters[id.lifter].direction
     if (direction == LIFT_HORZ) {
         g_controls[carret.control].position.x = value
@@ -5079,15 +5090,6 @@ func lifter_resize(id lifter_id) () {
     }
 
     var offset f32 = lifter_get_offset(id)
-    var maxAmount f32 = lifter_get_max_amount(id)
-    var amount f32 = lifter_get_amount(id)
-
-    if (offset + amount > maxAmount) {
-        offset = maxAmount - amount
-    }
-    if (offset < 0.0) {
-        offset = 0.0
-    }
 
     if (direction == LIFT_HORZ) {
         g_controls[carret.control].position.x = offset
