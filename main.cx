@@ -79,15 +79,8 @@ var g_pauseScreen    gui.screen_id = gui.invalid_screen()
 //-----------------------------------------------------------------------------
 func on_buy_pcx(controlIndex i32, action i32) {
     if (action == gui.KEY_PRESS) {
-        printf("SHOW_BUY_PCX PRESS\n")
         gui.show_screen(g_buyPcxScreen)
-    } else if (action == gui.KEY_RELEASE) {
-        printf("SHOW_BUY_PCX RELEASE\n")
-        //gui.hide_modal(g_buyPcxScreen)
-    } else if (action == gui.KEY_REPEAT) {
-        printf("SHOW_BUY_PCX REPEAT\n")
-        //
-    } else {
+    } else if action != gui.KEY_RELEASE && action != gui.KEY_REPEAT {
         uti.assert_(false, "on_buy_pcx : invalid action")
     }
 }
@@ -96,15 +89,19 @@ func on_buy_pcx(controlIndex i32, action i32) {
 //-----------------------------------------------------------------------------
 func on_sell_pcx(controlIndex i32, action i32) {
     if (action == gui.KEY_PRESS) {
-        printf("SHOW_SELL_PCX PRESS\n")
         gui.show_screen(g_sellPcxScreen)
-    } else if (action == gui.KEY_RELEASE) {
-        printf("SHOW_SELL_PCX RELEASE\n")
-        //gui.hide_modal(g_sellPcxScreen)
-    } else if (action == gui.KEY_REPEAT) {
-        printf("SHOW_SELL_PCX REPEAT\n")
-    } else {
+    } else if action != gui.KEY_RELEASE && action != gui.KEY_REPEAT {
         uti.assert_(false, "on_sell_pcx : invalid action")
+    }
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func on_play_pcx(controlIndex i32, action i32) {
+    if action == gui.KEY_PRESS {
+        gui.show_screen(g_gameScreen)
+    } else if action != gui.KEY_RELEASE && action != gui.KEY_REPEAT {
+        uti.assert_(false, "on_play_pcx : invalid action")
     }
 }
 
@@ -392,8 +389,8 @@ func main() () {
         {
             var partition partition_id = gui.create_partition("partition")
             gui.control_add_child(g_gameScreen.base, partition.base)
-            gui.control_set_skin(partition.base, gui.g_blackSkin)
-            gui.control_set_size(partition.base, mat.v2_(0.0, 0.2))
+            gui.control_set_skin(partition.base, gui.g_debugRedSkin)
+            gui.control_set_size(partition.base, mat.v2_(0.0, 200.0))
             gui.control_set_dock(partition.base, gui.DOCK_TOP)
         }
 
@@ -401,8 +398,9 @@ func main() () {
             var keyboard keyboard_id = gui.create_keyboard("keyboard")
             gui.control_add_child(g_gameScreen.base, keyboard.base)
             gui.control_set_skin(keyboard.base, gui.g_blackSkin)
-            gui.control_set_size(keyboard.base, mat.v2_(0.0, 0.3))
             gui.control_set_align(keyboard.base, gui.ALIGN_HORZ_BOTTOM)
+            gui.control_set_autosize(keyboard.base, gui.AUTOSIZE)
+//            gui.control_set_size(keyboard.base, mat.v2_(400.0, 300.0))
         }
     }
 
@@ -621,7 +619,8 @@ func main() () {
                         gui.control_set_padding(playButton.base, mat.v4_(5.0, 5.0, 5.0, 5.0))
                         gui.control_set_autosize(playButton.base, gui.AUTOSIZE_Y)
                         gui.label_set_font(playButton, gui.g_boldFont)
-                        gui.label_set_text(playButton, "Play")
+                        gui.label_set_text(playButton, "Play PCX")
+                        gui.label_set_on_state(playButton, "main", "on_play_pcx")
                         gui.label_set_size(playButton, gui.g_fontSizeButton)
                         gui.label_set_color(playButton, gui.g_white)
                         gui.label_set_align(playButton, gui.ALIGN_CENTER)
