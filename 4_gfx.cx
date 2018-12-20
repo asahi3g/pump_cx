@@ -463,7 +463,7 @@ type mesh_id struct {
 //-----------------------------------------------------------------------------
 type mesh_s struct {
     id mesh_id
-    vertices [65536]f32 // ##0 use slice
+    vertices []f32
     attributes []i32
     primitive i32
     vao i32
@@ -501,7 +501,7 @@ func mesh_print(message str, id mesh_id) {
         g_meshes[index].vertexCount,
         g_meshes[index].dataSize,
         g_meshes[index].bufferSize,
-        g_meshes[index].index)
+        len(g_meshes[index].vertices))
 }
 
 //-----------------------------------------------------------------------------
@@ -519,7 +519,7 @@ func invalid_mesh() (out mesh_id) {
 func mesh_is_empty(id mesh_id) (out bool) {
     uti.assert_(is_valid_mesh(id), "mesh_is_empty : invalid id")
     var mesh i32 = id.mesh
-    var index i32 = g_meshes[mesh].index
+    var index i32 = len(g_meshes[mesh].vertices)
     out = index <= 0
 }
 
@@ -569,7 +569,6 @@ func create_mesh(primitive i32, Xattributes []i32, vertexCount i32) (out mesh_id
     mesh.vertexCount = 0
     mesh.dataSize = 0
     mesh.bufferSize = 0
-    mesh.index = 0;
 
     // stride
     var i i32 = 0
@@ -613,8 +612,7 @@ func create_mesh(primitive i32, Xattributes []i32, vertexCount i32) (out mesh_id
     uti.assert_(no_glerror(), "gl.BindBuffer")
 
     printf("bufferSize %d\n", bufferSize)
-    //var null *i32 = 0
-    var null []f32 // ##0 dubious
+    var null []f32
     gl.BufferData(gl.ARRAY_BUFFER, bufferSize, null, gl.DYNAMIC_DRAW)
     uti.assert_(no_glerror(), "gl.BufferData")
 
@@ -641,8 +639,7 @@ func create_mesh(primitive i32, Xattributes []i32, vertexCount i32) (out mesh_id
 func begin_mesh(id mesh_id) () {
     uti.assert_(is_valid_mesh(id), "begin_mesh : invalid id")
     var mesh i32 = id.mesh
-    g_meshes[mesh].index = 0
-    //printf("BEGIN_MESH %d, %d\n", mesh, g_meshes[mesh].index)
+    resize(g_meshes[mesh].vertices, 0)
 }
 
 //-----------------------------------------------------------------------------
@@ -653,8 +650,8 @@ func end_mesh(id mesh_id) () {
     //mesh_print("end_mesh : ", id)
 
     var mesh i32 = id.mesh
-    if mesh_is_empty(id) == false {
-        var floatCount i32 = g_meshes[mesh].index
+    var floatCount i32 = len(g_meshes[mesh].vertices)
+    if floatCount > 0 {
         g_meshes[mesh].floatCount = floatCount //len(g_vertices)
         //printf("floatCount %d\n", g_meshes[mesh].floatCount)
 
@@ -703,9 +700,7 @@ func append_line(id mesh_id, line mat.v4, color mat.v4, clip mat.v4, depth f32) 
         var clipBottom f32 = clip.y
         var clipTop f32 = clip.y + clip.w
 
-        var index i32 = g_meshes[mesh].index
-        var size i32 = len(g_meshes[mesh].vertices)
-        uti.assert_((index + 9 * 2) < size, "append_line : overflow")
+        var index i32 = len(g_meshes[mesh].vertices)
 
         var x0 f32 = line.x
         var y0 f32 = line.y
@@ -753,27 +748,29 @@ func append_line(id mesh_id, line mat.v4, color mat.v4, clip mat.v4, depth f32) 
             x1 = 2.0 * x1 / gfx_width - 1.0
             y1 = 2.0 * y1 / gfx_height - 1.0
 
-            g_meshes[mesh].vertices[index +  0] = x0
-            g_meshes[mesh].vertices[index +  1] = y0
-            g_meshes[mesh].vertices[index +  2] = depth
-            g_meshes[mesh].vertices[index +  3] = r
-            g_meshes[mesh].vertices[index +  4] = g
-            g_meshes[mesh].vertices[index +  5] = b
-            g_meshes[mesh].vertices[index +  6] = a
-            g_meshes[mesh].vertices[index +  7] = 0.0
-            g_meshes[mesh].vertices[index +  8] = 0.0
+            var vertices []f32 = g_meshes[mesh].vertices
 
-            g_meshes[mesh].vertices[index +  9] = x1
-            g_meshes[mesh].vertices[index + 10] = y1
-            g_meshes[mesh].vertices[index + 11] = depth
-            g_meshes[mesh].vertices[index + 12] = r
-            g_meshes[mesh].vertices[index + 13] = g
-            g_meshes[mesh].vertices[index + 14] = b
-            g_meshes[mesh].vertices[index + 15] = a
-            g_meshes[mesh].vertices[index + 16] = 0.0
-            g_meshes[mesh].vertices[index + 17] = 0.0
+            vertices = append(vertices, x0)
+            vertices = append(vertices, y0)
+            vertices = append(vertices, depth)
+            vertices = append(vertices, r)
+            vertices = append(vertices, g)
+            vertices = append(vertices, b)
+            vertices = append(vertices, a)
+            vertices = append(vertices, 0.0)
+            vertices = append(vertices, 0.0)
 
-            g_meshes[mesh].index = index + 18
+            vertices = append(vertices, x1)
+            vertices = append(vertices, y1)
+            vertices = append(vertices, depth)
+            vertices = append(vertices, r)
+            vertices = append(vertices, g)
+            vertices = append(vertices, b)
+            vertices = append(vertices, a)
+            vertices = append(vertices, 0.0)
+            vertices = append(vertices, 0.0)
+
+            g_meshes[mesh].vertices = vertices
         }
     }
 }
@@ -805,9 +802,7 @@ func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4, clip mat.v4, 
         var clipTop f32 = clip.y + clip.w
 
         var mesh i32 = id.mesh
-        var index i32 = g_meshes[mesh].index
-        var size i32 = len(g_meshes[mesh].vertices)
-        uti.assert_((index + 9 * 6) < size, "append_quad : overflow")
+        var index i32 = len(g_meshes[mesh].vertices)
 
         var primitive i32 = g_meshes[mesh].primitive
         uti.assert_(primitive == gl.TRIANGLES, "(*mesh).primitive == gl.TRIANGLES")
@@ -864,67 +859,69 @@ func append_quad(id mesh_id, rect mat.v4, uv mat.v4, color mat.v4, clip mat.v4, 
             x1 = 2.0 * i32.f32(f32.i32(x1)) / gfx_width - 1.0
             y1 = 2.0 * i32.f32(f32.i32(y1)) / gfx_height - 1.0
 
-            g_meshes[mesh].vertices[index +  0] = x
-            g_meshes[mesh].vertices[index +  1] = y
-            g_meshes[mesh].vertices[index +  2] = depth
-            g_meshes[mesh].vertices[index +  3] = r
-            g_meshes[mesh].vertices[index +  4] = g
-            g_meshes[mesh].vertices[index +  5] = b
-            g_meshes[mesh].vertices[index +  6] = a
-            g_meshes[mesh].vertices[index +  7] = u0
-            g_meshes[mesh].vertices[index +  8] = v1
+            var vertices []f32 = g_meshes[mesh].vertices
 
-            g_meshes[mesh].vertices[index +  9] = x1
-            g_meshes[mesh].vertices[index + 10] = y
-            g_meshes[mesh].vertices[index + 11] = depth
-            g_meshes[mesh].vertices[index + 12] = r
-            g_meshes[mesh].vertices[index + 13] = g
-            g_meshes[mesh].vertices[index + 14] = b
-            g_meshes[mesh].vertices[index + 15] = a
-            g_meshes[mesh].vertices[index + 16] = u1
-            g_meshes[mesh].vertices[index + 17] = v1
+            vertices = append(vertices, x)
+            vertices = append(vertices, y)
+            vertices = append(vertices, depth)
+            vertices = append(vertices, r)
+            vertices = append(vertices, g)
+            vertices = append(vertices, b)
+            vertices = append(vertices, a)
+            vertices = append(vertices, u0)
+            vertices = append(vertices, v1)
 
-            g_meshes[mesh].vertices[index + 18] = x
-            g_meshes[mesh].vertices[index + 19] = y1
-            g_meshes[mesh].vertices[index + 20] = depth
-            g_meshes[mesh].vertices[index + 21] = r
-            g_meshes[mesh].vertices[index + 22] = g
-            g_meshes[mesh].vertices[index + 23] = b
-            g_meshes[mesh].vertices[index + 24] = a
-            g_meshes[mesh].vertices[index + 25] = u0
-            g_meshes[mesh].vertices[index + 26] = v0
+            vertices = append(vertices, x1)
+            vertices = append(vertices, y)
+            vertices = append(vertices, depth)
+            vertices = append(vertices, r)
+            vertices = append(vertices, g)
+            vertices = append(vertices, b)
+            vertices = append(vertices, a)
+            vertices = append(vertices, u1)
+            vertices = append(vertices, v1)
 
-            g_meshes[mesh].vertices[index + 27] = x
-            g_meshes[mesh].vertices[index + 28] = y1
-            g_meshes[mesh].vertices[index + 29] = depth
-            g_meshes[mesh].vertices[index + 30] = r
-            g_meshes[mesh].vertices[index + 31] = g
-            g_meshes[mesh].vertices[index + 32] = b
-            g_meshes[mesh].vertices[index + 33] = a
-            g_meshes[mesh].vertices[index + 34] = u0
-            g_meshes[mesh].vertices[index + 35] = v0
+            vertices = append(vertices, x)
+            vertices = append(vertices, y1)
+            vertices = append(vertices, depth)
+            vertices = append(vertices, r)
+            vertices = append(vertices, g)
+            vertices = append(vertices, b)
+            vertices = append(vertices, a)
+            vertices = append(vertices, u0)
+            vertices = append(vertices, v0)
 
-            g_meshes[mesh].vertices[index + 36] = x1
-            g_meshes[mesh].vertices[index + 37] = y
-            g_meshes[mesh].vertices[index + 38] = depth
-            g_meshes[mesh].vertices[index + 39] = r
-            g_meshes[mesh].vertices[index + 40] = g
-            g_meshes[mesh].vertices[index + 41] = b
-            g_meshes[mesh].vertices[index + 42] = a
-            g_meshes[mesh].vertices[index + 43] = u1
-            g_meshes[mesh].vertices[index + 44] = v1
+            vertices = append(vertices, x)
+            vertices = append(vertices, y1)
+            vertices = append(vertices, depth)
+            vertices = append(vertices, r)
+            vertices = append(vertices, g)
+            vertices = append(vertices, b)
+            vertices = append(vertices, a)
+            vertices = append(vertices, u0)
+            vertices = append(vertices, v0)
 
-            g_meshes[mesh].vertices[index + 45] = x1
-            g_meshes[mesh].vertices[index + 46] = y1
-            g_meshes[mesh].vertices[index + 47] = depth
-            g_meshes[mesh].vertices[index + 48] = r
-            g_meshes[mesh].vertices[index + 49] = g
-            g_meshes[mesh].vertices[index + 50] = b
-            g_meshes[mesh].vertices[index + 51] = a
-            g_meshes[mesh].vertices[index + 52] = u1
-            g_meshes[mesh].vertices[index + 53] = v0
+            vertices = append(vertices, x1)
+            vertices = append(vertices, y)
+            vertices = append(vertices, depth)
+            vertices = append(vertices, r)
+            vertices = append(vertices, g)
+            vertices = append(vertices, b)
+            vertices = append(vertices, a)
+            vertices = append(vertices, u1)
+            vertices = append(vertices, v1)
 
-            g_meshes[mesh].index = index + 54
+            vertices = append(vertices, x1)
+            vertices = append(vertices, y1)
+            vertices = append(vertices, depth)
+            vertices = append(vertices, r)
+            vertices = append(vertices, g)
+            vertices = append(vertices, b)
+            vertices = append(vertices, a)
+            vertices = append(vertices, u1)
+            vertices = append(vertices, v0)
+
+            g_meshes[mesh].vertices = vertices
         }
     }
 }
