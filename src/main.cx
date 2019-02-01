@@ -76,6 +76,15 @@ var g_exitAppScreen  gui.ScreenId = gui.InvalidScreen()
 var g_exitGameScreen gui.ScreenId = gui.InvalidScreen()
 var g_pauseScreen    gui.ScreenId = gui.InvalidScreen()
 
+var g_USTexture gfx.Texture
+var g_USAnim AnimationId
+
+var g_JPTexture gfx.Texture
+var g_JPAnim AnimationId
+
+var g_BRTexture gfx.Texture
+var g_BRAnim AnimationId
+
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func onBuyPcx(controlIndex i32, action i32) {
@@ -262,7 +271,21 @@ func main() () {
 	var screenBounds mat.v4 = gfx.gfx_viewportBounds
 	var screenSize mat.v2 = gfx.gfx_viewportSize
 
-	// exit app screen
+	g_USTexture = gfx.TextureCreate(sprintf("%s/textures/flags/us.png", o.dataDir), gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0, true)
+	g_JPTexture = gfx.TextureCreate(sprintf("%s/textures/flags/jp.png", o.dataDir), gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0, true)
+	g_BRTexture = gfx.TextureCreate(sprintf("%s/textures/flags/br.png", o.dataDir), gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0, true)
+
+	g_USAnim = gui.AnimationCreateFromTexture(g_USTexture)
+	g_JPAnim = gui.AnimationCreateFromTexture(g_JPTexture)
+	g_BRAnim = gui.AnimationCreateFromTexture(g_BRTexture)
+
+	//g_pumpcxTexture_0 = gfx.TextureCreate("textures/pumpcx_0.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
+	//g_pumpcxTexture_1 = gfx.TextureCreate("textures/pumpcx_1.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
+	//g_pumpcxAnim = AnimationCreate()
+	//AnimationAddFrame(g_pumpcxAnim, 10, 0, g_pumpcxTexture_0)
+	//AnimationAddFrame(g_pumpcxAnim, 10, 0, g_pumpcxTexture_1)
+
+// exit app screen
 	{
 		g_exitAppScreen = gui.ScreenCreate("exit_app")
 		gui.ControlSetSkin(g_exitAppScreen.base, gui.g_modalSkin)
@@ -382,7 +405,7 @@ func main() () {
 			gui.ControlSetAutoscale(picture.base, gui.AUTOSCALE_X)
 			gui.ControlSetAutosize(picture.base, gui.AUTOSIZE_Y)
 			gui.PictureSetAlign(picture, gui.ALIGN_CENTER)
-			gui.PictureSetAnimation(picture, gui.g_pumpcxAnim)
+			gui.PictureSetAnimation(picture, gui.g_synthAnim)
 		}
 	}
 
@@ -403,7 +426,7 @@ func main() () {
 			gui.ControlSetAlign(picture.base, gui.ALIGN_CENTER)
 			gui.ControlSetAutoscale(picture.base, gui.AUTOSCALE)
 			gui.PictureSetAlign(picture, gui.ALIGN_CENTER)
-			gui.PictureSetAnimation(picture, gui.g_dumpcxAnim)
+			gui.PictureSetAnimation(picture, gui.g_synthAnim)
 		}
 	}
 
@@ -446,7 +469,7 @@ func main() () {
 			gui.ControlSetAutosize(logo.base, gui.AUTOSIZE)
 			gui.LabelSetFont(logo, gui.g_boldFont)
 			gui.LabelSetColor(logo, gui.g_gold)
-			gui.LabelSetText(logo, "PUMPCX")
+			gui.LabelSetText(logo, "PUMPCX") // TODO fix text size
 			gui.LabelSetSize(logo, gui.g_fontSizeHeader)
 			gui.LabelSetAlign(logo, gui.ALIGN_CENTER)
 
@@ -483,17 +506,17 @@ func main() () {
 			gui.ListAddColumn(langList, "L", gui.g_white, columnSize, gui.g_buttonSkin)
 			{
 				var line gui.ControlId = gui.ListAddLine(langList, gui.InvalidSkin())
-				//gui.ListLineAddPicture(line, gui.ALIGN_CENTER, gui.g_USAnim)
+				gui.ListLineAddPicture(line, gui.ALIGN_CENTER, g_USAnim)
 				gui.ListLineAddLabel(line, "US", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.g_zeroSkin)
 			}
 			{
 				var line gui.ControlId = gui.ListAddLine(langList, gui.InvalidSkin())
-				//gui.ListLineAddPicture(line, gui.ALIGN_CENTER, gui.g_BRAnim)
+				gui.ListLineAddPicture(line, gui.ALIGN_CENTER, g_BRAnim)
 				gui.ListLineAddLabel(line, "BR", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.g_zeroSkin)
 			}
 			{
 				var line gui.ControlId = gui.ListAddLine(langList, gui.InvalidSkin())
-				//gui.ListLineAddPicture(line, gui.ALIGN_CENTER, gui.g_JPAnim)
+				gui.ListLineAddPicture(line, gui.ALIGN_CENTER, g_JPAnim)
 				gui.ListLineAddLabel(line, "JP", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.g_zeroSkin)
 			}
 
@@ -838,7 +861,7 @@ func main() () {
 			gui.ControlSetBounds(label.base, mat.v4_(0.0, gfx.gfx_height / 2.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
 			gui.ControlSetAutoscale(label.base, gui.AUTOSCALE)
 			gui.LabelSetFont(label, gui.g_boldFont)
-			gui.LabelSetText(label, "pumpcx")
+			gui.LabelSetText(label, "pumpcx") // TODO : fix text size
 			gui.LabelSetAlign(label, gui.ALIGN_CENTER)
 			gui.LabelSetColor(label, gui.g_green)
 			gui.LabelSetSize(label, gui.g_fontSizeTitle)
@@ -851,7 +874,7 @@ func main() () {
 			gui.ControlSetBounds(label.base, mat.v4_(gfx.gfx_width / 2.0, 0.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
 			gui.ControlSetAutoscale(label.base, gui.AUTOSCALE)
 			gui.LabelSetFont(label, gui.g_boldFont)
-			gui.LabelSetText(label, "pumpcx")
+			gui.LabelSetText(label, "pumpcx") // TODO : fix text size
 			gui.LabelSetAlign(label, gui.ALIGN_CENTER)
 			gui.LabelSetColor(label, gui.g_red)
 			gui.LabelSetSize(label, gui.g_fontSizeTitle)
