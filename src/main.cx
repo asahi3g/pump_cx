@@ -1,0 +1,943 @@
+//-----------------------------------------------------------------------------
+// pumpcx
+//-----------------------------------------------------------------------------
+package main
+
+import "app"
+import "fps"
+import "gfx"
+import "gl"
+import "gui"
+import "mat"
+import "snd"
+
+//-----------------------------------------------------------------------------
+// CX_BUGS
+//-----------------------------------------------------------------------------
+// implicit cast ui32 -> i32
+// printf %d ui32
+// pointers
+// assert doesn't stop program execution
+// multiline array init
+// inline array init
+// inline string init
+// if b {} else {} unexpected ELSE
+// for true { return false }
+// if glerror == 0 { break } unexpected RBRACE
+///	gui.g_skycoinTexture, -1, mat.v4_(0.0, 0.0, 1.16, 1.16), 0, gui.ALIGN_CENTER, 0).control) // ##issue_59 issue
+
+
+//-----------------------------------------------------------------------------
+// PUMPCX BUGS
+//-----------------------------------------------------------------------------
+// fix crash when deleting programs
+// fix lag at startup (shader creation ?)
+// flickering screen when on_exit during the boot sequence
+
+//-----------------------------------------------------------------------------
+// TODO
+//-----------------------------------------------------------------------------
+// release fonts
+// terminate glfw
+// random func : i32.rand(0,2)
+// skycoin fonts
+// rewrite screen creationg
+// effects
+// center window at creation
+// cli params (width, height, fullscreen, vsync)
+
+//-----------------------------------------------------------------------------
+// DONE
+//-----------------------------------------------------------------------------
+// split main.cx -> app.cx, fps.cx, gfx.cx, gui.cx
+// skycoin colors
+// gfx : state cache
+// remove gl from main
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+var g_exit bool // until Application var can be global
+
+//-----------------------------------------------------------------------------
+// main
+//-----------------------------------------------------------------------------
+// rewrite screen init
+var g_bootScreen     gui.ScreenId = gui.InvalidScreen()
+var g_debugScreen    gui.ScreenId = gui.InvalidScreen()
+var g_skycoinScreen  gui.ScreenId = gui.InvalidScreen()
+var g_pumpcxScreen   gui.ScreenId = gui.InvalidScreen()
+
+var g_mainScreen     gui.ScreenId = gui.InvalidScreen()
+var g_sellPcxScreen  gui.ScreenId = gui.InvalidScreen()
+var g_buyPcxScreen   gui.ScreenId = gui.InvalidScreen()
+
+var g_gameScreen     gui.ScreenId = gui.InvalidScreen()
+var g_exitAppScreen  gui.ScreenId = gui.InvalidScreen()
+var g_exitGameScreen gui.ScreenId = gui.InvalidScreen()
+var g_pauseScreen    gui.ScreenId = gui.InvalidScreen()
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func onBuyPcx(controlIndex i32, action i32) {
+	if (action == app.KEY_PRESS) {
+		gui.ScreenShow(g_buyPcxScreen)
+	} else if action != app.KEY_RELEASE && action != app.KEY_REPEAT {
+		panicIf(true, "invalid action")
+	}
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func onSellPcx(controlIndex i32, action i32) {
+	if (action == app.KEY_PRESS) {
+		gui.ScreenShow(g_sellPcxScreen)
+	} else if action != app.KEY_RELEASE && action != app.KEY_REPEAT {
+		panicIf(true, "invalid action")
+	}
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func onPlayPcx(controlIndex i32, action i32) {
+	if action == app.KEY_PRESS {
+		gui.ScreenShow(g_gameScreen)
+	} else if action != app.KEY_RELEASE && action != app.KEY_REPEAT {
+		panicIf(true, "invalid action")
+	}
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func onExitAppWindowNo(controlIndex i32, action i32) {
+	var b bool // ##0 padding, something is messed up with callbacks
+	var id gui.ControlId = gui.NewControlId(controlIndex)
+
+	// close dialog
+	if (action == app.KEY_PRESS) {
+		printf("NO PRESSED\n")
+	} else if (action == app.KEY_RELEASE) {
+		printf("NO RELEASED\n")
+		gui.ScreenHideModal(g_exitAppScreen)
+		printf("HERE\n")
+	} else if (action == app.KEY_REPEAT) {
+		printf("NO REPEAT\n")
+	} else {
+		panicIf(true, "invalid action")
+	}
+
+	printf("BACK\n")
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func onExitAppWindowYes(controlIndex i32, action i32) {
+	var b bool // ##0 padding, something is messed up with callbacks
+	var id gui.ControlId = gui.NewControlId(controlIndex)
+
+	// terminate
+	if (action == app.KEY_PRESS) {
+		printf("YES PRESSED\n")
+	} else if (action == app.KEY_RELEASE) {
+		printf("YES RELEASED\n")
+		gui.ScreenHideModal(g_exitAppScreen)
+		g_exit = true
+	} else if (action == app.KEY_REPEAT) {
+		printf("YES REPEAT\n")
+	} else {
+		panicIf(true, "invalid action")
+	}
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func addPercent(id ControlId, focusIndex i32) {
+	var line ControlId = gui.ControlCreate("label_text")
+	gui.ControlAddChild(id, line)
+	gui.ControlSetAutosize(line, gui.AUTOSIZE_Y)
+	gui.ControlSetPadding(line, mat.v4_(3.0, 3.0, 3.0, 3.0))
+	gui.ControlSetDock(line, gui.DOCK_BOTTOM)
+	gui.ControlSetFocusIndex(line, focusIndex)
+
+	var i i32 = 0
+	var labels [4]str
+	labels = [4]str{
+		"25%",
+		"50%",
+		"75%",
+		"100%" }
+
+	for i = 0; i < 4; i = i + 1 {
+		var textLabel LabelId = gui.LabelCreate(labels[i])
+		gui.ControlAddChild(line, textLabel.base)
+		gui.ControlSetSkin(textLabel.base, gui.g_textboxSkin)
+		gui.ControlSetDock(textLabel.base, gui.DOCK_LEFT)
+		gui.ControlSetAutosize(textLabel.base, gui.AUTOSIZE_Y)
+		gui.ControlSetPadding(textLabel.base, mat.v4_(3.0, 3.0, 3.0, 3.0))
+		gui.ControlSetSize(textLabel.base, mat.v2_(55.0, 0.0))
+		gui.ControlSetFocusable(textLabel.base, 1)
+		gui.LabelSetFont(textLabel, gui.g_boldFont)
+		gui.LabelSetText(textLabel, labels[i])
+		gui.LabelSetSize(textLabel, gui.g_fontSizeSmall)
+		gui.LabelSetColor(textLabel, gui.g_gray_4)
+		gui.LabelSetAlign(textLabel, gui.ALIGN_CENTER)
+	}
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func addLabelText(id ControlId, label str, text str, focusIndex i32) {
+	var line ControlId = gui.ControlCreate("label_text")
+	gui.ControlAddChild(id, line)
+	gui.ControlSetAutosize(line, gui.AUTOSIZE_Y)
+	gui.ControlSetPadding(line, mat.v4_(3.0, 3.0, 3.0, 3.0))
+	gui.ControlSetDock(line, gui.DOCK_BOTTOM)
+	gui.ControlSetFocusIndex(line, focusIndex)
+
+	var textLabel LabelId = gui.LabelCreate(sprintf("textbox_%s", label))
+	gui.ControlAddChild(line, textLabel.base)
+	gui.ControlSetSkin(textLabel.base, gui.g_textboxSkin)
+	gui.ControlSetDock(textLabel.base, gui.DOCK_RIGHT)
+	gui.ControlSetAutosize(textLabel.base, gui.AUTOSIZE_Y)
+	gui.ControlSetSize(textLabel.base, mat.v2_(100.0, 0.0))
+	gui.ControlSetFocusable(textLabel.base, 1)
+	gui.LabelSetFont(textLabel, gui.g_boldFont)
+	gui.LabelSetText(textLabel, text)
+	gui.LabelSetSize(textLabel, gui.g_fontSizeSmall)
+	gui.LabelSetColor(textLabel, gui.g_gray_4)
+	gui.LabelSetAlign(textLabel, gui.ALIGN_CENTER)
+
+	var captionLabel LabelId = gui.LabelCreate(sprintf("caption_%s", label))
+	gui.ControlAddChild(line, captionLabel.base)
+	gui.ControlSetDock(captionLabel.base, gui.DOCK_RIGHT)
+	gui.ControlSetAutosize(captionLabel.base, gui.AUTOSIZE)
+	gui.LabelSetFont(captionLabel, gui.g_boldFont)
+	gui.LabelSetText(captionLabel, label)
+	gui.LabelSetSize(captionLabel, gui.g_fontSizeSmall)
+	gui.LabelSetColor(captionLabel, gui.g_gray_4)
+	gui.LabelSetAlign(captionLabel, gui.ALIGN_CENTER)
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+func main() () {
+
+	var o app.Options
+	o.fps = 60
+	o.width = 1600
+	o.height = 1200
+	o.Parse()
+
+	var f fps.Framerate
+	f.Init(i32.f64(o.fps))
+
+	var profileSwap ProfileId = fps.CreateProfile("swap")
+	var profileFrame ProfileId = fps.CreateProfile("frame")
+	var profileUpdate ProfileId = fps.CreateProfile("update")
+	var profileGuiUpdate ProfileId = fps.CreateProfile("gui_update")
+	var profileGuiResize ProfileId = fps.CreateProfile("gui_resize")
+	var profileRender ProfileId = fps.CreateProfile("render")
+	var profileGuiRender ProfileId = fps.CreateProfile("gui_render")
+
+	gui.g_profileRenderCurrentScreen = fps.CreateProfile("gui_render_current_screen")
+	gui.g_profileRenderScreenControl = fps.CreateProfile("gui_render_screen_control")
+	gui.g_profileRenderOpaqueVertexColoredTriangles = fps.CreateProfile("gui_render_opaque_vertex_colored_triangles")
+	gui.g_profileRenderOpaqueTexturedTriangles = fps.CreateProfile("gui_render_opaque_textured_triangles")
+	gui.g_profileRenderOpaqueVertexColoredLines = fps.CreateProfile("gui_render_opaque_vertex_colored_lines")
+	gui.g_profileRenderAlphaVertexColoredTriangles = fps.CreateProfile("gui_render_alpha_vertex_colored_triangles")
+	gui.g_profileRenderAlphaTexturedTriangles = fps.CreateProfile("gui_render_alpha_textured_triangles")
+	gui.g_profileRenderNextScreen = fps.CreateProfile("gui_render_next_screen")
+	gui.g_profileRenderScreenEffect = fps.CreateProfile("gui_render_screen_effect")
+	gui.g_profileRenderModals = fps.CreateProfile("gui_render_modals")
+	gui.g_profileRenderDefaultFramebuffer = fps.CreateProfile("gui_render_default_framebuffer")
+	gui.g_profileControlRender = fps.CreateProfile("gui_control_render")
+	gui.g_profileControlRenderChild = fps.CreateProfile("gui_control_render_child")
+	gui.g_profileRenderControlFull = fps.CreateProfile("gui_render_control_full")
+
+	var a app.Application
+	a.Init(o, "pumpcx", "mainWindow", 2, 1)
+	gfx.Init(o.width, o.height, o.dataDir)
+	gui.Init(&a, o.width, o.height, o.dataDir)
+	snd.Init(64, 64)
+
+	var screenBounds mat.v4 = gfx.gfx_viewportBounds
+	var screenSize mat.v2 = gfx.gfx_viewportSize
+
+	// exit app screen
+	{
+		g_exitAppScreen = gui.ScreenCreate("exit_app")
+		gui.ControlSetSkin(g_exitAppScreen.base, gui.g_modalSkin)
+		gui.ControlSetBounds(g_exitAppScreen.base, screenBounds)
+		gui.ScreenSetDuration(g_exitAppScreen, -2.0D)
+		gui.ScreenSetModal(g_exitAppScreen, true)
+
+		{
+			var window gui.WindowId = gui.WindowCreate("exit_app_window") // ##pending window vs window at main scope
+			gui.ControlAddChild(g_exitAppScreen.base, window.base)
+			gui.ControlSetSkin(window.base, gui.g_windowSkin)
+			//gui.ControlSetPadding(window.base, mat.v4_(0.1, 0.1, 0.1, 0.1))
+			gui.ControlSetAutosize(window.base, gui.AUTOSIZE)
+			gui.ControlSetAlign(window.base, gui.ALIGN_CENTER)
+			gui.WindowSetCaption(window, "pumpcx")
+			gui.WindowAddButton(window, "no", "No", "main", "onExitAppWindowNo")
+			gui.WindowAddButton(window, "yes", "Yes", "main", "onExitAppWindowYes")
+
+			{
+				var text gui.LabelId = gui.LabelCreate("exit_app_label")
+				gui.WindowSetContainee(window, text.base)
+				//gui.ControlSetSkin(text.base, gui.g_primaryBlueSkin)
+				gui.ControlSetDock(text.base, gui.DOCK_FILL)
+				gui.ControlSetAutosize(text.base, gui.AUTOSIZE)
+				gui.LabelSetFont(text, gui.g_regularFont)
+				gui.LabelSetText(text, "Do you really want to dumpcx ?")
+				gui.LabelSetSize(text, gui.g_fontSizeText)
+				gui.LabelSetColor(text, gui.g_white)
+				gui.LabelSetAlign(text, gui.ALIGN_CENTER)
+			}
+		}
+	}
+
+	// exit game screen
+	{
+		g_exitGameScreen = gui.ScreenCreate("exit_game")
+		gui.ControlSetSkin(g_exitGameScreen.base, gui.g_modalSkin)
+		gui.ControlSetBounds(g_exitGameScreen.base, screenBounds)
+		gui.ScreenSetDuration(g_exitGameScreen, -2.0D)
+		gui.ScreenSetModal(g_exitGameScreen, true)
+
+		{
+			var window gui.WindowId = gui.WindowCreate("exit_game_window")
+			gui.ControlAddChild(g_exitGameScreen.base, window.base)
+			gui.ControlSetSkin(g_exitGameScreen.base, gui.g_windowSkin)
+			gui.ControlSetBounds(window.base, mat.v4_(-0.5, -0.5, 1.0, 1.0))
+			//gui.ControlSetAutosize(window.base, gui.AUTOSIZE)
+			gui.ControlSetAlign(window.base, gui.ALIGN_CENTER)
+			gui.WindowSetCaption(window, "pumpcx")
+		}
+	}
+
+	// pause screen
+	{
+		g_pauseScreen = gui.ScreenCreate("pause")
+		gui.ControlSetSkin(g_pauseScreen.base, gui.g_modalSkin)
+		gui.ControlSetBounds(g_pauseScreen.base, screenBounds)
+		gui.ScreenSetDuration(g_pauseScreen, -2.0D)
+		gui.ScreenSetModal(g_pauseScreen, true)
+
+		{
+			var window gui.WindowId = gui.WindowCreate("pause")
+			gui.ControlAddChild(g_pauseScreen.base, window.base)
+			gui.ControlSetSkin(g_pauseScreen.base, gui.g_windowSkin)
+			gui.ControlSetBounds(window.base, mat.v4_(-0.5, -0.5, 1.0, 1.0))
+			gui.ControlSetAutosize(window.base, gui.AUTOSIZE)
+			gui.ControlSetAlign(window.base, gui.ALIGN_CENTER)
+			gui.WindowSetCaption(window, "pumpcx")
+		}
+	}
+
+
+	// game screen
+	{
+		g_gameScreen = gui.ScreenCreate("game")
+		gui.ControlSetSkin(g_gameScreen.base, gui.g_blackSkin)
+		gui.ControlSetBounds(g_gameScreen.base, screenBounds)
+		gui.ControlSetPadding(g_gameScreen.base, mat.v4_(0.08, 0.08, 0.08, 0.08))
+		gui.ScreenSetDuration(g_gameScreen, -2.0D)
+		gui.ScreenSetOnEnter(g_gameScreen, g_pauseScreen)
+		gui.ScreenSetOnExit(g_gameScreen, g_exitGameScreen)
+		gui.ScreenSetOnMenu(g_gameScreen, g_pauseScreen)
+
+		{
+			var partition ControlId = gui.ControlCreate("partition")
+			gui.ControlAddChild(g_gameScreen.base, partition)
+			gui.ControlSetSkin(partition, gui.g_debugRedSkin)
+			gui.ControlSetSize(partition, mat.v2_(0.0, 200.0))
+			gui.ControlSetDock(partition, gui.DOCK_TOP)
+		}
+
+		{
+			var keyboard KeyboardId = gui.KeyboardCreate("keyboard")
+			gui.ControlAddChild(g_gameScreen.base, keyboard.base)
+			gui.ControlSetSkin(keyboard.base, gui.g_blackSkin)
+			gui.ControlSetAlign(keyboard.base, gui.ALIGN_HORZ_BOTTOM)
+			gui.ControlSetAutosize(keyboard.base, gui.AUTOSIZE)
+			//  gui.ControlSetSize(keyboard.base, mat.v2_(400.0, 300.0))
+		}
+	}
+
+	// buypcx screen
+	{
+		g_buyPcxScreen = gui.ScreenCreate("buypcx")
+		gui.ControlSetSkin(g_buyPcxScreen.base, gui.g_modalSkin)
+		gui.ControlSetBounds(g_buyPcxScreen.base, screenBounds)
+		gui.ScreenSetDuration(g_buyPcxScreen, -2.0D)
+		gui.ScreenSetModal(g_buyPcxScreen, true)
+		gui.ScreenSetFloating(g_buyPcxScreen, true)
+
+		{
+			var picture PictureId = gui.PictureCreate("pump")
+			gui.ControlAddChild(g_buyPcxScreen.base, picture.base)
+			gui.ControlSetSkin(picture.base, gui.g_goldBorderSkin)
+			gui.ControlSetBounds(picture.base, mat.v4_(0.0, 0.0, gfx.gfx_width / 4.0, gfx.gfx_height / 4.0))
+			gui.ControlSetAlign(picture.base, gui.ALIGN_CENTER)
+			gui.ControlSetAutoscale(picture.base, gui.AUTOSCALE_X)
+			gui.ControlSetAutosize(picture.base, gui.AUTOSIZE_Y)
+			gui.PictureSetAlign(picture, gui.ALIGN_CENTER)
+			gui.PictureSetAnimation(picture, gui.g_pumpcxAnim)
+		}
+	}
+
+	// sellpcx screen
+	{
+		g_sellPcxScreen = gui.ScreenCreate("sellpcx")
+		gui.ControlSetSkin(g_sellPcxScreen.base, gui.g_modalSkin)
+		gui.ControlSetBounds(g_sellPcxScreen.base, screenBounds)
+		gui.ScreenSetDuration(g_sellPcxScreen, -2.0D)
+		gui.ScreenSetModal(g_sellPcxScreen, true)
+		gui.ScreenSetFloating(g_sellPcxScreen, true)
+
+		{
+			var picture PictureId = gui.PictureCreate("dumpcx")
+			gui.ControlAddChild(g_sellPcxScreen.base, picture.base)
+			gui.ControlSetSkin(picture.base, gui.g_goldBorderSkin)
+			gui.ControlSetBounds(picture.base, mat.v4_(0.0, 0.0, gfx.gfx_width / 4.0, gfx.gfx_height / 4.0))
+			gui.ControlSetAlign(picture.base, gui.ALIGN_CENTER)
+			gui.ControlSetAutoscale(picture.base, gui.AUTOSCALE)
+			gui.PictureSetAlign(picture, gui.ALIGN_CENTER)
+			gui.PictureSetAnimation(picture, gui.g_dumpcxAnim)
+		}
+	}
+
+	var columnSize i32 = gui.g_fontSizeSmall
+	var itemSize i32 = gui.g_fontSizeSmall
+
+	// main screen
+	{
+		g_mainScreen = gui.ScreenCreate("main")
+		gui.ControlSetBounds(g_mainScreen.base, screenBounds)
+		gui.ControlSetPadding(g_mainScreen.base, gui.g_padding)
+		gui.ScreenSetDuration(g_mainScreen, -2.0D)
+		gui.ScreenSetOnNext(g_mainScreen, g_gameScreen)
+		gui.ScreenSetOnEnter(g_mainScreen, g_gameScreen)
+		gui.ScreenSetOnExit(g_mainScreen, g_exitAppScreen)
+		gui.ScreenSetOnMenu(g_mainScreen, g_pauseScreen)
+
+		{
+			var control ControlId = gui.ControlCreate("toolbar")
+			gui.ControlAddChild(g_mainScreen.base, control)
+			gui.ControlSetPadding(control, mat.v4_(5.0, 3.0, 10.0, 3.0))
+			gui.ControlSetSkin(control, gui.g_blackSkin)
+			gui.ControlSetAutosize(control, gui.AUTOSIZE_Y)
+			gui.ControlSetDock(control, gui.DOCK_TOP)
+
+			var icon LabelId = gui.LabelCreate("icon")
+			gui.ControlAddChild(control, icon.base)
+			gui.ControlSetDock(icon.base, gui.DOCK_LEFT)
+			gui.ControlSetPadding(icon.base, mat.v4_(10.0, 0.0, 0.0, 0.0))
+			gui.ControlSetAutosize(icon.base, gui.AUTOSIZE_X)
+			gui.LabelSetColor(icon, gui.g_gold)
+			gui.LabelSetRune(icon, 388)
+			gui.LabelSetSize(icon, gui.g_fontSizeHeader)
+			gui.LabelSetAlign(icon, gui.ALIGN_CENTER)
+
+			var logo LabelId = gui.LabelCreate("logo")
+			gui.ControlAddChild(control, logo.base)
+			gui.ControlSetDock(logo.base, gui.DOCK_LEFT)
+			gui.ControlSetPadding(logo.base, mat.v4_(0.0, 0.0, 0.0, 0.0))
+			gui.ControlSetAutosize(logo.base, gui.AUTOSIZE)
+			gui.LabelSetFont(logo, gui.g_boldFont)
+			gui.LabelSetColor(logo, gui.g_gold)
+			gui.LabelSetText(logo, "PUMPCX")
+			gui.LabelSetSize(logo, gui.g_fontSizeHeader)
+			gui.LabelSetAlign(logo, gui.ALIGN_CENTER)
+
+			var date LabelId = gui.LabelCreate("date")
+			gui.ControlAddChild(control, date.base)
+			gui.ControlSetDock(date.base, gui.DOCK_LEFT)
+			gui.ControlSetPadding(date.base, mat.v4_(5.0, 0.0, 20.0, 0.0))
+			gui.ControlSetAutosize(date.base, gui.AUTOSIZE_X)
+			gui.LabelSetFont(date, gui.g_regularFont)
+			gui.LabelSetColor(date, gui.g_gray_3)
+			gui.LabelSetText(date, "2018-11-02 12:08:42")
+			gui.LabelSetSize(date, gui.g_fontSizeSmall)
+			gui.LabelSetAlign(date, gui.ALIGN_CENTER)
+
+			var lang gui.ComboId = gui.ComboCreate("lang")
+			gui.ControlAddChild(control, lang.base)
+			gui.ControlSetDock(lang.base, gui.DOCK_RIGHT)
+			gui.ControlSetAutosize(lang.base, gui.AUTOSIZE_X)
+			gui.ControlSetFocusable(lang.base, 1)
+			gui.ControlSetFocusIndex(lang.base, 2)
+			gui.ControlSetSkin(lang.base, gui.g_zeroSkin)
+			var langLabel gui.LabelId = gui.ComboGetText(lang)
+			gui.LabelSetFont(langLabel, gui.g_regularFont)
+			gui.LabelSetColor(langLabel, gui.g_gray_4)
+			gui.LabelSetText(langLabel, "English")
+			gui.LabelSetSize(langLabel, gui.g_fontSizeSmall)
+			var langPic gui.LabelId = gui.ComboGetPic(lang)
+			//gui.LabelSetFont(langPic, gui.g_awesomeBoldFont)
+			gui.LabelSetColor(langPic, gui.g_white)
+			gui.LabelSetRune(langPic, 171)
+			gui.LabelSetSize(langPic, gui.g_fontSizeText)
+			var langList gui.ListId = gui.ComboGetList(lang)
+			gui.ListAddColumn(langList, "P", gui.g_white, columnSize, gui.g_buttonSkin)
+			gui.ListAddColumn(langList, "L", gui.g_white, columnSize, gui.g_buttonSkin)
+			{
+				var line gui.ControlId = gui.ListAddLine(langList, gui.InvalidSkin())
+				//gui.ListLineAddPicture(line, gui.ALIGN_CENTER, gui.g_USAnim)
+				gui.ListLineAddLabel(line, "US", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.g_zeroSkin)
+			}
+			{
+				var line gui.ControlId = gui.ListAddLine(langList, gui.InvalidSkin())
+				//gui.ListLineAddPicture(line, gui.ALIGN_CENTER, gui.g_BRAnim)
+				gui.ListLineAddLabel(line, "BR", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.g_zeroSkin)
+			}
+			{
+				var line gui.ControlId = gui.ListAddLine(langList, gui.InvalidSkin())
+				//gui.ListLineAddPicture(line, gui.ALIGN_CENTER, gui.g_JPAnim)
+				gui.ListLineAddLabel(line, "JP", gui.ALIGN_CENTER, gui.g_white, itemSize, gui.g_zeroSkin)
+			}
+
+
+			var user ComboId = gui.ComboCreate("user")
+			gui.ControlAddChild(control, user.base)
+			gui.ControlSetDock(user.base, gui.DOCK_RIGHT)
+			gui.ControlSetAutosize(user.base, gui.AUTOSIZE_X)
+			gui.ControlSetFocusable(user.base, 1)
+			gui.ControlSetFocusIndex(user.base, 1)
+			gui.ControlSetSkin(user.base, gui.g_zeroSkin)
+			var userLabel LabelId = gui.ComboGetText(user)
+			gui.LabelSetFont(userLabel, gui.g_regularFont)
+			gui.LabelSetColor(userLabel, gui.g_gray_3)
+			gui.LabelSetText(userLabel, "Asahi3g")
+			gui.LabelSetSize(userLabel, gui.g_fontSizeSmall)
+			var userPic gui.LabelId = gui.ComboGetPic(user)
+			//gui.LabelSetFont(userPic, gui.g_awesomeBoldFont)
+			gui.LabelSetColor(userPic, gui.g_white)
+			gui.LabelSetRune(userPic, 6)
+			gui.LabelSetSize(userPic, gui.g_fontSizeText)
+
+			var pair gui.ComboId = gui.ComboCreate("pair")
+			gui.ControlAddChild(control, pair.base)
+			gui.ControlSetDock(pair.base, gui.DOCK_RIGHT)
+			gui.ControlSetAutosize(pair.base, gui.AUTOSIZE_X)
+			gui.ControlSetFocusable(pair.base, 1)
+			gui.ControlSetFocusIndex(pair.base, 0)
+			gui.ControlSetSkin(pair.base, gui.g_zeroSkin)
+			var pairLabel gui.LabelId = gui.ComboGetText(pair)
+			gui.LabelSetFont(pairLabel, gui.g_boldFont)
+			gui.LabelSetColor(pairLabel, gui.g_gray_4)
+			gui.LabelSetText(pairLabel, "PCX / SYN")
+			gui.LabelSetSize(pairLabel, gui.g_fontSizeText)
+			var pairPic gui.LabelId = gui.ComboGetPic(pair)
+			//gui.LabelSetFont(pairPic, gui.g_awesomeBoldFont)
+			gui.LabelSetColor(pairPic, gui.g_white)
+			gui.LabelSetRune(pairPic, 282)
+			gui.LabelSetSize(pairPic, gui.g_fontSizeText)
+
+		}
+
+		{
+			var panel ControlId = gui.ControlCreate("panel")
+			gui.ControlAddChild(g_mainScreen.base, panel)
+			gui.ControlSetPadding(panel, mat.v4_(0.0, 0.0, 3.0, 0.0))
+			gui.ControlSetDock(panel, gui.DOCK_FILL)
+
+			{
+				var right SplitterId = gui.SplitterCreate("right")
+				gui.ControlAddChild(panel, right.base)
+				gui.ControlSetSize(right.base, mat.v2_(500.0, 0.0))
+				gui.ControlSetDock(right.base, gui.DOCK_RIGHT)
+				gui.ControlSetSpacing(right.base, gui.g_spacing_x)
+				gui.ControlSetFocusIndex(right.base, 1)
+				gui.SplitterSetDirection(right, gui.SPLIT_BOTTOM)
+
+
+				var rightBottom SplitterId = gui.SplitterCreate("rightBottom")
+				var rightTop SplitterId = gui.SplitterCreate("rightTop")
+				gui.SplitterSetControls(right, rightBottom.base, rightTop.base)
+				gui.ControlSetFocusIndex(rightTop.base, 0)
+				gui.ControlSetFocusIndex(rightBottom.base, 1)
+				{
+					gui.ControlSetSize(rightBottom.base, mat.v2_(0.0, 400.0))
+					gui.ControlSetDock(rightBottom.base, gui.DOCK_BOTTOM)
+					gui.ControlSetSpacing(rightBottom.base, gui.g_spacing_y)
+					gui.SplitterSetDirection(rightBottom, gui.SPLIT_BOTTOM)
+
+					{
+						var rightBottomPlayControl ControlId = gui.ControlCreate("rightBottomPlayCtrl")
+						gui.ControlSetDock(rightBottomPlayControl, gui.DOCK_BOTTOM)
+						gui.ControlSetAutosize(rightBottomPlayControl, gui.AUTOSIZE_Y)
+						gui.ControlSetPadding(rightBottomPlayControl, mat.v4_(10.0, 10.0, 10.0, 10.0))
+						gui.ControlSetSkin(rightBottomPlayControl, gui.g_blackSkin)
+
+
+						var playButton LabelId = gui.LabelCreate("playButton")
+						gui.ControlAddChild(rightBottomPlayControl, playButton.base)
+						gui.ControlSetSkin(playButton.base, gui.g_blueSkin)
+						gui.ControlSetDock(playButton.base, gui.DOCK_BOTTOM)
+						gui.ControlSetFocusable(playButton.base, 1)
+						gui.ControlSetPadding(playButton.base, mat.v4_(5.0, 5.0, 5.0, 5.0))
+						gui.ControlSetAutosize(playButton.base, gui.AUTOSIZE_Y)
+						gui.LabelSetFont(playButton, gui.g_boldFont)
+						gui.LabelSetText(playButton, "Play PCX")
+						gui.LabelSetOnState(playButton, "main", "onPlayPcx")
+						gui.LabelSetSize(playButton, gui.g_fontSizeButton)
+						gui.LabelSetColor(playButton, gui.g_white)
+						gui.LabelSetAlign(playButton, gui.ALIGN_CENTER)
+
+
+						//gui.ControlSetSize(rightBottomPlayControl, mat.v2_(0.0, 100.0))
+
+						var orderType BinderId = gui.BinderCreate("orderType")
+						gui.ControlSetDock(orderType.base, gui.DOCK_TOP)
+						{
+							var limitOrder SplitterId = gui.SplitterCreate("limitOrder")
+							gui.ControlSetDock(limitOrder.base, gui.DOCK_TOP)
+							gui.ControlSetSpacing(limitOrder.base, gui.g_spacing_x)
+							gui.SplitterSetDirection(limitOrder, gui.SPLIT_HORZ)
+
+							var bottomLeft ControlId = gui.ControlCreate("bottomLeft")
+							gui.ControlSetDock(bottomLeft, gui.DOCK_LEFT)
+							//gui.ControlSetSkin(bottomLeft, gui.g_debugGreenSkin)
+							gui.ControlSetPadding(bottomLeft, mat.v4_(10.0, 10.0, 5.0, 10.0))
+
+							var buyButton LabelId = gui.LabelCreate("buyButton")
+							gui.ControlAddChild(bottomLeft, buyButton.base)
+							gui.ControlSetSkin(buyButton.base, gui.g_greenSkin)
+							gui.ControlSetDock(buyButton.base, gui.DOCK_BOTTOM)
+							gui.ControlSetFocusable(buyButton.base, 1)
+							gui.ControlSetFocusIndex(buyButton.base, 4)
+							gui.ControlSetPadding(buyButton.base, mat.v4_(5.0, 5.0, 5.0, 5.0))
+							gui.ControlSetAutosize(buyButton.base, gui.AUTOSIZE_Y)
+							gui.LabelSetFont(buyButton, gui.g_boldFont)
+							gui.LabelSetText(buyButton, "Buy PCX")
+							gui.LabelSetOnState(buyButton, "main", "onBuyPcx")
+							gui.LabelSetSize(buyButton, gui.g_fontSizeButton)
+							gui.LabelSetColor(buyButton, gui.g_white)
+							gui.LabelSetAlign(buyButton, gui.ALIGN_CENTER)
+
+							addLabelText(bottomLeft , "Total:", "0.000", 3)
+							addPercent(bottomLeft, 2)
+							addLabelText(bottomLeft, "Amount:", "0.000", 1)
+							addLabelText(bottomLeft , "Price:", "0.000", 0)
+
+							//var padding ControlId = gui.ControlCreate("padding")
+							//gui.ControlAddChild(bottomLeft, padding)
+							//gui.ControlSetSize(padding, mat.v2_(0.0, 20.0))
+							//gui.ControlSetDock(padding, gui.DOCK_BOTTOM)
+							//gui.ControlSetSkin(padding, gui.g_debugRedSkin)
+
+							var bottomRight ControlId = gui.ControlCreate("bottomRight")
+							gui.ControlSetDock(bottomRight, gui.DOCK_RIGHT)
+							//gui.ControlSetSkin(bottomRight, gui.g_debugRedSkin)
+							gui.ControlSetPadding(bottomRight, mat.v4_(5.0, 10.0, 10.0, 10.0))
+
+							var sellButton LabelId = gui.LabelCreate("sellButton")
+							gui.ControlAddChild(bottomRight, sellButton.base)
+							gui.ControlSetSkin(sellButton.base, gui.g_redSkin)
+							gui.ControlSetDock(sellButton.base, gui.DOCK_BOTTOM)
+							gui.ControlSetFocusable(sellButton.base, 1)
+							gui.ControlSetFocusIndex(sellButton.base, 4)
+							gui.ControlSetPadding(sellButton.base, mat.v4_(5.0, 5.0, 5.0, 5.0))
+							gui.ControlSetAutosize(sellButton.base, gui.AUTOSIZE_Y)
+							gui.LabelSetFont(sellButton, gui.g_boldFont)
+							gui.LabelSetText(sellButton, "Sell PCX")
+							gui.LabelSetOnState(sellButton, "main", "onSellPcx")
+							gui.LabelSetSize(sellButton, gui.g_fontSizeButton)
+							gui.LabelSetColor(sellButton, gui.g_white)
+							gui.LabelSetAlign(sellButton, gui.ALIGN_CENTER)
+
+							addLabelText(bottomRight , "Total:", "0.000", 3)
+							addPercent(bottomRight, 2)
+							addLabelText(bottomRight, "Amount:", "0.000", 1)
+							addLabelText(bottomRight , "Price:", "0.000", 0)
+
+							gui.SplitterSetControls(limitOrder, bottomLeft, bottomRight)
+	
+							gui.BinderAddPage(orderType, "Limit", gui.g_white, gui.g_fontSizeSmall, limitOrder.base)
+						}
+
+						{
+							var marketOrder SplitterId = gui.SplitterCreate("marketOrder")
+							gui.ControlSetDock(marketOrder.base, gui.DOCK_TOP)
+							gui.ControlSetSpacing(marketOrder.base, gui.g_spacing_x)
+							gui.SplitterSetDirection(marketOrder, gui.SPLIT_HORZ)
+
+							var bottomLeft ControlId = gui.ControlCreate("bottomLeft")
+							gui.ControlSetDock(bottomLeft, gui.DOCK_LEFT)
+							//gui.ControlSetSkin(bottomLeft, gui.g_debugBlueSkin)
+
+							var bottomRight ControlId = gui.ControlCreate("bottomRight")
+							gui.ControlSetDock(bottomRight, gui.DOCK_RIGHT)
+							//gui.ControlSetSkin(bottomRight, gui.g_debugBlueSkin)
+
+							gui.SplitterSetControls(marketOrder, bottomLeft, bottomRight)
+	
+							gui.BinderAddPage(orderType, "Market", gui.g_white, gui.g_fontSizeSmall, marketOrder.base)
+						}
+
+						{
+							var stopLimitOrder SplitterId = gui.SplitterCreate("stopLimitOrder")
+							gui.ControlSetDock(stopLimitOrder.base, gui.DOCK_TOP)
+							gui.ControlSetSpacing(stopLimitOrder.base, gui.g_spacing_x)
+							gui.SplitterSetDirection(stopLimitOrder, gui.SPLIT_HORZ)
+
+							var bottomLeft ControlId = gui.ControlCreate("bottomLeft")
+							gui.ControlSetDock(bottomLeft, gui.DOCK_LEFT)
+							//gui.ControlSetSkin(bottomLeft, gui.g_debugGoldSkin)
+
+							var bottomRight ControlId = gui.ControlCreate("bottomRight")
+							gui.ControlSetDock(bottomRight, gui.DOCK_RIGHT)
+							//gui.ControlSetSkin(bottomRight, gui.g_debugGoldSkin)
+
+							gui.SplitterSetControls(stopLimitOrder, bottomLeft, bottomRight)
+	
+							gui.BinderAddPage(orderType, "Stop-Limit", gui.g_white, gui.g_fontSizeSmall, stopLimitOrder.base)
+						}
+					}
+
+					gui.SplitterSetControls(rightBottom, rightBottomPlayControl, orderType.base)
+					gui.ControlSetFocusIndex(orderType.base, 0)
+					gui.ControlSetFocusIndex(rightBottomPlayControl, 1)
+				}
+
+				{
+					var textColor mat.v4 = gui.g_gray_4
+					gui.ControlSetDock(rightTop.base, gui.DOCK_TOP)
+					gui.ControlSetSpacing(rightTop.base, gui.g_spacing)
+					//gui.ControlSetPadding(rightTop.base, mat.v4_(0.0, 0.0, 0.0, 0.0))
+					gui.SplitterSetDirection(rightTop, gui.SPLIT_HORZ)
+
+					{
+						var order gui.SplitterId = gui.SplitterCreate("order")
+						gui.ControlSetSpacing(order.base, gui.g_spacing)
+						//gui.ControlSetPadding(order.base, mat.v4_(0.0, 0.0, 0.0, 0.0))
+						gui.ControlSetDock(order.base, gui.DOCK_LEFT)
+						gui.SplitterSetDirection(order, gui.SPLIT_VERT)
+
+						{
+							var item i32 = 0
+
+							var sell gui.ListId = gui.ListCreate("sell")
+							gui.ControlSetSkin(sell.base, gui.g_blackSkin)
+							gui.ControlSetDock(sell.base, gui.DOCK_TOP)
+							gui.ListAddColumn(sell, "Price", gui.g_white, columnSize, gui.g_buttonSkin)
+							gui.ListAddColumn(sell, "Amount", gui.g_white, columnSize, gui.g_buttonSkin)
+							gui.ListAddColumn(sell, "Total", gui.g_white, columnSize, gui.g_buttonSkin)
+							for item = 0; item < 16; item = item + 1 {
+								var line gui.ControlId = gui.ListAddLine(sell, gui.g_lineSkin)
+								gui.ListLineAddLabel(line, "0.3", gui.ALIGN_RIGHT, gui.g_red, itemSize, gui.g_itemSkin)
+								gui.ListLineAddLabel(line, "0.4", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_itemSkin)
+								gui.ListLineAddLabel(line, "0.5", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_itemSkin)
+							}
+
+							var buy gui.ListId = gui.ListCreate("buy")
+							gui.ControlSetSkin(buy.base, gui.g_blackSkin)
+							gui.ControlSetDock(buy.base, gui.DOCK_BOTTOM)
+							gui.ListAddColumn(buy, "Price", gui.g_white, columnSize, gui.g_buttonSkin)
+							gui.ListAddColumn(buy, "Amount", gui.g_white, columnSize, gui.g_buttonSkin)
+							gui.ListAddColumn(buy, "Total", gui.g_white, columnSize, gui.g_buttonSkin)
+
+							for item = 0; item < 16; item = item + 1 {
+								var line gui.ControlId = gui.ListAddLine(buy, gui.g_lineSkin)
+								gui.ListLineAddLabel(line, "0.0", gui.ALIGN_RIGHT, gui.g_green, itemSize, gui.g_itemSkin)
+								gui.ListLineAddLabel(line, "0.1", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_itemSkin)
+								gui.ListLineAddLabel(line, "0.2", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_itemSkin)
+							}
+
+							gui.SplitterSetControls(order, sell.base, buy.base)
+						}
+
+						var done gui.ListId = gui.ListCreate("done")
+						{
+							gui.ControlSetSkin(done.base, gui.g_blackSkin)
+							gui.ControlSetDock(done.base, gui.DOCK_RIGHT)
+							gui.ListAddColumn(done, "Price", gui.g_white, columnSize, gui.g_buttonSkin)
+							gui.ListAddColumn(done, "Amount", gui.g_white, columnSize, gui.g_buttonSkin)
+							gui.ListAddColumn(done, "Total", gui.g_white, columnSize, gui.g_buttonSkin)
+
+							for item = 0; item < 40; item = item + 1 {
+								var line gui.ControlId = gui.ListAddLine(done, gui.g_lineSkin)
+
+								var color mat.v4 = gui.g_green
+								if ((item % 3) == 0 || (item % 5) == 0) {
+									color = gui.g_red
+								}
+								gui.ListLineAddLabel(line, "0.0", gui.ALIGN_RIGHT, color, itemSize, gui.g_itemSkin)
+								gui.ListLineAddLabel(line, "0.1", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_itemSkin)
+								gui.ListLineAddLabel(line, "0.2", gui.ALIGN_RIGHT, textColor, itemSize, gui.g_itemSkin)
+							}
+						}
+						gui.SplitterSetControls(rightTop, order.base, done.base)
+					}
+				}
+			}
+
+			{
+				var graph GraphId = gui.GraphCreate("graph")
+				gui.ControlAddChild(panel, graph.base)
+				gui.ControlSetPadding(graph.base, mat.v4_(0.0, 3.0, 0.0, 0.0))
+				gui.ControlSetSkin(graph.base, gui.g_blackSkin)
+				gui.ControlSetDock(graph.base, gui.DOCK_FILL)
+				gui.ControlSetFocusIndex(graph.base, 0)
+			}
+		}
+	}
+
+	// pumpcx screen
+	{
+		g_pumpcxScreen = gui.ScreenCreate("pumpcx")
+		gui.ControlSetSkin(g_pumpcxScreen.base, gui.g_blackSkin)
+		gui.ControlSetBounds(g_pumpcxScreen.base, screenBounds)
+		gui.ScreenSetDuration(g_pumpcxScreen, 2.0D)
+		gui.ScreenSetOnNext(g_pumpcxScreen, g_mainScreen)
+		{
+			var label LabelId = gui.LabelCreate("pumpcx")
+			gui.ControlAddChild(g_pumpcxScreen.base, label.base)
+			//gui.ControlSetSkin(label.base, gui.g_redSkin)
+			gui.ControlSetBounds(label.base, mat.v4_(0.0, 0.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
+			gui.ControlSetAutoscale(label.base, gui.AUTOSCALE)
+			gui.ControlSetAlign(label.base, gui.ALIGN_CENTER)
+			gui.LabelSetFont(label, gui.g_boldFont)
+			gui.LabelSetText(label, "pumpcx")
+			gui.LabelSetSize(label, gui.g_fontSizeTitle)
+			gui.LabelSetAlign(label, gui.ALIGN_CENTER)
+		}
+	}
+
+	// skycoin screen
+	{
+		g_skycoinScreen = gui.ScreenCreate("skycoin")
+		gui.ControlSetSkin(g_skycoinScreen.base, gui.g_blackSkin)
+		gui.ControlSetBounds(g_skycoinScreen.base, screenBounds)
+		gui.ScreenSetDuration(g_skycoinScreen, 2.0D)
+		gui.ScreenSetOnNext(g_skycoinScreen, g_pumpcxScreen)
+		{
+			var picture PictureId = gui.PictureCreate("skycoin")
+			gui.ControlAddChild(g_skycoinScreen.base, picture.base)
+			//gui.ControlSetSkin(picture.base, g_blackSkin) // panic if no skin g_redSkin)
+			gui.ControlSetBounds(picture.base, mat.v4_(0.0, 0.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
+			gui.ControlSetAlign(picture.base, gui.ALIGN_CENTER)
+			gui.ControlSetAutoscale(picture.base, gui.AUTOSCALE)
+			gui.PictureSetAlign(picture, gui.ALIGN_CENTER)
+			gui.PictureSetAnimation(picture, gui.g_skycoinAnim)
+		}
+	}
+
+	// debug screen
+	{
+		g_debugScreen = gui.ScreenCreate("debug")
+		gui.ControlSetSkin(g_debugScreen.base, gui.g_blackSkin)
+		gui.ControlSetBounds(g_debugScreen.base, screenBounds)
+		gui.ScreenSetDuration(g_debugScreen, 2.0D)
+		gui.ScreenSetOnNext(g_debugScreen, g_skycoinScreen)
+		{
+			var label LabelId = gui.LabelCreate("pumpcx_top_left")
+			gui.ControlAddChild(g_debugScreen.base, label.base)
+			gui.ControlSetSkin(label.base, gui.g_redSkin)
+			gui.ControlSetBounds(label.base, mat.v4_(0.0, gfx.gfx_height / 2.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
+			gui.ControlSetAutoscale(label.base, gui.AUTOSCALE)
+			gui.LabelSetFont(label, gui.g_boldFont)
+			gui.LabelSetText(label, "pumpcx")
+			gui.LabelSetAlign(label, gui.ALIGN_CENTER)
+			gui.LabelSetColor(label, gui.g_green)
+			gui.LabelSetSize(label, gui.g_fontSizeTitle)
+		}
+
+		{
+			var label LabelId = gui.LabelCreate("pumpcx_bottom_right")
+			gui.ControlAddChild(g_debugScreen.base, label.base)
+			gui.ControlSetSkin(label.base, gui.g_greenSkin)
+			gui.ControlSetBounds(label.base, mat.v4_(gfx.gfx_width / 2.0, 0.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
+			gui.ControlSetAutoscale(label.base, gui.AUTOSCALE)
+			gui.LabelSetFont(label, gui.g_boldFont)
+			gui.LabelSetText(label, "pumpcx")
+			gui.LabelSetAlign(label, gui.ALIGN_CENTER)
+			gui.LabelSetColor(label, gui.g_red)
+			gui.LabelSetSize(label, gui.g_fontSizeTitle)
+		}
+
+		{
+			var picture PictureId = gui.PictureCreate("skycoin_0")
+			gui.ControlAddChild(g_debugScreen.base, picture.base)
+			gui.ControlSetBounds(picture.base, mat.v4_(0.0, 0.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
+			gui.ControlSetAutoscale(picture.base, gui.AUTOSCALE)
+			gui.PictureSetAnimation(picture, gui.g_skycoinAnim)
+			gui.PictureSetAlign(picture, gui.ALIGN_CENTER)
+		}
+
+		{
+			var picture PictureId = gui.PictureCreate("skycoin_1")
+			gui.ControlAddChild(g_debugScreen.base, picture.base)
+			gui.ControlSetBounds(picture.base, mat.v4_(gfx.gfx_width / 2.0, gfx.gfx_height / 2.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
+			gui.ControlSetAutoscale(picture.base, gui.AUTOSCALE)
+			gui.PictureSetAnimation(picture, gui.g_skycoinAnim)
+			gui.PictureSetAlign(picture, gui.ALIGN_CENTER)
+		}
+
+		{
+			var control ControlId = gui.ControlCreate("alpha")
+			gui.ControlAddChild(g_debugScreen.base, control)
+			gui.ControlSetSkin(control, gui.g_hoverSkin)
+			gui.ControlSetBounds(control, mat.v4_(gfx.gfx_width / 4.0, gfx.gfx_height / 4.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
+		}
+	}
+
+	// boot screen
+	{
+		g_bootScreen = gui.ScreenCreate("boot")
+		gui.ControlSetSkin(g_bootScreen.base, gui.g_blackSkin)
+		gui.ControlSetSize(g_bootScreen.base, screenSize)
+		gui.ScreenSetDuration(g_bootScreen, 2.0D)
+		gui.ScreenSetOnNext(g_bootScreen, g_debugScreen)
+	}
+
+	gui.ScreenShow(g_bootScreen)
+	//gui.ScreenShow(g_skycoinScreen)
+	//gui.ScreenShow(g_mainScreen)
+
+	// main loop
+	for app.Running(&a) {
+
+		// swap
+		f.BeginUpdate(2.0D)
+		fps.StartProfile(profileSwap)
+		{
+			// frame
+			fps.StartProfile(profileFrame)
+			a.BeginFrame()
+
+			{
+				// update
+				fps.StartProfile(profileUpdate)
+				if g_exit {
+					a.Exit()
+				}
+				fps.StartProfile(profileGuiUpdate)
+				gui.Update(fps.DeltaTime(&f))
+				fps.StopProfile(profileGuiUpdate)
+				fps.StartProfile(profileGuiResize)
+				gui.Resize()
+				fps.StopProfile(profileGuiResize)
+				fps.StopProfile(profileUpdate)
+			}
+			{
+				// render
+				fps.StartProfile(profileRender)
+				fps.StartProfile(profileGuiRender)
+				gui.Render()
+				fps.StopProfile(profileGuiRender)
+				fps.StopProfile(profileRender)
+			}
+
+			a.EndFrame()
+			fps.StopProfile(profileFrame)
+		}
+		fps.StopProfile(profileSwap)
+		f.EndUpdate()
+	}
+
+	gfx.Free()
+
+	printf("dumpcx\n")
+}
