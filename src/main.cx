@@ -26,7 +26,6 @@ import "snd"
 // if glerror == 0 { break } unexpected RBRACE
 ///	gui.g_skycoinTexture, -1, mat.v4_(0.0, 0.0, 1.16, 1.16), 0, gui.ALIGN_CENTER, 0).control) // ##issue_59 issue
 
-
 //-----------------------------------------------------------------------------
 // PUMPCX BUGS
 //-----------------------------------------------------------------------------
@@ -39,20 +38,7 @@ import "snd"
 //-----------------------------------------------------------------------------
 // release fonts
 // terminate glfw
-// random func : i32.rand(0,2)
-// skycoin fonts
-// rewrite screen creationg
-// effects
 // center window at creation
-// cli params (width, height, fullscreen, vsync)
-
-//-----------------------------------------------------------------------------
-// DONE
-//-----------------------------------------------------------------------------
-// split main.cx -> app.cx, fps.cx, gfx.cx, gui.cx
-// skycoin colors
-// gfx : state cache
-// remove gl from main
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
@@ -469,7 +455,7 @@ func main() () {
 			gui.ControlSetAutosize(logo.base, gui.AUTOSIZE)
 			gui.LabelSetFont(logo, gui.g_boldFont)
 			gui.LabelSetColor(logo, gui.g_gold)
-			gui.LabelSetText(logo, "PUMPCX") // TODO fix text size
+			gui.LabelSetText(logo, "PUMPCX")
 			gui.LabelSetSize(logo, gui.g_fontSizeHeader)
 			gui.LabelSetAlign(logo, gui.ALIGN_CENTER)
 
@@ -861,7 +847,7 @@ func main() () {
 			gui.ControlSetBounds(label.base, mat.v4_(0.0, gfx.gfx_height / 2.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
 			gui.ControlSetAutoscale(label.base, gui.AUTOSCALE)
 			gui.LabelSetFont(label, gui.g_boldFont)
-			gui.LabelSetText(label, "pumpcx") // TODO : fix text size
+			gui.LabelSetText(label, "Debug")
 			gui.LabelSetAlign(label, gui.ALIGN_CENTER)
 			gui.LabelSetColor(label, gui.g_green)
 			gui.LabelSetSize(label, gui.g_fontSizeTitle)
@@ -874,7 +860,7 @@ func main() () {
 			gui.ControlSetBounds(label.base, mat.v4_(gfx.gfx_width / 2.0, 0.0, gfx.gfx_width / 2.0, gfx.gfx_height / 2.0))
 			gui.ControlSetAutoscale(label.base, gui.AUTOSCALE)
 			gui.LabelSetFont(label, gui.g_boldFont)
-			gui.LabelSetText(label, "pumpcx") // TODO : fix text size
+			gui.LabelSetText(label, "Debug")
 			gui.LabelSetAlign(label, gui.ALIGN_CENTER)
 			gui.LabelSetColor(label, gui.g_red)
 			gui.LabelSetSize(label, gui.g_fontSizeTitle)
@@ -917,6 +903,7 @@ func main() () {
 
 	gui.ScreenShow(g_bootScreen)
 	//gui.ScreenShow(g_skycoinScreen)
+	//gui.ScreenShow(g_pumpcxScreen)
 	//gui.ScreenShow(g_mainScreen)
 
 	// main loop
