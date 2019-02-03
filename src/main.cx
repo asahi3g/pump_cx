@@ -5,8 +5,8 @@ package main
 
 import "app"
 import "fps"
+import "gam"
 import "gfx"
-import "gl"
 import "gui"
 import "mat"
 import "snd"
@@ -39,10 +39,6 @@ import "snd"
 // release fonts
 // terminate glfw
 // center window at creation
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-var g_exit bool // until Application var can be global
 
 //-----------------------------------------------------------------------------
 // main
@@ -104,7 +100,6 @@ func onPlayPcx(controlIndex i32, action i32) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func onExitAppWindowNo(controlIndex i32, action i32) {
-	var b bool // ##0 padding, something is messed up with callbacks
 	var id gui.ControlId = gui.NewControlId(controlIndex)
 
 	// close dialog
@@ -126,7 +121,6 @@ func onExitAppWindowNo(controlIndex i32, action i32) {
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
 func onExitAppWindowYes(controlIndex i32, action i32) {
-	var b bool // ##0 padding, something is messed up with callbacks
 	var id gui.ControlId = gui.NewControlId(controlIndex)
 
 	// terminate
@@ -135,7 +129,7 @@ func onExitAppWindowYes(controlIndex i32, action i32) {
 	} else if (action == app.KEY_RELEASE) {
 		printf("YES RELEASED\n")
 		gui.ScreenHideModal(g_exitAppScreen)
-		g_exit = true
+		app.Exit()
 	} else if (action == app.KEY_REPEAT) {
 		printf("YES REPEAT\n")
 	} else {
@@ -216,23 +210,6 @@ func addLabelText(id ControlId, label str, text str, focusIndex i32) {
 //-----------------------------------------------------------------------------
 func main() () {
 
-	var o app.Options
-	o.fps = 60
-	o.width = 1600
-	o.height = 1200
-	o.Parse()
-
-	var f fps.Framerate
-	f.Init(i32.f64(o.fps))
-
-	var profileSwap ProfileId = fps.CreateProfile("swap")
-	var profileFrame ProfileId = fps.CreateProfile("frame")
-	var profileUpdate ProfileId = fps.CreateProfile("update")
-	var profileGuiUpdate ProfileId = fps.CreateProfile("gui_update")
-	var profileGuiResize ProfileId = fps.CreateProfile("gui_resize")
-	var profileRender ProfileId = fps.CreateProfile("render")
-	var profileGuiRender ProfileId = fps.CreateProfile("gui_render")
-
 	gui.g_profileRenderCurrentScreen = fps.CreateProfile("gui_render_current_screen")
 	gui.g_profileRenderScreenControl = fps.CreateProfile("gui_render_screen_control")
 	gui.g_profileRenderOpaqueVertexColoredTriangles = fps.CreateProfile("gui_render_opaque_vertex_colored_triangles")
@@ -248,30 +225,26 @@ func main() () {
 	gui.g_profileControlRenderChild = fps.CreateProfile("gui_control_render_child")
 	gui.g_profileRenderControlFull = fps.CreateProfile("gui_render_control_full")
 
-	var a app.Application
-	a.Init(o, "pumpcx", "mainWindow", 2, 1)
-	gfx.Init(o.width, o.height, o.dataDir)
-	gui.Init(&a, o.width, o.height, o.dataDir)
-	snd.Init(64, 64)
+	gam.Init("pumpcx", 1600, 1200, 60, "")
 
 	var screenBounds mat.v4 = gfx.gfx_viewportBounds
 	var screenSize mat.v2 = gfx.gfx_viewportSize
 
-	g_USTexture = gfx.TextureCreate(sprintf("%s/textures/flags/us.png", o.dataDir), gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0, true)
-	g_JPTexture = gfx.TextureCreate(sprintf("%s/textures/flags/jp.png", o.dataDir), gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0, true)
-	g_BRTexture = gfx.TextureCreate(sprintf("%s/textures/flags/br.png", o.dataDir), gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0, true)
+	g_USTexture = gfx.TextureCreate(sprintf("%s/textures/flags/us.png", app.DataDir()), gfx.LINEAR, gfx.LINEAR, gfx.CLAMP_TO_EDGE, gfx.CLAMP_TO_EDGE, gfx.CLAMP_TO_EDGE, 0, 0, true)
+	g_JPTexture = gfx.TextureCreate(sprintf("%s/textures/flags/jp.png", app.DataDir()), gfx.LINEAR, gfx.LINEAR, gfx.CLAMP_TO_EDGE, gfx.CLAMP_TO_EDGE, gfx.CLAMP_TO_EDGE, 0, 0, true)
+	g_BRTexture = gfx.TextureCreate(sprintf("%s/textures/flags/br.png", app.DataDir()), gfx.LINEAR, gfx.LINEAR, gfx.CLAMP_TO_EDGE, gfx.CLAMP_TO_EDGE, gfx.CLAMP_TO_EDGE, 0, 0, true)
 
 	g_USAnim = gui.AnimationCreateFromTexture(g_USTexture)
 	g_JPAnim = gui.AnimationCreateFromTexture(g_JPTexture)
 	g_BRAnim = gui.AnimationCreateFromTexture(g_BRTexture)
 
-	//g_pumpcxTexture_0 = gfx.TextureCreate("textures/pumpcx_0.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
-	//g_pumpcxTexture_1 = gfx.TextureCreate("textures/pumpcx_1.png", gl.LINEAR, gl.LINEAR, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, gl.CLAMP_TO_EDGE, 0, 0)
+	//g_pumpcxTexture_0 = gfx.TextureCreate("textures/pumpcx_0.png", gfx.LINEAR, gfx.LINEAR, gfx.CLAMP_TO_EDGE, gfx.CLAMP_TO_EDGE, gfx.CLAMP_TO_EDGE, 0, 0)
+	//g_pumpcxTexture_1 = gfx.TextureCreate("textures/pumpcx_1.png", gfx.LINEAR, gfx.LINEAR, gfx.CLAMP_TO_EDGE, gfx.CLAMP_TO_EDGE, gfx.CLAMP_TO_EDGE, 0, 0)
 	//g_pumpcxAnim = AnimationCreate()
 	//AnimationAddFrame(g_pumpcxAnim, 10, 0, g_pumpcxTexture_0)
 	//AnimationAddFrame(g_pumpcxAnim, 10, 0, g_pumpcxTexture_1)
 
-// exit app screen
+	// exit app screen
 	{
 		g_exitAppScreen = gui.ScreenCreate("exit_app")
 		gui.ControlSetSkin(g_exitAppScreen.base, gui.g_modalSkin)
@@ -343,36 +316,6 @@ func main() () {
 		}
 	}
 
-
-	// game screen
-	{
-		g_gameScreen = gui.ScreenCreate("game")
-		gui.ControlSetSkin(g_gameScreen.base, gui.g_blackSkin)
-		gui.ControlSetBounds(g_gameScreen.base, screenBounds)
-		gui.ControlSetPadding(g_gameScreen.base, mat.v4_(0.08, 0.08, 0.08, 0.08))
-		gui.ScreenSetDuration(g_gameScreen, -2.0D)
-		gui.ScreenSetOnEnter(g_gameScreen, g_pauseScreen)
-		gui.ScreenSetOnExit(g_gameScreen, g_exitGameScreen)
-		gui.ScreenSetOnMenu(g_gameScreen, g_pauseScreen)
-
-		{
-			var partition ControlId = gui.ControlCreate("partition")
-			gui.ControlAddChild(g_gameScreen.base, partition)
-			gui.ControlSetSkin(partition, gui.g_debugRedSkin)
-			gui.ControlSetSize(partition, mat.v2_(0.0, 200.0))
-			gui.ControlSetDock(partition, gui.DOCK_TOP)
-		}
-
-		{
-			var keyboard KeyboardId = gui.KeyboardCreate("keyboard")
-			gui.ControlAddChild(g_gameScreen.base, keyboard.base)
-			gui.ControlSetSkin(keyboard.base, gui.g_blackSkin)
-			gui.ControlSetAlign(keyboard.base, gui.ALIGN_HORZ_BOTTOM)
-			gui.ControlSetAutosize(keyboard.base, gui.AUTOSIZE)
-			//  gui.ControlSetSize(keyboard.base, mat.v2_(400.0, 300.0))
-		}
-	}
-
 	// buypcx screen
 	{
 		g_buyPcxScreen = gui.ScreenCreate("buypcx")
@@ -425,8 +368,8 @@ func main() () {
 		gui.ControlSetBounds(g_mainScreen.base, screenBounds)
 		gui.ControlSetPadding(g_mainScreen.base, gui.g_padding)
 		gui.ScreenSetDuration(g_mainScreen, -2.0D)
-		gui.ScreenSetOnNext(g_mainScreen, g_gameScreen)
-		gui.ScreenSetOnEnter(g_mainScreen, g_gameScreen)
+		//gui.ScreenSetOnNext(g_mainScreen, g_gameScreen)
+		//gui.ScreenSetOnEnter(g_mainScreen, g_gameScreen)
 		gui.ScreenSetOnExit(g_mainScreen, g_exitAppScreen)
 		gui.ScreenSetOnMenu(g_mainScreen, g_pauseScreen)
 
@@ -662,7 +605,7 @@ func main() () {
 							addLabelText(bottomRight , "Price:", "0.000", 0)
 
 							gui.SplitterSetControls(limitOrder, bottomLeft, bottomRight)
-	
+
 							gui.BinderAddPage(orderType, "Limit", gui.g_white, gui.g_fontSizeSmall, limitOrder.base)
 						}
 
@@ -681,7 +624,7 @@ func main() () {
 							//gui.ControlSetSkin(bottomRight, gui.g_debugBlueSkin)
 
 							gui.SplitterSetControls(marketOrder, bottomLeft, bottomRight)
-	
+
 							gui.BinderAddPage(orderType, "Market", gui.g_white, gui.g_fontSizeSmall, marketOrder.base)
 						}
 
@@ -700,7 +643,7 @@ func main() () {
 							//gui.ControlSetSkin(bottomRight, gui.g_debugGoldSkin)
 
 							gui.SplitterSetControls(stopLimitOrder, bottomLeft, bottomRight)
-	
+
 							gui.BinderAddPage(orderType, "Stop-Limit", gui.g_white, gui.g_fontSizeSmall, stopLimitOrder.base)
 						}
 					}
@@ -790,6 +733,35 @@ func main() () {
 				gui.ControlSetDock(graph.base, gui.DOCK_FILL)
 				gui.ControlSetFocusIndex(graph.base, 0)
 			}
+		}
+	}
+
+	// game screen
+	{
+		g_gameScreen = gui.ScreenCreate("game")
+		gui.ControlSetSkin(g_gameScreen.base, gui.g_blackSkin)
+		gui.ControlSetBounds(g_gameScreen.base, screenBounds)
+		gui.ControlSetPadding(g_gameScreen.base, mat.v4_(0.08, 0.08, 0.08, 0.08))
+		gui.ScreenSetDuration(g_gameScreen, -2.0D)
+		gui.ScreenSetOnEnter(g_gameScreen, g_pauseScreen)
+		gui.ScreenSetOnExit(g_gameScreen, g_mainScreen)
+		gui.ScreenSetOnMenu(g_gameScreen, g_pauseScreen)
+
+		{
+			var partition ControlId = gui.ControlCreate("partition")
+			gui.ControlAddChild(g_gameScreen.base, partition)
+			gui.ControlSetSkin(partition, gui.g_debugRedSkin)
+			gui.ControlSetSize(partition, mat.v2_(0.0, 200.0))
+			gui.ControlSetDock(partition, gui.DOCK_TOP)
+		}
+
+		{
+			var keyboard KeyboardId = gui.KeyboardCreate("keyboard")
+			gui.ControlAddChild(g_gameScreen.base, keyboard.base)
+			gui.ControlSetSkin(keyboard.base, gui.g_blackSkin)
+			gui.ControlSetAlign(keyboard.base, gui.ALIGN_HORZ_BOTTOM)
+			gui.ControlSetAutosize(keyboard.base, gui.AUTOSIZE)
+			//  gui.ControlSetSize(keyboard.base, mat.v2_(400.0, 300.0))
 		}
 	}
 
@@ -901,53 +873,15 @@ func main() () {
 		gui.ScreenSetOnNext(g_bootScreen, g_debugScreen)
 	}
 
+	// run
 	gui.ScreenShow(g_bootScreen)
 	//gui.ScreenShow(g_skycoinScreen)
 	//gui.ScreenShow(g_pumpcxScreen)
 	//gui.ScreenShow(g_mainScreen)
+	gam.Run()
 
-	// main loop
-	for app.Running(&a) {
-
-		// swap
-		f.BeginUpdate(2.0D)
-		fps.StartProfile(profileSwap)
-		{
-			// frame
-			fps.StartProfile(profileFrame)
-			a.BeginFrame()
-
-			{
-				// update
-				fps.StartProfile(profileUpdate)
-				if g_exit {
-					a.Exit()
-				}
-				fps.StartProfile(profileGuiUpdate)
-				gui.Update(fps.DeltaTime(&f))
-				fps.StopProfile(profileGuiUpdate)
-				fps.StartProfile(profileGuiResize)
-				gui.Resize()
-				fps.StopProfile(profileGuiResize)
-				fps.StopProfile(profileUpdate)
-			}
-			{
-				// render
-				fps.StartProfile(profileRender)
-				fps.StartProfile(profileGuiRender)
-				gui.Render()
-				fps.StopProfile(profileGuiRender)
-				fps.StopProfile(profileRender)
-			}
-
-			a.EndFrame()
-			fps.StopProfile(profileFrame)
-		}
-		fps.StopProfile(profileSwap)
-		f.EndUpdate()
-	}
-
-	gfx.Free()
+	// destroy
+	gam.Destroy()
 
 	printf("dumpcx\n")
 }

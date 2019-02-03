@@ -43,5 +43,6 @@ pumpcx:
 		${CXFX}/snd/audio.cx\
 		${CXFX}/snd/voice.cx\
 		${CXFX}/gam/camera.cx\
+		${CXFX}/gam/game.cx\
 		src/main.cx ++data=resources ++fps=0
 
